@@ -1,6 +1,6 @@
 # Conversation log: Campus Pickup UI design (30 Sep – 7 Oct 2026)
 
-A written record of the design sessions: what was asked, what was built, the decisions and why. The full raw transcript is kept privately, outside the repo.
+A written record of the design sessions: what was asked, what was built, the decisions and why. The full raw transcript is in `chat-transcript-2026-10-07.zip` next to this file.
 
 ## Session 1: first UI design (30 Sep)
 
@@ -56,7 +56,7 @@ A written record of the design sessions: what was asked, what was built, the dec
 **What happened:**
 - Saved to `~/dev/campus-pickup` (local git) with a handoff README, the prototype, the research, the plan and the transcript export.
 - Pushed to `abdurrehman-haroon/join_me` as maliawan0 on branch `design/floodlight-prototype`, as PR #1 into `main`. Files are under `design/`.
-- The raw transcript is kept out because the repo is public and the transcript contains private tool configuration.
+- The raw transcript was first kept out because the repo is public. At the user's request it was added after a scan found no tokens or keys.
 
 ## Open questions / next steps
 1. Which screens to refine before building.
