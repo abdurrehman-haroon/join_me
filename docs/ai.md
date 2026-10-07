@@ -4,4 +4,6 @@
 2. Work on a feature branch. Keep API changes aligned with `openapi.yaml`.
 3. Finish: run `make check`. If project state changed, replace stale facts in `docs/handoff.md`; update `docs/plan.md` only if the plan changed. Commit those updates with the code.
 
+Never push to GitHub without asking the user first and receiving explicit approval for that specific push. Do not infer approval from earlier pushes or broad access.
+
 Keep these files short and factual. Never commit secrets or chat transcripts.
