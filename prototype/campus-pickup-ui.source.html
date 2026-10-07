@@ -1,0 +1,1553 @@
+<title>Campus Pickup Floodlight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#EDF0EA; --surface:#FFFFFF; --text:#16211B; --muted:#56645B; --rule:#D3DAD1;
+  --accent:#C92C28; --turf:#1D5B3A;
+  --display:"Big Shoulders Display","Arial Narrow","Helvetica Neue",sans-serif;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#0F1D16; --surface:#16271E; --text:#E7ECE5; --muted:#9DAEA2; --rule:#27392F; --accent:#FF5A4F; --turf:#6FC08D; color-scheme:dark; }
+}
+:root[data-theme="dark"]{ --bg:#0F1D16; --surface:#16271E; --text:#E7ECE5; --muted:#9DAEA2; --rule:#27392F; --accent:#FF5A4F; --turf:#6FC08D; color-scheme:dark; }
+
+html,body{background:var(--bg);}
+[hidden]{display:none!important;}
+body{color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.55;}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:40px 64px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:clamp(32px,5vw,72px);align-items:start;}
+.notes{max-width:560px;display:flex;flex-direction:column;gap:36px;}
+.stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);display:flex;flex-direction:column;align-items:center;gap:12px;}
+.stage-hint{font-size:13px;color:var(--muted);text-align:center;max-width:390px;}
+@media (max-width:980px){ .wrap{grid-template-columns:1fr;} .stage{position:static;order:-1;} .notes{max-width:none;} }
+
+h1{font-family:var(--display);font-weight:800;font-size:clamp(48px,7vw,76px);line-height:.9;margin:0;letter-spacing:-.01em;text-wrap:balance;}
+.lead{font-size:18px;line-height:1.5;margin:14px 0 0;max-width:34em;}
+h2{font-family:var(--display);font-weight:700;font-size:28px;line-height:1;margin:0 0 12px;text-wrap:balance;}
+p{margin:0;}
+.notes section{display:flex;flex-direction:column;gap:10px;}
+.muted{color:var(--muted);}
+
+.screens{display:flex;flex-wrap:wrap;gap:8px;}
+.screens button{font:600 14px/1 var(--sans);color:var(--text);background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:10px 14px;cursor:pointer;}
+.screens button:hover{border-color:var(--text);}
+.screens button:focus-visible,.stage button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+.principles{display:flex;flex-direction:column;gap:18px;margin:0;padding:0;list-style:none;}
+.principles li{display:grid;grid-template-columns:14px 1fr;gap:12px;}
+.principles li::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--accent);margin-top:7px;}
+.principles b{display:block;font-weight:650;}
+
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+.sw{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:8px;}
+.sw i{width:38px;height:38px;border-radius:8px;flex:none;border:1px solid rgba(0,0,0,.08);}
+.sw span{font-size:13px;line-height:1.3;}
+.sw small{display:block;color:var(--muted);font-variant-numeric:tabular-nums;}
+
+.typespec{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;}
+.typespec .d{font-family:var(--display);font-weight:800;font-size:56px;line-height:.85;}
+.typespec .d span{color:var(--accent);}
+
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:14px;background:var(--surface);}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:460px;}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top;}
+tr:last-child td{border-bottom:0;}
+th{font-weight:600;color:var(--muted);font-size:13px;}
+td:first-child{font-weight:600;white-space:nowrap;}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
+
+.ntabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-top:-12px;}
+.ntabs button{font:600 14px/1 var(--sans);color:var(--muted);background:none;border:0;border-radius:10px;padding:10px 12px;cursor:pointer;}
+.ntabs button[aria-selected="true"]{background:var(--text);color:var(--bg);}
+.ntabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.npanel{display:flex;flex-direction:column;gap:36px;}
+.shots{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px;}
+.shots li{padding-left:16px;border-left:2px solid var(--rule);}
+.shots b{font-weight:650;}
+.notes a{color:var(--turf);text-underline-offset:3px;}
+.tbl td:first-child{white-space:normal;min-width:120px;}
+.tbl td:last-child{color:var(--muted);font-size:13px;}
+/* ---------- phone ---------- */
+.phone{width:min(390px,100%);aspect-ratio:390/844;max-width:100%;border-radius:58px;padding:11px;background:#1E2320;box-shadow:0 0 0 1px #3A413C inset,0 30px 60px -20px rgba(10,30,20,.45);}
+@media (max-width:480px){ .phone{padding:6px;border-radius:40px;} .phone .screen{border-radius:34px;} }
+
+.screen{
+  --ink:#15201B; --chalk:#F4F5F0; --chalk2:#E5E9E2; --tape:#E3342F; --turf:#1D5B3A; --flood:#FFE3A0; --mut:#5B6960; --line:rgba(21,32,27,.12);
+  position:relative;width:100%;height:100%;overflow:hidden;border-radius:47px;background:#1A2540;
+  font-family:var(--sans);color:var(--ink);font-size:15px;line-height:1.35;-webkit-user-select:none;user-select:none;isolation:isolate;
+}
+.screen button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;}
+#map:active{cursor:grabbing;}
+#labels{position:absolute;inset:0;pointer-events:none;}
+.pl{position:absolute;left:0;top:0;pointer-events:auto;border:0;background:var(--chalk);color:var(--ink);border-radius:12px;padding:6px 10px 7px;box-shadow:0 8px 18px -6px rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:flex-start;gap:1px;transition:opacity .25s, background .2s;white-space:nowrap;will-change:transform;}
+.pl::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:inherit;transform:translateX(-50%) rotate(45deg);border-radius:2px;}
+.pl b{font-family:var(--display);font-weight:800;font-size:22px;line-height:.9;color:var(--tape);}
+.pl small{font-size:11px;font-weight:600;color:var(--mut);}
+.pl.full b{color:var(--mut);}
+.pl.sel{background:var(--ink);} .pl.sel small{color:#C6D0C8;} .pl.sel b{color:#FF6A62;}
+.pl.hide{opacity:0;pointer-events:none;}
+
+.status{position:absolute;top:0;left:0;right:0;height:50px;display:flex;justify-content:space-between;align-items:center;padding:4px 30px 0 34px;color:#fff;font-weight:600;font-size:16px;z-index:40;pointer-events:none;transition:color .3s;}
+.status.dark{color:var(--ink);}
+.status .icons{display:flex;gap:6px;align-items:center;}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:34px;border-radius:20px;background:#000;z-index:41;}
+
+.top{position:absolute;top:58px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:center;z-index:5;}
+.campus{display:flex;align-items:center;gap:8px;background:var(--chalk);border:0;border-radius:999px;padding:7px 12px 7px 8px;font-weight:700;font-size:15px;color:var(--ink);box-shadow:0 6px 16px -8px rgba(0,0,0,.5);}
+.campus .ok{width:22px;height:22px;border-radius:50%;background:var(--turf);display:grid;place-items:center;}
+.campus small{font-weight:500;color:var(--mut);font-size:13px;}
+.me{width:40px;height:40px;border-radius:50%;background:var(--ink);color:var(--chalk);border:2px solid var(--chalk);font-weight:700;font-size:14px;}
+
+.seg{position:absolute;top:108px;left:14px;display:flex;background:var(--chalk);border-radius:12px;padding:3px;z-index:5;box-shadow:0 6px 16px -8px rgba(0,0,0,.5);}
+.seg button{border:0;background:transparent;padding:7px 12px;border-radius:9px;font-weight:600;font-size:13px;color:var(--mut);}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--chalk);}
+.recenter{position:absolute;top:108px;right:14px;width:40px;height:40px;border-radius:12px;background:var(--chalk);border:0;display:grid;place-items:center;z-index:5;box-shadow:0 6px 16px -8px rgba(0,0,0,.5);}
+
+.timecard{position:absolute;left:12px;right:12px;bottom:96px;background:var(--chalk);border-radius:22px;padding:14px 16px 12px;z-index:5;box-shadow:0 14px 30px -12px rgba(0,0,0,.55);}
+.tc-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
+.tc-row small{display:block;font-size:12px;color:var(--mut);font-weight:600;}
+.tc-time{font-family:var(--display);font-weight:800;font-size:34px;line-height:.9;font-variant-numeric:tabular-nums;}
+.tc-count{font-weight:600;font-size:14px;text-align:right;}
+.tc-count b{font-family:var(--display);font-size:24px;font-weight:800;margin-right:3px;}
+.range{position:relative;margin-top:12px;height:34px;}
+.range input{position:absolute;inset:0;width:100%;margin:0;opacity:0;cursor:pointer;z-index:2;}
+.range .track{position:absolute;left:0;right:0;top:10px;height:6px;border-radius:3px;background:linear-gradient(90deg,#E9B07B,#6E5A7A 45%,#1A2540);}
+.range .knob{position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid var(--ink);transform:translateX(-50%);box-shadow:0 2px 6px rgba(0,0,0,.3);pointer-events:none;}
+.range .ticks{position:absolute;left:0;right:0;top:21px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut);font-weight:600;font-variant-numeric:tabular-nums;}
+.range input:focus-visible ~ .knob{outline:2px solid var(--tape);outline-offset:2px;}
+.fab{position:absolute;right:14px;bottom:220px;z-index:6;background:var(--tape);color:#fff;border:0;border-radius:999px;height:50px;padding:0 18px 0 14px;display:flex;align-items:center;gap:8px;font-weight:650;font-size:16px;box-shadow:0 12px 24px -8px rgba(227,52,47,.7);}
+.fab:active{transform:scale(.96);}
+
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,15,25,0) 0%,rgba(10,15,25,.25) 100%);opacity:0;pointer-events:none;transition:opacity .35s;z-index:19;}
+.scrim.on{opacity:1;pointer-events:auto;}
+
+.sheet{position:absolute;left:0;right:0;bottom:0;height:78%;background:var(--chalk);border-radius:30px 30px 0 0;z-index:20;transform:translateY(106%);transition:transform .5s cubic-bezier(.2,.9,.22,1);display:flex;flex-direction:column;box-shadow:0 -20px 40px -20px rgba(0,0,0,.5);}
+.sheet.open{transform:translateY(0);}
+.sheet.drag{transition:none;}
+#createSheet{height:62%;}
+.grab{flex:none;padding:9px 0 4px;display:flex;justify-content:center;touch-action:none;cursor:grab;}
+.grab i{width:38px;height:5px;border-radius:3px;background:#C5CCC4;}
+.sbody{overflow-y:auto;overscroll-behavior:contain;padding:4px 20px 34px;flex:1;display:flex;flex-direction:column;gap:18px;}
+.sbody::-webkit-scrollbar{display:none;}
+.sbody > *{flex-shrink:0;}
+
+.g-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.g-sport{display:flex;align-items:center;gap:8px;font-weight:600;color:var(--mut);font-size:14px;}
+.g-ground{font-family:var(--display);font-weight:800;font-size:32px;line-height:.95;margin-top:4px;}
+.iconbtn{width:36px;height:36px;border-radius:50%;border:0;background:var(--chalk2);display:grid;place-items:center;flex:none;}
+.spots{display:flex;align-items:flex-end;gap:12px;}
+.numwrap{position:relative;height:96px;overflow:hidden;display:flex;align-items:flex-end;}
+.num{font-family:var(--display);font-weight:900;font-size:120px;line-height:.8;color:var(--tape);font-variant-numeric:tabular-nums;display:block;}
+.num.full{color:var(--mut);font-size:96px;}
+.num.out{position:absolute;left:0;bottom:0;animation:rollOut .45s cubic-bezier(.5,0,.3,1) forwards;}
+.num.in{animation:rollIn .5s cubic-bezier(.2,.9,.25,1.15);}
+@keyframes rollOut{to{transform:translateY(80%);opacity:0;}}
+@keyframes rollIn{from{transform:translateY(-90%);opacity:0;}}
+.spots-lab{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;padding-bottom:6px;}
+.spots-lab small{display:block;font-family:var(--sans);font-size:14px;font-weight:500;color:var(--mut);margin-top:4px;}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.facts div{background:var(--chalk2);border-radius:14px;padding:10px 11px;}
+.facts small{display:block;font-size:11.5px;color:var(--mut);font-weight:600;}
+.facts b{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums;}
+.formation{border-radius:20px;overflow:hidden;background:#2F7A45;position:relative;}
+.formation svg{display:block;width:100%;height:auto;}
+.formation .cap{position:absolute;left:12px;top:10px;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.85);}
+.slot-pulse{animation:pulse 1.2s ease-out 2;transform-box:fill-box;transform-origin:center;}
+@keyframes pulse{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
+.actions{display:flex;gap:10px;}
+.btn{height:54px;border-radius:16px;border:0;font-weight:650;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;transition:transform .12s, background .2s;}
+.btn:active{transform:scale(.97);}
+.btn.primary{background:var(--tape);color:#fff;flex:1;}
+.btn.primary.in{background:var(--turf);}
+.btn.primary:disabled{background:#B9C1BA;cursor:not-allowed;}
+.btn.ghost{background:var(--chalk2);color:var(--ink);}
+.btn .badge{background:var(--ink);color:var(--chalk);border-radius:999px;font-size:12px;padding:2px 7px;}
+.leave{align-self:center;border:0;background:none;color:var(--mut);font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:3px;margin-top:-8px;}
+.roster h3{font-size:15px;margin:0 0 6px;font-weight:650;}
+.roster ul{list-style:none;margin:0;padding:0;}
+.roster li{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid var(--line);}
+.roster li:last-child{border-bottom:0;}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12.5px;flex:none;}
+.roster .who{flex:1;font-weight:600;font-size:15px;}
+.roster .who small{display:block;color:var(--mut);font-weight:500;font-size:12.5px;}
+.tag{font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--chalk2);color:var(--mut);}
+.tag.you{background:var(--tape);color:#fff;}
+.menu{position:absolute;right:20px;top:62px;background:#fff;border-radius:16px;box-shadow:0 18px 40px -10px rgba(0,0,0,.35);width:236px;padding:6px;z-index:3;display:flex;flex-direction:column;}
+.menu p{font-size:12.5px;color:var(--mut);padding:8px 10px 4px;}
+.menu button{border:0;background:none;text-align:left;padding:10px;border-radius:10px;font-size:15px;color:var(--ink);}
+.menu button:hover{background:var(--chalk2);}
+
+.c-title{font-family:var(--display);font-weight:800;font-size:32px;line-height:1;}
+.field > small{display:block;font-size:13px;font-weight:650;color:var(--mut);margin-bottom:8px;}
+.sports{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sports button{border:2px solid transparent;background:var(--chalk2);border-radius:18px;padding:14px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-weight:650;font-size:16px;color:var(--ink);text-align:left;}
+.sports button small{font-weight:500;color:var(--mut);font-size:12.5px;}
+.sports button[aria-pressed="true"]{border-color:var(--ink);background:#fff;}
+.sports svg{transition:transform .5s cubic-bezier(.2,.9,.25,1.3);}
+.sports button[aria-pressed="true"] svg{transform:rotate(-25deg) scale(1.08);}
+.opts{display:flex;flex-direction:column;background:var(--chalk2);border-radius:16px;overflow:hidden;}
+.opts button{border:0;background:none;display:flex;align-items:center;gap:10px;padding:12px 14px;text-align:left;color:var(--ink);font-size:15px;font-weight:600;border-bottom:1px solid var(--line);}
+.opts button:last-child{border-bottom:0;}
+.opts button small{margin-left:auto;color:var(--mut);font-weight:500;font-size:13px;}
+.opts .radio{width:20px;height:20px;border-radius:50%;border:2px solid #AEB7AF;flex:none;display:grid;place-items:center;}
+.opts button[aria-checked="true"] .radio{border-color:var(--tape);}
+.opts button[aria-checked="true"] .radio::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--tape);}
+.times{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;}
+.times::-webkit-scrollbar{display:none;}
+.times button{flex:none;border:0;background:var(--chalk2);border-radius:12px;padding:10px 13px;font-weight:650;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;}
+.times button[aria-pressed="true"]{background:var(--ink);color:var(--chalk);}
+.stepper{display:flex;align-items:center;gap:14px;background:var(--chalk2);border-radius:16px;padding:10px 12px;}
+.stepper button{width:40px;height:40px;border-radius:12px;border:0;background:#fff;font-size:22px;font-weight:500;color:var(--ink);}
+.stepper .val{flex:1;}
+.stepper .val b{font-family:var(--display);font-size:30px;font-weight:800;line-height:.9;font-variant-numeric:tabular-nums;}
+.stepper .val small{display:block;color:var(--mut);font-size:13px;font-weight:500;}
+.dots{display:flex;flex-wrap:wrap;gap:4px;max-width:120px;justify-content:flex-end;}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--turf);}
+.dots i.b{background:var(--ink);}
+.vis-note{font-size:13px;color:var(--mut);margin-top:8px;}
+
+.page{position:absolute;inset:0;background:var(--chalk);z-index:30;transform:translateX(104%);transition:transform .45s cubic-bezier(.2,.9,.22,1);display:flex;flex-direction:column;}
+.page.open{transform:none;}
+.phead{padding:54px 14px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);background:var(--chalk);}
+.back{border:0;background:none;display:flex;align-items:center;gap:2px;color:var(--ink);font-size:16px;font-weight:600;padding:6px;}
+.phead .t{font-weight:700;font-size:16px;line-height:1.2;}
+.phead .t small{display:block;font-weight:500;color:var(--mut);font-size:12.5px;}
+.msgs{flex:1;overflow-y:auto;padding:14px 14px 10px;display:flex;flex-direction:column;gap:10px;}
+.msgs::-webkit-scrollbar{display:none;}
+.expire{align-self:center;background:var(--chalk2);color:var(--mut);font-size:12.5px;font-weight:600;border-radius:999px;padding:6px 12px;text-align:center;}
+.m{max-width:78%;display:flex;flex-direction:column;gap:3px;}
+.m small{font-size:12px;font-weight:650;color:var(--mut);padding-left:10px;}
+.m p{background:#fff;border-radius:18px 18px 18px 6px;padding:9px 13px;font-size:15px;line-height:1.35;}
+.m.mine{align-self:flex-end;}
+.m.mine p{background:var(--ink);color:var(--chalk);border-radius:18px 18px 6px 18px;}
+.m.new{animation:msgIn .35s cubic-bezier(.2,.9,.25,1.2);}
+@keyframes msgIn{from{transform:translateY(12px) scale(.96);opacity:0;}}
+.compose{display:flex;gap:8px;padding:10px 12px 30px;border-top:1px solid var(--line);}
+.compose input{flex:1;border:1px solid var(--line);background:#fff;border-radius:22px;padding:11px 15px;font:inherit;font-size:15px;color:var(--ink);min-width:0;}
+.compose input:focus{outline:2px solid var(--ink);outline-offset:0;}
+.compose button{width:44px;height:44px;border-radius:50%;border:0;background:var(--tape);display:grid;place-items:center;flex:none;}
+
+#verify{transform:translateY(104%);}
+#verify.open{transform:none;}
+.vbody{padding:96px 24px 40px;display:flex;flex-direction:column;gap:18px;flex:1;}
+.vbody h2{font-family:var(--display);font-weight:800;font-size:44px;line-height:.92;margin:0;color:var(--ink);}
+.vbody p{color:var(--mut);font-size:15.5px;line-height:1.45;}
+.email{display:flex;align-items:center;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:0 14px;height:56px;}
+.email:focus-within{border-color:var(--ink);}
+.email input{border:0;outline:0;font:inherit;font-size:17px;flex:1;min-width:0;background:none;color:var(--ink);}
+.email span{color:var(--mut);font-size:17px;}
+.code{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;position:relative;}
+.code i{height:60px;border-radius:14px;background:#fff;border:1.5px solid var(--line);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:32px;font-style:normal;}
+.code i.cur{border-color:var(--ink);}
+.code input{position:absolute;inset:0;opacity:0;font-size:16px;}
+.vdone{display:flex;flex-direction:column;align-items:flex-start;gap:14px;}
+.tick{width:72px;height:72px;border-radius:50%;background:var(--turf);display:grid;place-items:center;animation:pop .5s cubic-bezier(.2,.9,.25,1.4);}
+@keyframes pop{from{transform:scale(.3);opacity:0;}}
+.vbody .btn{width:100%;}
+.skip{border:0;background:none;color:var(--mut);font-weight:600;font-size:14px;align-self:center;}
+
+.banner{position:absolute;top:10px;left:10px;right:10px;z-index:60;background:rgba(245,246,242,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-radius:22px;padding:12px 14px;display:flex;gap:11px;box-shadow:0 14px 30px -10px rgba(0,0,0,.4);transform:translateY(-140%);transition:transform .55s cubic-bezier(.2,.9,.25,1.1);}
+.banner.on{transform:none;}
+.banner .appicon{width:38px;height:38px;border-radius:9px;background:var(--turf);display:grid;place-items:center;flex:none;}
+.banner b{font-size:14px;display:flex;justify-content:space-between;}
+.banner b small{font-weight:500;color:var(--mut);font-size:12.5px;}
+.banner p{font-size:14px;line-height:1.3;}
+.toast{position:absolute;left:50%;bottom:44px;transform:translate(-50%,20px);background:var(--ink);color:var(--chalk);padding:12px 16px;border-radius:14px;font-size:14px;font-weight:550;z-index:70;opacity:0;transition:opacity .25s, transform .35s cubic-bezier(.2,.9,.25,1.2);width:max-content;max-width:84%;text-align:center;pointer-events:none;}
+.toast.on{opacity:1;transform:translate(-50%,0);}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:rgba(21,32,27,.85);z-index:80;pointer-events:none;}
+.fly{position:absolute;z-index:50;width:34px;height:34px;border-radius:50%;background:var(--tape);color:#fff;font-weight:700;font-size:11px;display:grid;place-items:center;pointer-events:none;box-shadow:0 8px 16px rgba(0,0,0,.3);}
+.shake{animation:shake .35s;}
+@keyframes shake{25%{transform:translateX(-3px);}75%{transform:translateX(3px);}}
+
+.cond{position:absolute;top:156px;left:14px;display:flex;gap:6px;z-index:5;border:0;background:none;padding:0;}
+.cond span{display:flex;align-items:center;gap:5px;background:var(--chalk);border-radius:999px;padding:5px 10px;font-size:12.5px;font-weight:650;color:var(--ink);box-shadow:0 6px 16px -8px rgba(0,0,0,.5);}
+.cond i{width:8px;height:8px;border-radius:50%;background:#E98A2B;}
+.condcard{position:absolute;top:192px;left:14px;right:14px;background:var(--chalk);border-radius:18px;padding:14px 16px;z-index:6;box-shadow:0 14px 30px -12px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px;}
+.condcard b{display:block;font-size:14.5px;}
+.condcard p{color:var(--mut);font-size:13.5px;line-height:1.4;}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:84px;background:var(--chalk);border-top:1px solid var(--line);display:flex;padding:7px 6px 26px;z-index:16;}
+.tabbar button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:600;color:#8A958D;}
+.tabbar button[aria-selected="true"]{color:var(--ink);}
+.tabbar button[aria-selected="true"] svg{stroke:var(--tape);}
+.tabbar svg{width:26px;height:26px;}
+.tabpage{position:absolute;left:0;right:0;top:0;bottom:84px;background:var(--chalk);z-index:14;overflow-y:auto;overscroll-behavior:contain;padding:58px 18px 28px;display:flex;flex-direction:column;gap:20px;}
+.tabpage::-webkit-scrollbar{display:none;}
+.tabpage > *{flex-shrink:0;}
+.pt{font-family:var(--display);font-weight:800;font-size:42px;line-height:.9;}
+.sub{color:var(--mut);font-size:14.5px;line-height:1.4;margin-top:-12px;}
+.tabpage h3{font-size:17px;font-weight:700;margin:0 0 -8px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.row b{font-size:16px;font-weight:650;display:block;}
+.row small,.card > small{color:var(--mut);font-size:13px;line-height:1.35;display:block;}
+.switch{width:51px;height:31px;border-radius:16px;border:0;background:#C9D0C8;position:relative;flex:none;transition:background .2s;}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .25s cubic-bezier(.2,.9,.25,1.2);}
+.switch[aria-checked="true"]{background:var(--turf);}
+.switch[aria-checked="true"]::after{transform:translateX(20px);}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chips button{border:1px solid var(--line);background:var(--chalk);border-radius:999px;padding:7px 11px;font-size:13px;font-weight:600;color:var(--ink);}
+.chips button[aria-pressed="true"]{background:var(--ink);color:var(--chalk);border-color:var(--ink);}
+.agrid{display:grid;grid-template-columns:36px repeat(7,1fr);gap:5px;align-items:center;}
+.agrid .gh{font-size:11.5px;font-weight:700;color:var(--mut);text-align:center;}
+.agrid .gl{font-size:11px;font-weight:600;color:var(--mut);}
+.agrid button{height:30px;border-radius:8px;border:0;background:var(--chalk2);}
+.agrid button[aria-pressed="true"]{background:var(--turf);}
+.card.off .chips,.card.off .agrid{opacity:.35;pointer-events:none;}
+.up{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px;}
+.up-t{flex:1;min-width:0;}
+.up-t b{display:block;font-size:15px;}
+.up-t small{color:var(--mut);font-size:12.5px;}
+.btn.sm{height:38px;font-size:14px;padding:0 12px;border-radius:12px;flex:none;}
+.stack{display:flex;align-items:center;}
+.stack .av{width:28px;height:28px;font-size:10.5px;border:2px solid #fff;margin-left:-8px;}
+.stack .av:first-child{margin-left:0;}
+.stack .more{margin-left:8px;font-size:13px;color:var(--mut);font-weight:600;}
+.empty{color:var(--mut);font-size:14px;background:var(--chalk2);border-radius:16px;padding:14px;}
+.steps{display:flex;gap:4px;padding:10px 14px 0;}
+.steps span{flex:1;display:flex;flex-direction:column;gap:5px;font-size:10.5px;font-weight:650;color:var(--mut);}
+.steps span::before{content:"";height:4px;border-radius:2px;background:var(--chalk2);}
+.steps span.done::before{background:var(--turf);}
+.steps span.cur{color:var(--ink);}
+.steps span.cur::before{background:var(--tape);}
+.gdb{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:18px 18px 34px;display:flex;flex-direction:column;gap:16px;}
+.gdb::-webkit-scrollbar{display:none;}
+.gdb > *{flex-shrink:0;}
+.gdb h2{font-family:var(--display);font-weight:800;font-size:40px;line-height:.92;margin:0;color:var(--ink);}
+.gdb p{color:var(--mut);font-size:14.5px;line-height:1.45;}
+.ringwrap{display:grid;place-items:center;}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.team{border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:6px;}
+.team.o{background:#FFE6D2;}
+.team.g{background:#DCEEDF;}
+.team h4{margin:0 0 2px;font-size:13.5px;display:flex;align-items:center;gap:6px;}
+.team h4 i{width:12px;height:12px;border-radius:3px;}
+.team button{border:0;background:#fff;border-radius:10px;padding:8px 10px;text-align:left;font-size:13.5px;font-weight:600;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:4px;}
+.team button small{font-size:10.5px;color:var(--mut);font-weight:700;}
+.team button.pop{animation:msgIn .35s cubic-bezier(.2,.9,.25,1.2);}
+.coinwrap{border-radius:22px;background:radial-gradient(circle at 50% 18%,#34466E,#1A2540 68%);height:240px;position:relative;overflow:hidden;}
+.coinwrap canvas{width:100%;height:100%;display:block;}
+.coinwrap .res{position:absolute;left:0;right:0;top:12px;text-align:center;color:#fff;font-family:var(--display);font-weight:800;font-size:28px;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.board{background:#111915;border-radius:20px;padding:16px;color:#F4F5F0;display:flex;flex-direction:column;gap:10px;}
+.board .l{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.board .tn{font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px;color:#D5DDD7;}
+.board .tn i{width:11px;height:11px;border-radius:3px;display:inline-block;}
+.board .big{font-family:var(--display);font-weight:800;font-size:66px;line-height:.85;color:#FFE3A0;font-variant-numeric:tabular-nums;}
+.board small{color:#9FAAA3;font-size:13px;}
+.board.hit{animation:shake .35s;}
+.over{display:flex;gap:6px;flex-wrap:wrap;min-height:28px;}
+.over i{width:28px;height:28px;border-radius:50%;background:#28332C;display:grid;place-items:center;font-style:normal;font-size:11.5px;font-weight:700;color:#F4F5F0;}
+.over i.w{background:var(--tape);}
+.over i.b{background:#FFE3A0;color:#15201B;}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.pad button{height:52px;border-radius:14px;border:0;background:var(--chalk2);font-family:var(--display);font-weight:800;font-size:24px;color:var(--ink);}
+.pad button.w{background:var(--tape);color:#fff;}
+.pad button.s{font-family:var(--sans);font-size:13.5px;font-weight:650;}
+.pad button:active{transform:scale(.95);}
+.mcard{border-radius:22px;overflow:hidden;background:repeating-linear-gradient(90deg,#357F46 0 28px,#3E8C50 28px 56px);color:#fff;padding:18px;display:flex;flex-direction:column;gap:10px;}
+.mcard .brand{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:650;opacity:.92;}
+.mcard .res{font-family:var(--display);font-weight:900;font-size:44px;line-height:.9;margin:6px 0 4px;}
+.mcard .ln{display:flex;justify-content:space-between;background:rgba(0,0,0,.24);border-radius:12px;padding:8px 12px;font-weight:650;font-variant-numeric:tabular-nums;}
+.mcard .pts{background:#FFE3A0;color:#15201B;border-radius:12px;padding:9px 12px;font-weight:700;font-size:14px;}
+.podium{border-radius:24px;overflow:hidden;background:#1A2540;height:270px;position:relative;touch-action:pan-y;}
+.podium canvas{width:100%;height:100%;display:block;cursor:grab;}
+.podium small{position:absolute;left:14px;top:12px;color:#C9D2E6;font-size:12px;font-weight:600;pointer-events:none;}
+.segs{display:flex;background:var(--chalk2);border-radius:12px;padding:3px;}
+.segs button{flex:1;border:0;background:none;border-radius:9px;padding:8px;font-weight:650;font-size:14px;color:var(--mut);}
+.segs button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.stand{display:flex;flex-direction:column;}
+.stand .r{display:grid;grid-template-columns:20px 40px 1fr 40px 36px;align-items:center;gap:8px;padding:9px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
+.stand .rk{font-weight:700;color:var(--mut);font-size:13px;}
+.stand .hn{font-weight:700;}
+.stand .bar{height:8px;border-radius:4px;background:var(--chalk2);overflow:hidden;}
+.stand .bar i{display:block;height:100%;background:var(--turf);border-radius:4px;transition:width .6s cubic-bezier(.2,.9,.25,1);}
+.stand .pt2{font-weight:700;text-align:right;}
+.stand .dl{font-size:12px;color:var(--turf);font-weight:650;text-align:right;}
+.stand .r.myh{background:#FFEDEC;border-radius:12px;border-bottom-color:transparent;}
+.stand .r.myh .bar i{background:var(--tape);}
+.stand > small{color:var(--mut);font-size:13px;padding-top:10px;line-height:1.4;}
+.rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
+.rules li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;}
+.rules li:last-child{border-bottom:0;}
+.rules b{font-family:var(--display);font-size:22px;font-weight:800;line-height:1;color:var(--turf);}
+.rules b.neg{color:var(--tape);}
+.bracket{display:grid;grid-template-columns:repeat(3,120px);gap:10px;overflow-x:auto;padding-bottom:4px;}
+.bracket .col{display:flex;flex-direction:column;justify-content:space-around;gap:10px;}
+.bracket .col > small{font-size:11.5px;font-weight:700;color:var(--mut);}
+.mt{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;}
+.mt div{display:flex;justify-content:space-between;padding:6px 9px;font-weight:600;}
+.mt div + div{border-top:1px solid var(--line);}
+.mt .win{font-weight:800;}
+.mt .mine{color:var(--tape);}
+.mt .tbd{color:var(--mut);font-weight:500;}
+.pwrap{perspective:900px;display:grid;place-items:center;padding:4px 0;}
+.pcard{width:100%;max-width:290px;aspect-ratio:5/7;border-radius:22px;position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.9,.25,1);background:repeating-linear-gradient(90deg,#1F5F3C 0 24px,#246A43 24px 48px);color:#fff;box-shadow:0 30px 40px -24px rgba(10,40,20,.7);}
+.pcard.live{transition:none;}
+.pcard .lines{position:absolute;inset:12px;border:2px solid rgba(255,255,255,.5);border-radius:12px;pointer-events:none;}
+.pcard .lines::after{content:"";position:absolute;left:50%;top:50%;width:84px;height:84px;border:2px solid rgba(255,255,255,.3);border-radius:50%;transform:translate(-50%,-50%);}
+.pcard .inner{position:absolute;inset:0;padding:26px 24px;display:flex;flex-direction:column;justify-content:space-between;transform:translateZ(40px);}
+.pcard .tp{display:flex;justify-content:space-between;font-size:12.5px;font-weight:650;opacity:.9;}
+.pcard .jn{font-family:var(--display);font-weight:900;font-size:128px;line-height:.8;color:#FFE3A0;text-shadow:0 6px 0 rgba(0,0,0,.18);}
+.pcard .nm{font-family:var(--display);font-weight:800;font-size:34px;line-height:.9;margin-top:8px;}
+.pcard .nm small{display:block;font-family:var(--sans);font-size:13px;font-weight:550;opacity:.85;margin-top:5px;}
+.pcard .st{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:rgba(0,0,0,.25);border-radius:12px;padding:8px 6px;text-align:center;}
+.pcard .st b{display:block;font-family:var(--display);font-size:22px;font-weight:800;line-height:1;}
+.pcard .st small{font-size:10px;opacity:.8;font-weight:600;}
+.pcard .sheen{position:absolute;inset:0;border-radius:22px;background:radial-gradient(circle at var(--mx,30%) var(--my,20%),rgba(255,255,255,.3),rgba(255,255,255,0) 48%);mix-blend-mode:soft-light;pointer-events:none;}
+.list{background:#fff;border:1px solid var(--line);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;}
+.list > button,.list > div{border:0;background:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;font-size:15px;font-weight:550;color:var(--ink);text-align:left;border-bottom:1px solid var(--line);min-height:52px;}
+.list > :last-child{border-bottom:0;}
+.list small{color:var(--mut);font-weight:500;font-size:13.5px;}
+.list .danger{color:var(--tape);}
+.cbody{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:16px 18px 34px;display:flex;flex-direction:column;gap:14px;}
+.cbody::-webkit-scrollbar{display:none;}
+.cbody > *{flex-shrink:0;}
+.cbody > p{color:var(--mut);font-size:14.5px;line-height:1.45;}
+.city h3{font-size:13px;color:var(--mut);font-weight:700;margin:0 0 6px;}
+.camp{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;color:var(--ink);margin-bottom:8px;}
+.camp .ct{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.camp b{font-size:16px;}
+.camp .state{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--chalk2);color:var(--mut);}
+.camp .state.on{background:var(--turf);color:#fff;}
+.camp .state.soon{background:#FFE3A0;color:#15201B;}
+.camp .prog{height:6px;border-radius:3px;background:var(--chalk2);overflow:hidden;}
+.camp .prog i{display:block;height:100%;background:var(--ink);border-radius:3px;}
+.camp small{color:var(--mut);font-size:12.5px;}
+.camp .acts{display:flex;gap:8px;}
+.camp .acts .btn{height:40px;font-size:14px;flex:1;border-radius:12px;padding:0 10px;}
+@media (prefers-reduced-motion: reduce){ .sheet,.page,.banner,.toast{transition-duration:.01s;} .num.in,.num.out,.slot-pulse,.m.new,.tick{animation:none;} }
+</style>
+
+<div class="wrap">
+  <div class="notes">
+    <header>
+      <h1>Campus Pickup</h1>
+      <p class="lead">A working iOS prototype. It covers the seven-week v1 plus the next set of features, drawn from how Yale, Princeton, Duke and Harvard run house sport. Everything on the phone can be tapped.</p>
+    </header>
+    <div class="ntabs" role="tablist" aria-label="Notes">
+      <button type="button" role="tab" aria-selected="true" data-nt="screens">Screens</button>
+      <button type="button" role="tab" aria-selected="false" data-nt="roadmap">Roadmap</button>
+      <button type="button" role="tab" aria-selected="false" data-nt="ideas">Ideas from US campuses</button>
+      <button type="button" role="tab" aria-selected="false" data-nt="design">Design system</button>
+    </div>
+
+    <div class="npanel" data-np="screens">
+      <section>
+        <h2>v1: the seven-week build</h2>
+        <div class="screens" role="group" aria-label="v1 screens">
+          <button type="button" data-go="map">Live map</button>
+          <button type="button" data-go="game">Game and roster</button>
+          <button type="button" data-go="create">Start a game</button>
+          <button type="button" data-go="chat">Game chat</button>
+          <button type="button" data-go="verify">Campus email check</button>
+        </div>
+        <p class="muted">Open the Sports Complex game and tap Join game. Two seconds later someone else joins while you watch, and a push notification arrives.</p>
+      </section>
+      <section>
+        <h2>Next: what we build once games are happening</h2>
+        <div class="screens" role="group" aria-label="New screens">
+          <button type="button" data-go="gameday">Game day</button>
+          <button type="button" data-go="games">Your games</button>
+          <button type="button" data-go="cup">Hostel Cup</button>
+          <button type="button" data-go="me">Player card</button>
+          <button type="button" data-go="campuses">New campuses</button>
+        </div>
+        <ul class="shots">
+          <li><b>Game day</b> runs a game from arrival to result. You check in at the ground, split into Orange and Green bibs, and flip a 3D Rs 5 coin for the toss. Then you score it ball by ball. The live score shows on the map pin for the whole campus, and full time gives you a match card to share to your story. Score a few balls, then go back to the map to see the pin change.</li>
+          <li><b>Your games</b> is where you say when you're free and what you play. A game that's one or two short can ping you. Regulars are standing weekly games where the core group gets first pick of spots before the game opens to campus.</li>
+          <li><b>Hostel Cup</b> is a semester-long points table between hostels, with a 3D podium you can turn. Points come mostly from turning up rather than winning. Finish a game in Game day and your hostel's points go up here.</li>
+          <li><b>Player card</b> is a tilting card showing games played, games turned up to and Cup points. Players will want to share it.</li>
+          <li><b>New campuses</b> shows the waitlist for each campus. A campus opens only when enough students have signed up, so nobody lands on an empty map.</li>
+          <li>On the map, the <b>conditions strip</b> shows prayer times and air quality. Tap it for details.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="npanel" data-np="roadmap" hidden>
+      <section>
+        <h2>Nothing here moves into the seven weeks</h2>
+        <p>The plan's point still stands: a game that got organised in the app has to actually get played before anything else matters. Each phase below starts only when the one before it has hit its target, and the first target is the plan's own go/no-go after four weeks on campus.</p>
+      </section>
+      <section>
+        <h2>v1.1: after the go/no-go is met</h2>
+        <div class="tbl"><table><thead><tr><th>Feature</th><th>Why</th><th>Taken from</th></tr></thead><tbody>
+          <tr><td>Regulars</td><td>Most pickup is the same people at the same time every week. Making that one tap protects the retention target.</td><td>Basketball runs</td></tr>
+          <tr><td>I'm free to play</td><td>This automates "chasing the last two spots", which is the manual job in the WhatsApp pilot. You get at most one ping a day.</td><td>IMLeagues free agents</td></tr>
+          <tr><td>Drop out without penalty</td><td>Leaving 2 or more hours before kick-off costs nothing. Not turning up counts against you. People get an honest way out, and the host gets time to fill the spot.</td><td>IMLeagues "default" vs forfeit</td></tr>
+          <tr><td>Conditions strip</td><td>AQI warnings from October to January, and prayer times near kick-off.</td><td>Lahore smog season</td></tr>
+        </tbody></table></div>
+      </section>
+      <section>
+        <h2>Phase 2: when there are enough games to make points mean something</h2>
+        <div class="tbl"><table><thead><tr><th>Feature</th><th>Why</th><th>Taken from</th></tr></thead><tbody>
+          <tr><td>Game day check-in</td><td>Tells you whether a game was actually played, which is your main metric, without asking anyone. We check location once while the app is open and don't store it. Pins stay places, never people.</td><td>GotNext, GOATS</td></tr>
+          <tr><td>Teams, toss, live score</td><td>This is the work that currently happens on the pitch and on WhatsApp. The live score on the pin tells passers-by that a game is on.</td><td>Spond, local habit</td></tr>
+          <tr><td>Match card</td><td>The first growth loop that isn't an invite: a result posted to Instagram stories.</td><td>Strava activity cards</td></tr>
+          <tr><td>Fair-play check</td><td>One private question after each game. It feeds into reports instead of showing a public score.</td><td>IMLeagues sportsmanship ratings</td></tr>
+          <tr><td>Hostel Cup</td><td>Points for turning up, plus a bonus for the hostel with the most different players, so the Cup grows participation instead of rewarding the same ten good players.</td><td>Princeton Rec Cup, Duke Quad Cup, Yale Tyng Cup</td></tr>
+          <tr><td>Player card</td><td>A reliability record you'd be proud of ("turned up 13 of 14"). It replaces the plan's Host Reliability Index once there's enough data.</td><td>Trading cards</td></tr>
+        </tbody></table></div>
+      </section>
+      <section>
+        <h2>Phase 3: the second campus</h2>
+        <div class="tbl"><table><thead><tr><th>Feature</th><th>Why</th><th>Taken from</th></tr></thead><tbody>
+          <tr><td>Waitlist and campus unlock</td><td>A campus opens at 10% of students on the waitlist plus two campus leads who've run the WhatsApp version for two weeks. That repeats the plan's manual pilot at every new campus.</td><td>Facebook 2004, Fizz</td></tr>
+          <tr><td>Campus lead kit</td><td>Bibs, a pump and the WhatsApp script. It's cheap to send and it's how Fizz grew with no paid ads.</td><td>Fizz launch leaders</td></tr>
+          <tr><td>Society fixtures</td><td>Official SLUMS events, like the Night Series, sit next to pickup pins, so one app covers both.</td><td>SLUMS, Harvard House IMs</td></tr>
+          <tr><td>First-year ladder</td><td>A separate, lower-stakes table so new students aren't put off.</td><td>Harvard Yard Bucket</td></tr>
+          <tr><td>Ramadan mode</td><td>Suggested kick-off times move to after iftar.</td><td>LUMS Ramadan cricket league</td></tr>
+          <tr><td>Android</td><td>Already a deadline in the plan. React Native makes it a port.</td><td>Your plan</td></tr>
+        </tbody></table></div>
+      </section>
+      <section>
+        <h2>Later: how it could make money</h2>
+        <p>The pickup map itself stays free. Pickup apps that earn money tend to charge organisations, not players. GameTime moved from a free game finder to paid club tools, and Stanford runs its own court booking. The likely route is booking grounds with the sports office, then friendlies between campuses (LUMS vs NUST) and sponsored kit. Ads on an empty map don't work.</p>
+      </section>
+      <section>
+        <h2>Safety still holds</h2>
+        <p>Every new feature keeps the plan's four rules. Check-in confirms you're at a ground and then drops the location. Live scores show team colours, not players. Cup points come from an append-only ledger built from check-ins, so nobody can edit them by hand. Campus-email names stay in chat. Yik Yak's anonymous model grew to 200 campuses and then collapsed under bullying, which is exactly what verified names avoid.</p>
+      </section>
+    </div>
+
+    <div class="npanel" data-np="ideas" hidden>
+      <section>
+        <h2>How top US universities run house sport</h2>
+        <ul class="shots">
+          <li><b>Yale's Tyng Cup</b> has run between residential colleges since 1933. Each game is worth points equal to the number of players on the field, so an 11-a-side game counts for more than 5-a-side. <a href="https://intramurals.yale.edu/tyng-cup-point-system">Yale Intramurals</a></li>
+          <li><b>Princeton's Campus Rec Cup</b> gives points for leagues, fitness events and classes, plus a 50-point bonus for the group with the most different participants, however they did. That's where our "most different players" bonus comes from. <a href="https://campusrec.princeton.edu/things-do/campus-rec-cup">Princeton Campus Rec</a></li>
+          <li><b>Duke's Quad Cup</b> (2024) gives points just for attending and extra for forming a team. <a href="https://www.dukechronicle.com/article/2025/01/duke-university-quad-cup-quadex-residential-competition-prizes-second-year-student-affairs-foster-community-school-spirit">Duke Chronicle</a></li>
+          <li><b>Harvard's Straus Cup</b> is between the 12 upperclass Houses. First-years compete separately for the Yard trophy, in everything from soccer to a spelling bee. <a href="https://www.thecrimson.com/article/2026/5/1/eliot-straus-cup/">The Crimson</a></li>
+          <li><b>IMLeagues</b> runs intramurals at most US schools. It rates sportsmanship from 1 to 4, and teams averaging under 3 miss the playoffs. A team that forfeits pays a fee. A team that gives notice before a cutoff (a "default") doesn't. <a href="https://www.imleagues.com/Images/SchoolPhotos/201115135159.pdf">IMLeagues policy</a></li>
+          <li><b>Stanford</b> has its own Rec &amp; Well app for sign-ups, schedules and push notifications, plus separate court booking. Schools want their own tools, and that's a way in. <a href="https://apps.apple.com/us/app/stanford-rec-well/id1555353938">App Store</a></li>
+        </ul>
+        <p class="muted">I couldn't confirm MIT's or Brown's house competition rules, or women's hours at these schools, so neither is used above.</p>
+      </section>
+      <section>
+        <h2>Apps that already do part of this</h2>
+        <ul class="shots">
+          <li><b>GotNext, GOATS and ATH</b> for pickup basketball share one loop: pick a court, see who's checked in, tap "on my way". GotNext's pitch is to stop texting the group chat, which is our pitch too. <a href="https://apps.apple.com/us/app/gotnext-pickup-basketball/id6782793140">GotNext</a></li>
+          <li><b>Plei</b> for pickup soccer has 500,000 users across 26 US regions, so there's clearly demand for football specifically. <a href="https://www.plei.com/blog/meet-plei-2-0-building-the-largest-soccer-community-in-the-world">Plei</a></li>
+          <li><b>Spond</b> has 1.5 million monthly users. It puts chat, scheduling, attendance and reminders in one free app, which matches our roster, chat and reminders. <a href="https://www.spond.com/news-and-blog/best-free-sports-team-management-app/">Spond</a></li>
+        </ul>
+      </section>
+      <section>
+        <h2>How campus apps opened one school at a time</h2>
+        <ul class="shots">
+          <li><b>Facebook in 2004</b> held each school back until its waitlist reached about a fifth of the student body, then opened it with real density on day one. It went from Harvard to 15 schools in under three months. <a href="https://finance.yahoo.com/news/the-original-facebook-175210454.html">Yahoo Finance</a></li>
+          <li><b>Fizz</b> recruited a few launch leaders per school. Each one recruited about ten more, and they handed out merch until sign-ups took off. It was adding about 50 campuses a month with no paid ads. <a href="https://ethicsinsociety.stanford.edu/sites/ethicsinsociety/files/media/file/case_study_fizz1.pdf">Stanford case study</a></li>
+          <li><b>Yik Yak</b> used the same one-campus model and reached 200 campuses in seven months. Anonymity made the bullying unmanageable, and it sold for $1M within four years. <a href="https://em360tech.com/tech-articles/why-did-yik-yak-fail-how-messaging-app-died">EM360</a></li>
+        </ul>
+        <p>We use 10% of students rather than Facebook's 20%. A pickup game only needs density among people who play, and on top of the waitlist we require two campus leads who are already running games.</p>
+      </section>
+      <section>
+        <h2>What's specific to Pakistan</h2>
+        <ul class="shots">
+          <li><b>Smog</b> builds from late October and peaks in November and December. Some parts of Lahore passed AQI 1,000 in November 2024. For about three months, an AQI warning at kick-off matters. <a href="https://en.wikipedia.org/wiki/Air_pollution_in_Lahore">Air pollution in Lahore</a></li>
+          <li><b>Ramadan</b> doesn't stop play. LUMS ran a tape-ball league in March 2025 scheduled around iftar. <a href="https://lums.edu.pk/news/lums-cricket-clash-unites-community">LUMS news</a></li>
+          <li><b>SLUMS</b> (Sports at LUMS) runs more than 25 teams and 30 events a year. It's the natural partner for the pilot and the source of campus leads.</li>
+          <li><b>Campus sizes:</b> about 5,500 students at LUMS, 14,900 at NUST, 4,000 at IBA Karachi, and roughly 5,500 at FAST Lahore. Sources for FAST disagree, so treat that one as a rough figure.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="npanel" data-np="design" hidden>
+    <section>
+      <h2>Direction: Floodlight</h2>
+      <p>Pickup games on campus happen at dusk and after dark, under floodlights. The design is built from what's actually on the ground at 7pm: mown turf, chalk lines, a tennis ball wrapped in red electrical tape, and lights coming on over the pitch.</p>
+      <ul class="principles">
+        <li><span><b>The number is the headline.</b>"4 spots left" is set at 120pt in stadium type. It's the one thing a player needs to decide whether to go, so nothing else on the screen competes with it.</span></li>
+        <li><span><b>The campus is a place.</b>The map is a tilted model of the real grounds, lit for the hour you're looking at. Drag the time to 9pm and the floodlights and hostel windows come on.</span></li>
+        <li><span><b>The controls stay quiet.</b>Controls use chalk and ink only. Colour comes from the pitch: turf, red tape, floodlight yellow. There are no gradients on buttons, no frosted cards, and no emoji icons.</span></li>
+        <li><span><b>Every action gets a response.</b>When you join, you drop into a slot on the formation, the count rolls down, and a haptic fires. Someone else joining later shows up live on the same view.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Palette</h2>
+      <div class="swatches">
+        <div class="sw"><i style="background:#1D5B3A"></i><span>Turf<small>#1D5B3A</small></span></div>
+        <div class="sw"><i style="background:#F4F5F0"></i><span>Chalk<small>#F4F5F0</small></span></div>
+        <div class="sw"><i style="background:#15201B"></i><span>Ink<small>#15201B</small></span></div>
+        <div class="sw"><i style="background:#E3342F"></i><span>Tape red<small>#E3342F</small></span></div>
+        <div class="sw"><i style="background:#FFE3A0"></i><span>Floodlight<small>#FFE3A0</small></span></div>
+        <div class="sw"><i style="background:#1A2540"></i><span>Dusk<small>#1A2540</small></span></div>
+      </div>
+      <p class="muted">Tape red is used only for spots left, joining and starting a game, so it always means "you can act here".</p>
+    </section>
+
+    <section>
+      <h2>Type</h2>
+      <div class="typespec">
+        <div class="d"><span>4</span> spots left</div>
+        <p><b>Big Shoulders Display</b> is used for numbers, ground names and screen titles. It's condensed like scoreboard lettering, so a big number still fits next to its label on a phone.</p>
+        <p><b>SF Pro</b> is used for everything else. It's native to iOS, it supports Dynamic Type, and people read it without noticing it.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Building it in React Native</h2>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Piece</th><th>How it's built in the app</th></tr></thead>
+          <tbody>
+            <tr><td>3D campus map</td><td>MapLibre Native at a 55° pitch, with <code>fill-extrusion</code> buildings drawn from a campus GeoJSON and ground polygons textured with chalk lines. The day style swaps for a night style after sunset. This three.js scene only stands in for it.</td></tr>
+            <tr><td>Pins and balls</td><td>Pre-rendered ball sprites or small Rive files, used as MapLibre markers. That keeps the frame rate up with many pins. Real 3D is saved for the moments below.</td></tr>
+            <tr><td>3D moments</td><td><code>react-native-filament</code> (Metal on iOS, loads GLB models, adds about 4MB) for the spinning ball in Start a game and the pin-drop animation. We're skipping react-three-fiber/native for now because its expo-gl version clashes with current Expo SDKs.</td></tr>
+            <tr><td>Sport icons</td><td>Rive state machines, so the ball icons react when you tap them or when a game fills up. This follows Airbnb's 2025 3D icon approach.</td></tr>
+            <tr><td>Sheets and motion</td><td><code>@gorhom/bottom-sheet</code> on Reanimated 4 and Gesture Handler, with snap points at 62% and 78%. Moti handles the simple enter and exit transitions.</td></tr>
+            <tr><td>Formation and count</td><td><code>@shopify/react-native-skia</code> for the pitch and slots. Reanimated shared values drive the digit roll.</td></tr>
+            <tr><td>Haptics</td><td><code>expo-haptics</code>: medium impact on join, a warning pulse on last spot, heavy impact plus success on pin drop.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+
+    <section>
+      <h2>What we took from the first research pass</h2>
+      <p><b>The four sites you sent</b> are all web-only. threeui.com (Three.js effects), GSAP (a web animation engine) and 21st.dev (React and shadcn components) can't run in a React Native app. We use them as references for motion and timing, then rebuild that motion with Reanimated and Skia. tasteskill.dev is a set of anti-generic design rules for coding agents. That one does apply here, and it's worth using as a review checklist on every screen.</p>
+      <p><b>What we're taking from other apps:</b> Apple product pages tie motion to something you control, like scroll position or a slider, instead of playing it on their own. That's why the time slider drives the light here. Apple's Activity rings make one number the hero and celebrate when it changes, which is the model for the spots-left count. Partiful shows avatars popping in as guests RSVP, which is the model for the formation filling up. Airbnb's 2025 icons are tactile and 3D and react when you tap them, which is the model for our ball icons.</p>
+      <p><b>What we're avoiding:</b> purple gradients, frosted-glass cards laid over the map, three identical cards in a row, emoji as icons, Inter everywhere, and bouncy easing on everything. The one blurred surface in the prototype is the iOS notification banner, and it's blurred because that's how iOS draws it.</p>
+    </section>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="screen" id="screen">
+        <canvas id="map" aria-label="3D campus map. Drag to rotate, scroll or pinch to zoom, tap a pin to open the game."></canvas>
+        <div id="labels"></div>
+
+        <div class="status" id="status"><span>6:52</span><span class="icons">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x=".5" y=".5" width="22" height="11" rx="3.5" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".45"/></svg>
+        </span></div>
+        <div class="island"></div>
+
+        <div class="top">
+          <button type="button" class="campus" data-go="verify" aria-label="LUMS, verified. Open campus email check">
+            <span class="ok"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            LUMS <small>verified</small>
+          </button>
+          <button type="button" class="me" aria-label="Your profile">AA</button>
+        </div>
+        <div class="seg" role="group" aria-label="Sport filter">
+          <button type="button" aria-pressed="true" data-sport="all">All</button>
+          <button type="button" aria-pressed="false" data-sport="football">Football</button>
+          <button type="button" aria-pressed="false" data-sport="tape">Tape-ball</button>
+        </div>
+        <button type="button" class="recenter" id="recenter" aria-label="Recentre map">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#15201B" stroke-width="1.8"><circle cx="10" cy="10" r="6"/><path d="M10 1v4M10 15v4M1 10h4M15 10h4" stroke-linecap="round"/></svg>
+        </button>
+
+
+        <button type="button" class="cond" id="cond" aria-expanded="false" aria-controls="condCard"><span><svg width="11" height="11" viewBox="0 0 12 12"><path d="M8.5 1.2A5 5 0 1010.8 9 4 4 0 018.5 1.2z" fill="#15201B"/></svg>Isha 7:21 pm</span><span><i></i>AQI 168</span><span>31°C</span></button>
+        <div class="condcard" id="condCard" hidden>
+          <div><b>Air quality 168: unhealthy for sensitive groups</b><p>A normal game is fine. If you have asthma, keep it short. Once AQI passes 200, new games get a warning and hosts get a prompt to move indoors or shorten the game.</p></div>
+          <div><b>Isha at 7:21 pm</b><p>Games show prayer times near kick-off, so players can plan a break or start after.</p></div>
+        </div>
+        <button type="button" class="fab" data-go="create">
+          <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+          Start a game
+        </button>
+
+        <div class="timecard">
+          <div class="tc-row">
+            <div><small>Kicking off by</small><div class="tc-time" id="tcTime">9:00 pm</div></div>
+            <div class="tc-count" id="tcCount"><b>3</b>games</div>
+          </div>
+          <div class="range">
+            <input type="range" id="timeRange" min="19" max="23" step="0.25" value="21" aria-label="Show games kicking off by this time">
+            <div class="track"></div>
+            <div class="knob" id="knob"></div>
+            <div class="ticks"><span>7</span><span>8</span><span>9</span><span>10</span><span>11 pm</span></div>
+          </div>
+        </div>
+
+        <div class="scrim" id="scrim"></div>
+
+        <!-- Game sheet -->
+        <section class="sheet" id="gameSheet" aria-label="Game details">
+          <div class="grab"><i></i></div>
+          <div class="sbody" id="gameBody"></div>
+        </section>
+
+        <!-- Create sheet -->
+        <section class="sheet" id="createSheet" aria-label="Start a game">
+          <div class="grab"><i></i></div>
+          <div class="sbody">
+            <div class="c-title">Start a game</div>
+            <div class="field"><small>Sport</small>
+              <div class="sports" role="group" aria-label="Sport">
+                <button type="button" id="spFootball" aria-pressed="true" data-cs="football"><span class="ico-f"></span><span>Football<br><small>5 to 11 a side</small></span></button>
+                <button type="button" id="spTape" aria-pressed="false" data-cs="tape"><span class="ico-t"></span><span>Tape-ball<br><small>6 to 11 a side</small></span></button>
+              </div>
+            </div>
+            <div class="field"><small>Where</small><div class="opts" role="radiogroup" aria-label="Ground" id="groundOpts"></div></div>
+            <div class="field"><small>Kick-off</small><div class="times" id="times" role="group" aria-label="Kick-off time"></div></div>
+            <div class="field"><small>Players</small>
+              <div class="stepper">
+                <button type="button" id="capMinus" aria-label="Fewer players">−</button>
+                <div class="val"><b id="capVal">14</b><small id="capFmt">7-a-side</small></div>
+                <div class="dots" id="capDots" aria-hidden="true"></div>
+                <button type="button" id="capPlus" aria-label="More players">+</button>
+              </div>
+            </div>
+            <div class="field"><small>Who can see it</small>
+              <div class="opts" role="radiogroup" aria-label="Visibility" id="visOpts">
+                <button type="button" role="radio" aria-checked="true" data-vis="campus"><span class="radio"></span>Everyone at LUMS<small>Verified students</small></button>
+                <button type="button" role="radio" aria-checked="false" data-vis="women"><span class="radio"></span>Women only<small>Verified women</small></button>
+                <button type="button" role="radio" aria-checked="false" data-vis="friends"><span class="radio"></span>Friends<small>People you both added</small></button>
+              </div>
+              <p class="vis-note" id="visNote">Anyone with a verified LUMS email can see and join this game.</p>
+            </div>
+            <div class="field"><div class="row" style="align-items:center"><div><b style="font-size:15px">Repeat every week</b><small>Regulars get first pick of spots before it opens to campus.</small></div><button type="button" class="switch" role="switch" aria-checked="false" id="repeatSw" aria-label="Repeat every week"></button></div></div>
+            <button type="button" class="btn primary" id="dropPin">Drop pin</button>
+          </div>
+        </section>
+
+        <!-- Chat -->
+        <section class="page" id="chat" aria-label="Game chat">
+          <div class="phead">
+            <button type="button" class="back" data-back="chat" aria-label="Back to game"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="#15201B" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <div class="t" id="chatTitle">7-a-side football<small>Sports Complex turf</small></div>
+          </div>
+          <div class="msgs" id="msgs"></div>
+          <form class="compose" id="compose">
+            <input id="chatInput" type="text" placeholder="Message the players" autocomplete="off" aria-label="Message">
+            <button type="submit" aria-label="Send"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 15V3M4 8l5-5 5 5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </form>
+        </section>
+
+        <!-- Verify -->
+        <section class="page" id="verify" aria-label="Verify campus email">
+          <div class="vbody" id="vbody"></div>
+        </section>
+
+
+        <!-- Your games -->
+        <section class="tabpage" id="tabGames" hidden aria-label="Your games">
+          <div class="pt">Your games</div>
+          <div class="card" id="availCard">
+            <div class="row"><div><b>I’m free to play</b><small>When a game that fits you is one or two players short, you get one ping. Never more than one a day.</small></div><button type="button" class="switch" role="switch" aria-checked="true" id="availSw" aria-label="I’m free to play"></button></div>
+            <div class="chips" id="posChips" role="group" aria-label="Positions"></div>
+            <div class="agrid" id="availGrid" role="group" aria-label="When you’re usually free"></div>
+          </div>
+          <h3>Coming up</h3>
+          <div id="upcoming" style="display:flex;flex-direction:column;gap:10px"></div>
+          <h3>Regulars</h3>
+          <div id="regulars" style="display:flex;flex-direction:column;gap:10px"></div>
+        </section>
+
+        <!-- Hostel Cup -->
+        <section class="tabpage" id="tabCup" hidden aria-label="Hostel Cup">
+          <div class="pt">Hostel Cup</div>
+          <p class="sub">Fall 2026. Every game you turn up to earns points for your hostel.</p>
+          <div class="podium" id="podiumWrap"><canvas id="podium" aria-label="Top three hostels on a podium. Drag to turn it."></canvas><small>Top three this semester</small></div>
+          <div class="segs" role="group" aria-label="Cup view"><button type="button" aria-pressed="true" data-cup="stand">Standings</button><button type="button" aria-pressed="false" data-cup="ko">Night Series</button></div>
+          <div id="cupStand" class="stand"></div>
+          <div id="cupKo" hidden></div>
+          <div class="card"><b style="font-size:16px">How points work</b>
+            <ul class="rules">
+              <li>Play in a game that happens <b>+10</b></li>
+              <li>Host a game that happens <b>+15</b></li>
+              <li>Bring the kit: ball, stumps or bibs <b>+3</b></li>
+              <li>Win <b>+5</b></li>
+              <li>Most different players this week <b>+50</b></li>
+              <li>Drop out 2 or more hours before kick-off <b style="color:var(--mut)">0</b></li>
+              <li>Join and don’t turn up <b class="neg">−10</b></li>
+            </ul>
+            <small>Turning up is worth twice as much as winning, so the hostel that plays most wins the Cup. A game only counts once most of its players have checked in at the ground.</small>
+          </div>
+        </section>
+
+        <!-- You -->
+        <section class="tabpage" id="tabMe" hidden aria-label="Your profile">
+          <div class="pwrap" id="pwrap"><div class="pcard" id="pcard"><div class="lines"></div><div class="inner">
+            <div class="tp"><span>LUMS</span><span>Fall 2026</span></div>
+            <div><div class="jn" id="pcGames">14</div><div class="nm">Ali Awan<small>M-3 hostel. Midfield, off-spin.</small></div></div>
+            <div class="st"><div><b id="pcPlayed">14</b><small>Played</small></div><div><b id="pcShow">13</b><small>Turned up</small></div><div><b>3</b><small>Hosted</small></div><div><b id="pcPts">164</b><small>Cup pts</small></div></div>
+          </div><div class="sheen"></div></div></div>
+          <p class="sub" style="margin-top:-8px;text-align:center">The big number is games played this semester.</p>
+          <div class="list">
+            <button type="button" data-go="campuses">Campus<small>LUMS, verified ›</small></button>
+          </div>
+          <h3>Notifications</h3>
+          <div class="list">
+            <div>Someone joined your game<button type="button" class="switch" role="switch" aria-checked="true" aria-label="Someone joined your game"></button></div>
+            <div>One spot left<button type="button" class="switch" role="switch" aria-checked="true" aria-label="One spot left"></button></div>
+            <div>Starts in 30 minutes<button type="button" class="switch" role="switch" aria-checked="true" aria-label="Starts in 30 minutes"></button></div>
+            <div>A game needs you<button type="button" class="switch" role="switch" aria-checked="true" aria-label="A game needs you"></button></div>
+          </div>
+          <div class="list">
+            <button type="button" id="blockedBtn">Blocked people<small>None ›</small></button>
+            <button type="button" id="delBtn" class="danger">Delete account</button>
+          </div>
+        </section>
+
+        <nav class="tabbar" role="tablist" aria-label="Sections">
+          <button type="button" role="tab" data-tab="map" aria-selected="true"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 6.5l6.5-2.5 7 2.5L23 4v15.5L16.5 22l-7-2.5L3 22z"/><path d="M9.5 4v15.5M16.5 6.5V22"/></svg>Map</button>
+          <button type="button" role="tab" data-tab="games" aria-selected="false"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="19" height="17" rx="3"/><path d="M3.5 10.5h19M8.5 3v4M17.5 3v4"/></svg>Your games</button>
+          <button type="button" role="tab" data-tab="cup" aria-selected="false"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h10v5a5 5 0 01-10 0z"/><path d="M8 6H4.5a3.5 3.5 0 003.8 4.2M18 6h3.5a3.5 3.5 0 01-3.8 4.2M13 14v4M9 22h8M10 18h6"/></svg>Hostel Cup</button>
+          <button type="button" role="tab" data-tab="me" aria-selected="false"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="13" cy="9" r="4.5"/><path d="M4.5 22c1.2-4.4 4.5-6.5 8.5-6.5s7.3 2.1 8.5 6.5"/></svg>You</button>
+        </nav>
+
+        <!-- Game day -->
+        <section class="page" id="gameday" aria-label="Game day">
+          <div class="phead"><button type="button" class="back" data-back="gameday" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="#15201B" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="t" id="gdTitle"></div></div>
+          <div class="steps" id="gdSteps"></div>
+          <div class="gdb" id="gdBody"></div>
+        </section>
+
+        <!-- Campuses -->
+        <section class="page" id="campuses" aria-label="Campuses">
+          <div class="phead"><button type="button" class="back" data-back="campuses" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="#15201B" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="t">Campuses<small>One campus at a time</small></div></div>
+          <div class="cbody" id="cbody"></div>
+        </section>
+        <div class="banner" id="banner" role="status">
+          <div class="appicon"><svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#F4F5F0"/><path d="M5 8.5c4 2 10 2 14 0M5 15.5c4-2 10-2 14 0" stroke="#E3342F" stroke-width="2.6" fill="none"/></svg></div>
+          <div style="flex:1"><b>Campus Pickup <small>now</small></b><p id="bannerText"></p></div>
+        </div>
+        <div class="toast" id="toast" role="status"></div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="stage-hint">Drag to rotate, scroll or pinch to zoom, tap a pin. Use the tab bar to reach Your games, Hostel Cup and your player card.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const screenEl=$('#screen');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NOW=18+52/60;
+function fmt(h){let hh=Math.floor(h),mm=Math.round((h-hh)*60);if(mm===60){hh++;mm=0;}const ap=hh>=12&&hh<24?'pm':'am';return (hh%12||12)+':'+String(mm).padStart(2,'0')+' '+ap;}
+function until(h){const m=Math.round((h-NOW)*60);if(m<60)return 'in '+m+' min';const a=Math.floor(m/60),b=m%60;return 'in '+a+' h'+(b?' '+b+' min':'');}
+const lerp=(a,b,t)=>a+(b-a)*t, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+
+/* ---------- data ---------- */
+const PEOPLE=[['Hamza Rauf','SSE, 3rd year'],['Ahmed Saeed','SDSB, 2nd year'],['Bilal Khan','MGSHSS, 4th year'],['Usman Tariq','SSE, 1st year'],['Zain Abbasi','SDSB, 3rd year'],['Saad Mirza','SAHSOL, 2nd year'],['Daniyal Hussain','SSE, 2nd year'],['Omar Farooq','SDSB, 4th year'],['Haris Qureshi','SSE, 3rd year'],['Faizan Nadeem','MGSHSS, 1st year'],['Talha Javed','SDSB, 1st year'],['Mustafa Baig','SSE, 4th year'],['Shayan Iqbal','SAHSOL, 3rd year'],['Rayyan Zafar','SSE, 2nd year'],['Hassan Waheed','SDSB, 2nd year'],['Abdullah Khalid','MGSHSS, 3rd year'],['Arham Sheikh','SSE, 1st year'],['Moiz Tahir','SDSB, 3rd year'],['Taimoor Ali','SSE, 4th year'],['Sarim Dar','MGSHSS, 2nd year'],['Fahad Latif','SDSB, 1st year'],['Waleed Anwar','SSE, 3rd year']];
+const AVC=['#1D5B3A','#2E4A7A','#7A4A2E','#5B3A6E','#2E6B6B','#6B5B2E','#3A3A3A'];
+const GROUNDS={
+  turf:{name:'Sports Complex turf',x:-10,z:-2,w:8,d:5.2,kind:'pitch',walk:'3 min walk'},
+  football:{name:'Football ground',x:1,z:-10,w:11,d:7,kind:'pitch',walk:'6 min walk'},
+  cricket:{name:'Main cricket ground',x:10,z:4,r:6.5,kind:'cricket',walk:'5 min walk'},
+  lawn:{name:'M-5 hostel lawn',x:-5,z:9,w:6,d:4,kind:'lawn',walk:'2 min walk'}
+};
+function roster(offset,n){return PEOPLE.slice(offset,offset+n).map(p=>({name:p[0],school:p[1]}));}
+let games=[
+  {id:'g1',sport:'football',format:'7-a-side',ground:'turf',kick:19.5,cap:14,players:roster(0,10),vis:'campus',chat:true},
+  {id:'g2',sport:'tape',format:'Tape-ball, 8 overs',ground:'cricket',kick:19.25,cap:16,players:roster(6,13),vis:'campus',me:true,meAt:13},
+  {id:'g3',sport:'football',format:'5-a-side',ground:'lawn',kick:20,cap:10,players:roster(12,10),vis:'campus'},
+  {id:'g4',sport:'football',format:'11-a-side',ground:'football',kick:21.5,cap:22,players:roster(3,9),vis:'campus'}
+];
+let filter={by:21,sport:'all'};
+
+/* ---------- three scene ---------- */
+const canvas=$('#map');
+let renderer;
+try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true}); }catch(e){ renderer=null; }
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,1,0.5,300);
+const pins={}; const ballMeshes=[];
+let lights={}, windowMats=[], beamMats=[], floodHeads=[], selRing, ripple;
+
+function tex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t;}
+function pitchTex(w,d,lines){return tex(512,Math.round(512*d/w),(g,W,H)=>{
+  const n=lines?12:8;for(let i=0;i<n;i++){g.fillStyle=i%2?'#3E8C50':'#357F46';g.fillRect(i*W/n,0,W/n+1,H);}
+  g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=Math.max(3,W*.008);const m=W*.045;
+  g.strokeRect(m,m,W-2*m,H-2*m);g.beginPath();g.moveTo(W/2,m);g.lineTo(W/2,H-m);g.stroke();
+  g.beginPath();g.arc(W/2,H/2,H*.16,0,Math.PI*2);g.stroke();
+  const bw=W*.13,bh=H*.52;g.strokeRect(m,(H-bh)/2,bw,bh);g.strokeRect(W-m-bw,(H-bh)/2,bw,bh);
+  const sw=W*.05,sh=H*.26;g.strokeRect(m,(H-sh)/2,sw,sh);g.strokeRect(W-m-sw,(H-sh)/2,sw,sh);
+});}
+function cricketTex(){return tex(512,512,(g,W,H)=>{
+  g.fillStyle='#357F46';g.fillRect(0,0,W,H);
+  for(let i=10;i>0;i--){g.beginPath();g.arc(W/2,H/2,W/2*i/10,0,Math.PI*2);g.fillStyle=i%2?'#3E8C50':'#367F47';g.fill();}
+  g.setLineDash([10,10]);g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=4;g.beginPath();g.arc(W/2,H/2,W*.3,0,Math.PI*2);g.stroke();g.setLineDash([]);
+  g.lineWidth=5;g.strokeStyle='rgba(255,255,255,.9)';g.beginPath();g.arc(W/2,H/2,W*.475,0,Math.PI*2);g.stroke();
+  g.fillStyle='#CDB88C';g.fillRect(W/2-16,H/2-70,32,140);
+  g.strokeStyle='#fff';g.lineWidth=2;[H/2-58,H/2+58].forEach(y=>{g.beginPath();g.moveTo(W/2-22,y);g.lineTo(W/2+22,y);g.stroke();});
+});}
+function wallTex(lit){return tex(128,64,(g,W,H)=>{
+  g.fillStyle=lit?'#000':'#E9E5DB';g.fillRect(0,0,W,H);
+  for(let r=0;r<3;r++)for(let c=0;c<8;c++){const on=Math.random()<.55;g.fillStyle=lit?(on?'#fff':'#000'):'#8C948D';g.fillRect(6+c*15.4,8+r*19,9,11);}
+});}
+
+function build(){
+  scene.background=new THREE.Color('#1A2540');
+  scene.fog=new THREE.Fog('#1A2540',55,120);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(120,120),new THREE.MeshStandardMaterial({color:'#C7BCA0',roughness:1}));
+  ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+  const pathMat=new THREE.MeshStandardMaterial({color:'#DDD3BC',roughness:1});
+  [[-8.7,4.2,22.5,.9],[-1.5,-5.2,37,.9],[-17.5,0,.9,36],[8.2,-11.5,.9,13]].forEach(p=>{const m=new THREE.Mesh(new THREE.BoxGeometry(p[2],.04,p[3]),pathMat);m.position.set(p[0],.02,p[1]);m.receiveShadow=true;scene.add(m);});
+
+  const side=new THREE.MeshStandardMaterial({color:'#3A6B45',roughness:1});
+  Object.entries(GROUNDS).forEach(([k,g])=>{
+    let mesh;
+    if(g.kind==='cricket'){mesh=new THREE.Mesh(new THREE.CylinderGeometry(g.r,g.r,.12,72),[side,new THREE.MeshStandardMaterial({map:cricketTex(),roughness:.95}),side]);}
+    else{const top=new THREE.MeshStandardMaterial({map:pitchTex(g.w,g.d,g.kind==='pitch'),roughness:.95});mesh=new THREE.Mesh(new THREE.BoxGeometry(g.w,.12,g.d),[side,side,top,side,side,side]);}
+    mesh.position.set(g.x,.06,g.z);mesh.receiveShadow=true;scene.add(mesh);
+    // floodlights
+    if(k==='lawn')return;
+    const pts=g.kind==='cricket'?[0,1,2,3,4,5].map(i=>{const a=i/6*Math.PI*2+.3;return [g.x+Math.cos(a)*(g.r+.7),g.z+Math.sin(a)*(g.r+.7)];})
+      :[[-1,-1],[1,-1],[-1,1],[1,1]].map(s=>[g.x+s[0]*(g.w/2+.6),g.z+s[1]*(g.d/2+.6)]);
+    pts.forEach(p=>{
+      const pole=new THREE.Mesh(new THREE.CylinderGeometry(.05,.08,3.4,6),new THREE.MeshStandardMaterial({color:'#6E756F'}));pole.position.set(p[0],1.7,p[1]);pole.castShadow=true;scene.add(pole);
+      const hm=new THREE.MeshStandardMaterial({color:'#dcdcd0',emissive:'#FFE9B0',emissiveIntensity:0});
+      const head=new THREE.Mesh(new THREE.BoxGeometry(.5,.25,.12),hm);head.position.set(p[0],3.45,p[1]);head.lookAt(g.x,0,g.z);scene.add(head);floodHeads.push(hm);
+      const L=Math.hypot(p[0]-g.x,p[1]-g.z,3.4)*.8;
+      const cg=new THREE.ConeGeometry(1.9,L,24,1,true);cg.translate(0,-L/2,0);cg.rotateX(-Math.PI/2);
+      const bm=new THREE.MeshBasicMaterial({color:'#FFEFC2',transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+      const beam=new THREE.Mesh(cg,bm);beam.position.set(p[0],3.4,p[1]);beam.lookAt(lerp(p[0],g.x,.8),0,lerp(p[1],g.z,.8));scene.add(beam);beamMats.push(bm);
+    });
+    const pl=new THREE.PointLight('#FFE7B0',0,20,1.3);pl.position.set(g.x,4.5,g.z);scene.add(pl);(lights.flood=lights.flood||[]).push(pl);
+  });
+
+  const B=[[-12,-11,6,3,2.2],[-5,-17,5,3,1.8],[13,-8,5,4,2.6],[19.5,-3,3,6,2],[-14,8,3,6,2.4],[-11,14.5,6,2.5,2.4],[-2,15,5,2.5,2.2],[3,10,3,3,1.6],[-1,1,4,4,3],[16,13,4,3,2],[-20,-8,3,5,1.8]];
+  const roof=new THREE.MeshStandardMaterial({color:'#D8D2C4',roughness:.9});
+  const wall=wallTex(false),lit=wallTex(true);
+  B.forEach(b=>{
+    const t1=wall.clone();t1.needsUpdate=true;t1.wrapS=t1.wrapT=THREE.RepeatWrapping;t1.repeat.set(Math.max(1,Math.round(b[2]/2)),1);
+    const t2=lit.clone();t2.needsUpdate=true;t2.wrapS=t2.wrapT=THREE.RepeatWrapping;t2.repeat.copy(t1.repeat);
+    const sm=new THREE.MeshStandardMaterial({map:t1,emissiveMap:t2,emissive:'#FFC27A',emissiveIntensity:0,roughness:.9});windowMats.push(sm);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(b[2],b[4],b[3]),[sm,sm,roof,roof,sm,sm]);
+    m.position.set(b[0],b[4]/2,b[1]);m.castShadow=true;m.receiveShadow=true;scene.add(m);
+  });
+
+  // trees
+  const treeGeo=new THREE.IcosahedronGeometry(.7,0);const treeMat=new THREE.MeshStandardMaterial({color:'#2F5A34',flatShading:true,roughness:1});
+  const inst=new THREE.InstancedMesh(treeGeo,treeMat,90);inst.castShadow=true;let n=0;const dm=new THREE.Object3D();
+  const blocked=(x,z)=>{for(const g of Object.values(GROUNDS)){if(g.r){if(Math.hypot(x-g.x,z-g.z)<g.r+1.3)return true;}else if(Math.abs(x-g.x)<g.w/2+1.2&&Math.abs(z-g.z)<g.d/2+1.2)return true;}
+    for(const b of B){if(Math.abs(x-b[0])<b[2]/2+.9&&Math.abs(z-b[1])<b[3]/2+.9)return true;}return false;};
+  let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  for(let i=0;i<600&&n<90;i++){const x=rnd()*48-24,z=rnd()*42-20;if(blocked(x,z))continue;const s=.7+rnd()*.7;dm.position.set(x,.5*s+.2,z);dm.scale.set(s,s*1.15,s);dm.rotation.y=rnd()*6;dm.updateMatrix();inst.setMatrixAt(n++,dm.matrix);}
+  inst.count=n;scene.add(inst);
+
+  lights.hemi=new THREE.HemisphereLight('#FFD9B0','#40362A',.6);scene.add(lights.hemi);
+  lights.sun=new THREE.DirectionalLight('#FFB77A',1.2);lights.sun.position.set(-24,18,14);lights.sun.castShadow=true;
+  Object.assign(lights.sun.shadow.camera,{left:-32,right:32,top:32,bottom:-32,near:1,far:90});lights.sun.shadow.mapSize.set(1024,1024);lights.sun.shadow.bias=-.0008;scene.add(lights.sun);
+  lights.moon=new THREE.DirectionalLight('#8FA3D6',0);lights.moon.position.set(20,30,-10);scene.add(lights.moon);
+
+  selRing=new THREE.Mesh(new THREE.RingGeometry(1,1.25,64),new THREE.MeshBasicMaterial({color:'#E3342F',transparent:true,opacity:0,depthWrite:false}));selRing.rotation.x=-Math.PI/2;selRing.position.y=.14;scene.add(selRing);
+  ripple=new THREE.Mesh(new THREE.RingGeometry(.8,1,64),new THREE.MeshBasicMaterial({color:'#FFFFFF',transparent:true,opacity:0,depthWrite:false}));ripple.rotation.x=-Math.PI/2;ripple.position.y=.15;scene.add(ripple);
+}
+
+function tapeTex(){return tex(256,128,(g,W,H)=>{
+  g.fillStyle='#D8302B';g.fillRect(0,0,W,H);
+  g.strokeStyle='rgba(0,0,0,.18)';g.lineWidth=2;
+  for(let i=-8;i<16;i++){g.beginPath();g.moveTo(i*22,0);g.lineTo(i*22+60,H);g.stroke();}
+  g.fillStyle='#F1C232';g.fillRect(0,H*.46,W,H*.1);
+});}
+let tapeT=null;
+function makePin(game){
+  const g=GROUNDS[game.ground];const grp=new THREE.Group();grp.position.set(g.x,0,g.z);
+  let ball;
+  if(game.sport==='football'){
+    const geo=new THREE.IcosahedronGeometry(.85,1);
+    ball=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:'#F7F7F2',flatShading:true,roughness:.5}));
+    const e=new THREE.LineSegments(new THREE.EdgesGeometry(geo,1),new THREE.LineBasicMaterial({color:'#1B1F1C'}));ball.add(e);
+  }else{
+    tapeT=tapeT||tapeTex();
+    ball=new THREE.Mesh(new THREE.SphereGeometry(.75,32,24),new THREE.MeshStandardMaterial({map:tapeT,roughness:.35,metalness:.05}));
+  }
+  ball.castShadow=true;ball.position.y=2.4;ball.userData.gameId=game.id;grp.add(ball);ballMeshes.push(ball);
+  const stalk=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,2.1,6),new THREE.MeshBasicMaterial({color:'#15201B',transparent:true,opacity:.55}));stalk.position.y=1.15;grp.add(stalk);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(.45,.6,40),new THREE.MeshBasicMaterial({color:'#E3342F',transparent:true,opacity:.95}));ring.rotation.x=-Math.PI/2;ring.position.y=.14;grp.add(ring);
+  scene.add(grp);
+  const lab=document.createElement('button');lab.type='button';lab.className='pl';lab.addEventListener('click',()=>openGame(game.id));
+  $('#labels').appendChild(lab);
+  pins[game.id]={grp,ball,ring,lab,scale:0,phase:Math.random()*6,drop:0};
+  updateLabel(game);
+}
+function spotsLeft(g){return g.cap-g.players.length-(g.me?1:0);}
+function updateLabel(game){
+  const p=pins[game.id];if(!p)return;const left=spotsLeft(game);
+  p.lab.classList.toggle('full',left<=0);
+  p.lab.innerHTML='<b>'+(left<=0?'Full':left+' left')+'</b><small>'+(game.sport==='tape'?'Tape-ball':game.format)+', '+fmt(game.kick)+'</small>';
+  if(game.live)p.lab.innerHTML='<b>Live</b><small>'+game.live+'</small>';
+  else if(game.ended)p.lab.innerHTML='<b style="color:#5B6960">Full time</b><small>'+game.ended+'</small>';
+  p.lab.setAttribute('aria-label',(game.sport==='tape'?'Tape-ball':game.format+' football')+' at '+GROUNDS[game.ground].name+', '+fmt(game.kick)+', '+(left<=0?'full':left+' spots left'));
+  const grey=left<=0;p.ball.material.color.set(grey?(game.sport==='tape'?'#8E8A86':'#BFC3BD'):(game.sport==='tape'?'#FFFFFF':'#F7F7F2'));
+  p.ring.material.color.set(grey?'#8A938C':'#E3342F');
+}
+function visible(game){return game.kick<=filter.by+1e-6&&(filter.sport==='all'||filter.sport===game.sport);}
+
+/* camera */
+const cam={tx:0,tz:2.5,theta:.22,phi:.9,r:76};const goal={...cam};const HOME={...cam};
+function resize(){const w=screenEl.clientWidth,h=screenEl.clientHeight;if(!renderer)return;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+function applyCam(){const sp=Math.sin(cam.phi);camera.position.set(cam.tx+cam.r*sp*Math.sin(cam.theta),cam.r*Math.cos(cam.phi),cam.tz+cam.r*sp*Math.cos(cam.theta));camera.lookAt(cam.tx,0,cam.tz);}
+function focusGround(key,r){const g=GROUNDS[key];const k=(r||26)*.3;goal.r=r||26;goal.tx=g.x+Math.sin(goal.theta)*k;goal.tz=g.z+Math.cos(goal.theta)*k;}
+function home(){Object.assign(goal,{tx:HOME.tx,tz:HOME.tz,r:HOME.r,phi:HOME.phi});}
+
+/* lighting by hour */
+let hour=21;
+function applyHour(h){
+  const d=smooth(18.7,20.4,h);
+  const sky=new THREE.Color('#E7A77A').lerp(new THREE.Color('#141E36'),d);
+  scene.background.copy(sky);scene.fog.color.copy(sky);
+  lights.sun.intensity=lerp(1.25,0,d);lights.sun.color.set('#FFB77A');
+  lights.hemi.intensity=lerp(.62,.22,d);lights.hemi.color.set(d>.5?'#8FA0C8':'#FFD9B0');
+  lights.moon.intensity=lerp(0,.35,d);
+  const f=smooth(18.9,19.8,h);
+  lights.flood.forEach(l=>l.intensity=f*1.6);
+  floodHeads.forEach(m=>m.emissiveIntensity=f*2.2);
+  beamMats.forEach(m=>m.opacity=f*.07);
+  windowMats.forEach(m=>m.emissiveIntensity=d*.95);
+  mapStatusDark=d<.35;syncStatus();
+}
+
+/* interaction */
+const ptrs=new Map();let down=null,pinchD=0;
+if(renderer){
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===1)down={x:e.clientX,y:e.clientY,t:performance.now(),moved:0};if(ptrs.size===2){const a=[...ptrs.values()];pinchD=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);}});
+canvas.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const prev=ptrs.get(e.pointerId);const dx=e.clientX-prev.x,dy=e.clientY-prev.y;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===1){goal.theta-=dx*.006;goal.phi=clamp(goal.phi-dy*.004,.45,1.2);cam.theta=goal.theta;if(down)down.moved+=Math.abs(dx)+Math.abs(dy);}
+  else if(ptrs.size===2){const a=[...ptrs.values()];const nd=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(pinchD)goal.r=clamp(goal.r*pinchD/nd,14,95);pinchD=nd;if(down)down.moved=99;}});
+const up=e=>{ptrs.delete(e.pointerId);if(ptrs.size===0&&down&&down.moved<8&&performance.now()-down.t<500){pick(e);}if(ptrs.size===0)down=null;};
+canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);down=null;});
+canvas.addEventListener('wheel',e=>{e.preventDefault();goal.r=clamp(goal.r*(1+e.deltaY*.0012),14,95);},{passive:false});
+}
+const ray=new THREE.Raycaster(),mv=new THREE.Vector2();
+function pick(e){const r=canvas.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mv,camera);
+  const hit=ray.intersectObjects(ballMeshes,false)[0];if(hit){const id=hit.object.userData.gameId;const g=games.find(x=>x.id===id);if(g&&visible(g))openGame(id);}}
+$('#recenter').addEventListener('click',()=>{home();goal.theta=HOME.theta;});
+
+/* loop */
+let last=performance.now(),tt=0;const v3=new THREE.Vector3();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;tt+=dt;
+  const k=1-Math.exp(-dt*7);
+  ['tx','tz','r','phi','theta'].forEach(p=>cam[p]=lerp(cam[p],goal[p],k));
+  applyCam();
+  const W=screenEl.clientWidth,H=screenEl.clientHeight;
+  games.forEach(g=>{const p=pins[g.id];if(!p)return;const vis=visible(g);
+    p.scale=lerp(p.scale,vis?1:0,1-Math.exp(-dt*9));
+    p.grp.scale.setScalar(Math.max(.001,p.scale));
+    let y=2.4+(reduce?0:Math.sin(tt*1.6+p.phase)*.12);
+    if(p.drop>0){p.drop=Math.max(0,p.drop-dt*1.3);const t=1-p.drop;const b=bounce(t);y=lerp(16,2.4,b);}
+    p.ball.position.y=y;if(!reduce)p.ball.rotation.y+=dt*.7;
+    p.ball.getWorldPosition(v3);v3.y+=1.1;v3.project(camera);
+    const x=clamp((v3.x+1)/2*W,58,W-58),yy=(-v3.y+1)/2*H;
+    p.lab.style.transform='translate('+x.toFixed(1)+'px,'+yy.toFixed(1)+'px) translate(-50%,-100%) scale('+(.6+.4*p.scale).toFixed(3)+')';
+    p.lab.classList.toggle('hide',p.scale<.5||v3.z>1||p.drop>.05);
+  });
+  if(selRing.userData.on){selRing.material.opacity=.55+.35*Math.sin(tt*4);}else selRing.material.opacity=lerp(selRing.material.opacity,0,.2);
+  if(ripple.userData.t!=null){ripple.userData.t+=dt;const t=ripple.userData.t;ripple.scale.setScalar(1+t*5);ripple.material.opacity=Math.max(0,.9-t*1.1);if(t>1)ripple.userData.t=null;}
+  if(tab==='map'||openSheetEl)renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+function bounce(t){const n=7.5625,d=2.75;if(t<1/d)return n*t*t;if(t<2/d)return n*(t-=1.5/d)*t+.75;if(t<2.5/d)return n*(t-=2.25/d)*t+.9375;return n*(t-=2.625/d)*t+.984375;}
+
+/* ---------- time + filters ---------- */
+const range=$('#timeRange');
+function onRange(){filter.by=parseFloat(range.value);hour=filter.by;$('#tcTime').textContent=fmt(filter.by);
+  const pct=(filter.by-19)/4*100;$('#knob').style.left='calc(10px + (100% - 20px) * '+(pct/100)+')';
+  const n=games.filter(visible).length;$('#tcCount').innerHTML='<b>'+n+'</b>'+(n===1?'game':'games');
+  if(renderer)applyHour(hour);}
+range.addEventListener('input',onRange);
+$$('.seg button').forEach(b=>b.addEventListener('click',()=>{$$('.seg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));filter.sport=b.dataset.sport;onRange();}));
+
+/* ---------- ui helpers ---------- */
+let toastT;function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2800);}
+function banner(msg){$('#bannerText').textContent=msg;const b=$('#banner');b.classList.add('on');setTimeout(()=>b.classList.remove('on'),3800);}
+const initials=n=>n.split(' ').map(s=>s[0]).join('').slice(0,2);
+const avColor=n=>AVC[(n.charCodeAt(0)+n.charCodeAt(n.length-1))%AVC.length];
+function ballIcon(sport,size){size=size||28;return sport==='football'
+  ?'<svg width="'+size+'" height="'+size+'" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#fff" stroke="#15201B" stroke-width="1.6"/><path d="M14 9.2l4.3 3.1-1.6 5h-5.4l-1.6-5z" fill="#15201B"/><path d="M14 9.2V3M18.3 12.3l5.4-2M16.7 17.3l3.5 5M11.3 17.3l-3.5 5M9.7 12.3l-5.4-2" stroke="#15201B" stroke-width="1.4"/></svg>'
+  :'<svg width="'+size+'" height="'+size+'" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#D8302B" stroke="#15201B" stroke-width="1.6"/><path d="M4 10.5c6 2.6 14 2.6 20 0" stroke="#F1C232" stroke-width="3" fill="none"/><path d="M5 18c5-3 13-4 19-1.5" stroke="rgba(0,0,0,.25)" stroke-width="1.2" fill="none"/></svg>';}
+$('.ico-f').innerHTML=ballIcon('football',34);$('.ico-t').innerHTML=ballIcon('tape',34);
+
+const scrim=$('#scrim');let openSheetEl=null,current=null;
+function openSheet(el,withScrim){closeMenus();$$('.sheet').forEach(s=>{if(s!==el)s.classList.remove('open');});el.classList.add('open');openSheetEl=el;scrim.classList.toggle('on',!!withScrim);}
+function closeSheets(){$$('.sheet').forEach(s=>s.classList.remove('open'));scrim.classList.remove('on');openSheetEl=null;selRing.userData.on=false;
+  Object.values(pins).forEach(p=>p.lab.classList.remove('sel'));current=null;home();}
+scrim.addEventListener('click',closeSheets);
+// drag to dismiss
+$$('.sheet').forEach(sh=>{const grab=sh.querySelector('.grab');let y0=null,dy=0;
+  grab.addEventListener('pointerdown',e=>{y0=e.clientY;dy=0;sh.classList.add('drag');grab.setPointerCapture(e.pointerId);});
+  grab.addEventListener('pointermove',e=>{if(y0==null)return;dy=Math.max(0,e.clientY-y0);sh.style.transform='translateY('+dy+'px)';});
+  const end=()=>{if(y0==null)return;sh.classList.remove('drag');sh.style.transform='';if(dy>90)closeSheets();y0=null;};
+  grab.addEventListener('pointerup',end);grab.addEventListener('pointercancel',end);
+});
+
+/* ---------- game sheet ---------- */
+function slotPositions(game){
+  const n=game.cap,out=[];
+  if(game.sport==='football'){
+    const per=n/2,rest=per-1,perCol=per>8?4:3,cols=Math.ceil(rest/perCol);
+    for(let t=0;t<2;t++){const team=[];team.push([t?286:14,95]);let left=rest;
+      for(let c=0;c<cols;c++){const inCol=Math.ceil(left/(cols-c));left-=inCol;const x=t?286-(c+1)*(118/cols):14+(c+1)*(118/cols);
+        for(let i=0;i<inCol;i++)team.push([x,95+(i-(inCol-1)/2)*(150/Math.max(inCol,3))]);}
+      out.push(team);}
+  }else{
+    for(let t=0;t<2;t++){const team=[];const per=n/2;for(let i=0;i<per;i++){const a=(t?0:Math.PI)+(i+.5)/per*Math.PI;team.push([150+Math.cos(a)*118,95+Math.sin(a)*72]);}out.push(team);}
+  }
+  const order=[];for(let i=0;i<n/2;i++){order.push(out[0][i]);order.push(out[1][i]);}
+  return order.map((p,i)=>({x:p[0],y:p[1],team:i%2}));
+}
+function formationSVG(game){
+  const slots=slotPositions(game);const people=[...game.players];if(game.me)people.splice(game.meAt,0,{name:'You',me:true});
+  let s='<svg viewBox="0 0 300 190" role="img" aria-label="'+people.length+' of '+game.cap+' slots filled">';
+  if(game.sport==='football'){
+    for(let i=0;i<10;i++)s+='<rect x="'+i*30+'" y="0" width="30" height="190" fill="'+(i%2?'#3E8C50':'#357F46')+'"/>';
+    s+='<g stroke="rgba(255,255,255,.75)" stroke-width="1.5" fill="none"><rect x="6" y="6" width="288" height="178" rx="2"/><path d="M150 6v178"/><circle cx="150" cy="95" r="26"/><rect x="6" y="52" width="40" height="86"/><rect x="254" y="52" width="40" height="86"/></g>';
+  }else{
+    s+='<rect width="300" height="190" fill="#357F46"/><ellipse cx="150" cy="95" rx="140" ry="88" fill="#3E8C50"/><ellipse cx="150" cy="95" rx="80" ry="50" fill="none" stroke="rgba(255,255,255,.6)" stroke-dasharray="5 5"/><rect x="143" y="70" width="14" height="50" fill="#CDB88C"/>';
+  }
+  slots.forEach((p,i)=>{const who=people[i];const r=game.cap>16?11:13;
+    if(who){const fill=who.me?'#E3342F':(p.team?'#15201B':'#F4F5F0');const tc=who.me?'#fff':(p.team?'#F4F5F0':'#15201B');
+      s+='<g data-slot="'+i+'" class="'+(who.fresh?'slot-pulse':'')+'"><circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r+'" fill="'+fill+'"/><text x="'+p.x.toFixed(1)+'" y="'+(p.y+3.6).toFixed(1)+'" text-anchor="middle" font-size="'+(who.me?8:9.5)+'" font-weight="700" fill="'+tc+'" font-family="-apple-system,system-ui,sans-serif">'+(who.me?'You':initials(who.name))+'</text></g>';}
+    else s+='<circle data-slot="'+i+'" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r+'" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.85)" stroke-width="1.5" stroke-dasharray="3 3"/>';});
+  return s+'</svg>';
+}
+function renderGame(game,prevLeft){
+  const g=GROUNDS[game.ground];const left=spotsLeft(game);const inCount=game.cap-left;
+  const numHTML=left<=0?'<span class="num full in">Full</span>':'<span class="num'+(prevLeft!=null&&prevLeft!==left?' in':'')+'">'+left+'</span>';
+  const label=left<=0?'':(left===1?'Last spot':'spots left');
+  const visTxt={campus:'Everyone at LUMS',women:'Women only',friends:'Friends'}[game.vis];
+  const people=[...game.players];if(game.me)people.splice(game.meAt,0,{name:'You',school:'That’s you',me:true});
+  $('#gameBody').innerHTML=
+   '<div class="g-head"><div><div class="g-sport">'+ballIcon(game.sport,22)+(game.sport==='tape'?game.format:game.format+' football')+'</div><div class="g-ground">'+g.name+'</div></div>'+
+   '<button type="button" class="iconbtn" id="moreBtn" aria-label="More options"><svg width="18" height="4" viewBox="0 0 18 4" fill="#15201B"><circle cx="2" cy="2" r="2"/><circle cx="9" cy="2" r="2"/><circle cx="16" cy="2" r="2"/></svg></button></div>'+
+   '<div class="spots"><div class="numwrap" id="numwrap">'+numHTML+'</div><div class="spots-lab">'+label+'<small>'+inCount+' of '+game.cap+' players in</small></div></div>'+
+   '<div class="facts"><div><small>Kick-off</small><b>'+fmt(game.kick)+'</b></div><div><small>Starts</small><b>'+until(game.kick)+'</b></div><div><small>Who can see</small><b>'+visTxt+'</b></div></div>'+
+   '<div class="formation" id="formation"><span class="cap">'+(game.sport==='football'?'Teams fill evenly as people join':'Two sides of '+game.cap/2)+'</span>'+formationSVG(game)+'</div>'+
+   '<div class="actions">'+(game.me?'<button type="button" class="btn primary in" id="joinBtn" aria-live="polite"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3.5 9.5l3.5 3.5 7.5-8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>You’re in</button>'
+     :(left<=0?'<button type="button" class="btn primary" id="joinBtn" disabled>Game is full</button>':'<button type="button" class="btn primary" id="joinBtn">Join game</button>'))+
+   '<button type="button" class="btn ghost" id="chatBtn">Chat'+(game.chat?' <span class="badge">5</span>':'')+'</button></div>'+
+   (game.me?'<button type="button" class="leave" id="leaveBtn">Leave this game</button>':'')+
+   '<div class="roster"><h3>Who’s in ('+inCount+')</h3><ul>'+people.map((p,i)=>'<li><span class="av" style="background:'+(p.me?'#E3342F':avColor(p.name))+'">'+(p.me?'You':initials(p.name))+'</span><span class="who">'+(p.me?'You':p.name)+'<small>'+p.school+'</small></span>'+(i===0&&!p.me?'<span class="tag">Host</span>':'')+(p.me?'<span class="tag you">Joined</span>':'')+'</li>').join('')+'</ul></div>';
+  if(prevLeft!=null&&prevLeft!==left&&prevLeft>0&&left>0){const w=$('#numwrap');const o=document.createElement('span');o.className='num out';o.textContent=prevLeft;w.prepend(o);setTimeout(()=>o.remove(),500);}
+  $('#joinBtn').addEventListener('click',()=>{if(!game.me)join(game);});
+  $('#chatBtn').addEventListener('click',()=>openChat(game));
+  const lv=$('#leaveBtn');if(lv)lv.addEventListener('click',()=>leave(game));
+  $('#moreBtn').addEventListener('click',e=>{e.stopPropagation();toggleMenu(game);});
+  game.players.forEach(p=>p.fresh=false);
+}
+function openGame(id){const game=games.find(g=>g.id===id);if(!game)return;current=game;
+  Object.entries(pins).forEach(([k,p])=>p.lab.classList.toggle('sel',k===id));
+  renderGame(game);openSheet($('#gameSheet'),true);$('#gameBody').scrollTop=0;
+  const g=GROUNDS[game.ground];selRing.position.set(g.x,.14,g.z);selRing.scale.setScalar(g.r?g.r/1.1:Math.max(g.w,g.d)/2.1);selRing.userData.on=true;
+  focusGround(game.ground,30);}
+let liveDone=false;
+function join(game){
+  const btn=$('#joinBtn');const prev=spotsLeft(game);
+  // fly avatar into the first empty slot
+  const idx=game.players.length;const slot=$('#formation [data-slot="'+idx+'"]');
+  const sr=screenEl.getBoundingClientRect(),br=btn.getBoundingClientRect(),tr=slot?slot.getBoundingClientRect():br;
+  const f=document.createElement('div');f.className='fly';f.textContent='You';screenEl.appendChild(f);
+  const x0=br.left-sr.left+br.width/2-17,y0=br.top-sr.top+br.height/2-17,x1=tr.left-sr.left+tr.width/2-17,y1=tr.top-sr.top+tr.height/2-17;
+  f.style.left=x0+'px';f.style.top=y0+'px';
+  const done=()=>{f.remove();game.me=true;game.meAt=game.players.length;renderGame(game,prev);updateLabel(game);onRange();
+    const s=$('#formation [data-slot="'+idx+'"]');if(s)s.classList.add('slot-pulse');
+    $('#numwrap').classList.add('shake');
+    toast('You’re in. We’ll remind you 30 minutes before kick-off.');
+    if(!liveDone&&game.id==='g1'){liveDone=true;setTimeout(()=>liveJoin(game),2600);}};
+  if(reduce||!f.animate){done();return;}
+  f.animate([{transform:'translate(0,0) scale(1)'},{transform:'translate('+(x1-x0)*.5+'px,'+((y1-y0)*.5-70)+'px) scale(1.25)',offset:.5},{transform:'translate('+(x1-x0)+'px,'+(y1-y0)+'px) scale(.8)'}],{duration:650,easing:'cubic-bezier(.3,.7,.3,1)'}).onfinish=done;
+}
+function liveJoin(game){if(!game.me)return;const prev=spotsLeft(game);if(prev<=0)return;
+  game.players.push({name:'Sara Malik',school:'SDSB, 2nd year',fresh:true});
+  updateLabel(game);if(current===game&&$('#gameSheet').classList.contains('open'))renderGame(game,prev);
+  const left=spotsLeft(game);banner('Sara Malik joined 7-a-side at Sports Complex turf. '+(left===1?'One spot left.':left+' spots left.'));}
+function leave(game){const prev=spotsLeft(game);game.me=false;renderGame(game,prev);updateLabel(game);toast('You left the game. Your spot is open again.');}
+let menuEl=null;function closeMenus(){if(menuEl){menuEl.remove();menuEl=null;}}
+function toggleMenu(game){if(menuEl){closeMenus();return;}menuEl=document.createElement('div');menuEl.className='menu';
+  menuEl.innerHTML='<button type="button" data-a="share">Copy game link</button><p>Report this game</p>'+['Harassment or abuse','Spam or fake game','Unsafe place or time','Something else'].map(r=>'<button type="button" data-a="report">'+r+'</button>').join('');
+  $('#gameSheet').appendChild(menuEl);
+  menuEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;closeMenus();toast(b.dataset.a==='share'?'Link copied':'Report sent. A moderator reads every report.');});}
+document.addEventListener('click',e=>{if(menuEl&&!menuEl.contains(e.target)&&e.target.id!=='moreBtn')closeMenus();});
+
+/* ---------- chat ---------- */
+const MSGS=[['Hamza Rauf','Bibs are in my car. Orange vs green.'],['Bilal Khan','Anyone have a pump? The ball’s a bit flat'],['Zain Abbasi','I’ll bring one. Reaching by 7:20'],['Saad Mirza','Scene on hai? Looks like rain'],['Hamza Rauf','On hai. The turf drains fine']];
+function openChat(game){
+  $('#chatTitle').innerHTML=(game.sport==='tape'?game.format:game.format+' football')+'<small>'+GROUNDS[game.ground].name+', '+fmt(game.kick)+'</small>';
+  const m=$('#msgs');m.innerHTML='<div class="expire">This chat closes at '+fmt(game.kick+2)+', two hours after kick-off.</div>'+(game.chat?MSGS.map(x=>'<div class="m"><small>'+x[0]+'</small><p>'+x[1]+'</p></div>').join(''):'<div class="expire">No messages yet. Say who’s bringing the ball.</div>');
+  $('#chat').classList.add('open');m.scrollTop=m.scrollHeight;
+}
+$('#compose').addEventListener('submit',e=>{e.preventDefault();const i=$('#chatInput');const v=i.value.trim();if(!v)return;const m=$('#msgs');
+  const d=document.createElement('div');d.className='m mine new';d.innerHTML='<p></p>';d.querySelector('p').textContent=v;m.appendChild(d);i.value='';m.scrollTop=m.scrollHeight;
+  setTimeout(()=>{const r=document.createElement('div');r.className='m new';r.innerHTML='<small>Hamza Rauf</small><p>Perfect, see you at the turf.</p>';m.appendChild(r);m.scrollTop=m.scrollHeight;},1400);});
+$$('[data-back]').forEach(b=>b.addEventListener('click',()=>$('#'+b.dataset.back).classList.remove('open')));
+
+/* ---------- create ---------- */
+const create={sport:'football',ground:'turf',kick:20,cap:14,vis:'campus'};
+const CAPS={football:[10,14,18,22],tape:[12,16,22]};
+function fmtName(sport,cap){return sport==='football'?(cap/2)+'-a-side':(cap/2)+'-a-side tape-ball';}
+function renderCreate(){
+  $('#groundOpts').innerHTML=Object.entries(GROUNDS).map(([k,g])=>'<button type="button" role="radio" aria-checked="'+(k===create.ground)+'" data-g="'+k+'"><span class="radio"></span>'+g.name+'<small>'+g.walk+'</small></button>').join('');
+  const ts=[19.5,20,20.5,21,21.5,22];$('#times').innerHTML=ts.map(t=>'<button type="button" aria-pressed="'+(t===create.kick)+'" data-t="'+t+'">'+fmt(t)+'</button>').join('');
+  $('#capVal').textContent=create.cap;$('#capFmt').textContent=fmtName(create.sport,create.cap);
+  $('#capDots').innerHTML=Array.from({length:create.cap},(_,i)=>'<i class="'+(i%2?'b':'')+'"></i>').join('');
+  $('#spFootball').setAttribute('aria-pressed',String(create.sport==='football'));$('#spTape').setAttribute('aria-pressed',String(create.sport==='tape'));
+  $$('#visOpts button').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.vis===create.vis)));
+  $('#visNote').textContent={campus:'Anyone with a verified LUMS email can see and join this game.',women:'Only verified women at LUMS will see this pin. Everyone else gets no result, so nobody can tell the game exists.',friends:'Only people you’ve both added as friends will see this pin.'}[create.vis];
+}
+function selectGround(k){create.ground=k;renderCreate();const g=GROUNDS[k];selRing.position.set(g.x,.14,g.z);selRing.scale.setScalar(g.r?g.r/1.1:Math.max(g.w,g.d)/2.1);selRing.userData.on=true;focusGround(k,34);}
+$('#groundOpts').addEventListener('click',e=>{const b=e.target.closest('button');if(b)selectGround(b.dataset.g);});
+$('#times').addEventListener('click',e=>{const b=e.target.closest('button');if(b){create.kick=parseFloat(b.dataset.t);renderCreate();}});
+$$('.sports button').forEach(b=>b.addEventListener('click',()=>{create.sport=b.dataset.cs;const c=CAPS[create.sport];if(!c.includes(create.cap))create.cap=c[1];if(create.sport==='tape'&&create.ground!=='cricket')selectGround('cricket');renderCreate();}));
+$('#capMinus').addEventListener('click',()=>{const c=CAPS[create.sport];const i=c.indexOf(create.cap);if(i>0){create.cap=c[i-1];renderCreate();}});
+$('#capPlus').addEventListener('click',()=>{const c=CAPS[create.sport];const i=c.indexOf(create.cap);if(i<c.length-1){create.cap=c[i+1];renderCreate();}});
+$('#visOpts').addEventListener('click',e=>{const b=e.target.closest('button');if(b){create.vis=b.dataset.vis;renderCreate();}});
+function openCreate(){renderCreate();openSheet($('#createSheet'),false);selectGround(create.ground);}
+let made=0;
+$('#dropPin').addEventListener('click',()=>{
+  const id='n'+(++made);
+  const g={id,sport:create.sport,format:create.sport==='football'?(create.cap/2)+'-a-side':'Tape-ball, '+(create.cap/2)+' a side',ground:create.ground,kick:create.kick,cap:create.cap,players:[],me:true,meAt:0,vis:create.vis};
+  // move any existing pin on that ground aside by nudging the new one
+  const clash=games.some(x=>x.ground===g.ground);
+  games.push(g);
+  if($('#repeatSw').getAttribute('aria-checked')==='true'){regulars.unshift({name:(g.sport==='tape'?'Weekly tape-ball':'Weekly '+g.format),when:'Every '+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][2]+', '+fmt(g.kick),ground:g.ground,core:1,cap:g.cap,next:'Tue 7 Oct',until:fmt(g.kick-2),held:true,sport:g.sport,faces:['You']});}
+  closeSheets();
+  if(parseFloat(range.value)<g.kick){range.value=String(g.kick);}
+  if(renderer){makePin(g);const p=pins[id];if(clash){p.grp.position.x+=2.2;p.grp.position.z+=1.4;}p.scale=1;p.drop=reduce?0:1;
+    setTimeout(()=>{ripple.position.set(p.grp.position.x,.15,p.grp.position.z);ripple.userData.t=0;},reduce?0:560);}
+  onRange();focusGround(g.ground,34);
+  setTimeout(()=>toast('Your game is live. Players on campus can see it now.'),700);
+});
+
+/* ---------- verify ---------- */
+function renderVerify(step){
+  const v=$('#vbody');
+  if(step===1){v.innerHTML='<h2>Check you’re at LUMS</h2><p>Games are only shown to students with a campus email. We send a 6-digit code once, then never ask again.</p>'+
+    '<label class="email" for="roll"><input id="roll" inputmode="numeric" placeholder="26100123" autocomplete="off" aria-label="Roll number"><span>@lums.edu.pk</span></label>'+
+    '<button type="button" class="btn primary" id="sendCode">Send code</button><button type="button" class="skip" data-back="verify">Not now</button>';
+    $('#sendCode').addEventListener('click',()=>{const r=$('#roll').value.trim()||'26100123';renderVerify(2,r);});
+    v.querySelector('[data-back]').addEventListener('click',()=>$('#verify').classList.remove('open'));}
+}
+const _rv=renderVerify;renderVerify=function(step,roll){const v=$('#vbody');
+  if(step===2){v.innerHTML='<h2>Enter the code</h2><p>We sent it to '+roll+'@lums.edu.pk. It expires in 10 minutes.</p><div class="code" id="code">'+'<i></i>'.repeat(6)+'<input id="codeIn" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code"></div><button type="button" class="skip" id="resend">Send a new code</button>';
+    const inp=$('#codeIn');const cells=$$('#code i');const paint=()=>{const s=inp.value.replace(/\D/g,'').slice(0,6);inp.value=s;cells.forEach((c,i)=>{c.textContent=s[i]||'';c.classList.toggle('cur',i===s.length);});if(s.length===6)setTimeout(()=>renderVerify(3),250);};
+    inp.addEventListener('input',paint);paint();setTimeout(()=>inp.focus(),300);$('#resend').addEventListener('click',()=>toast('New code sent'));return;}
+  if(step===3){v.innerHTML='<div class="vdone"><div class="tick"><svg width="34" height="34" viewBox="0 0 34 34"><path d="M8 17.5l6 6 12-13" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h2>You’re verified</h2><p>You can now see and join games at LUMS. Other students see your first name and school, never your location.</p></div><button type="button" class="btn primary" id="toMap">Open the map</button>';
+    $('#toMap').addEventListener('click',()=>$('#verify').classList.remove('open'));return;}
+  _rv(step);};
+
+/* ---------- status bar + tabs ---------- */
+var tab='map', mapStatusDark=false;
+function syncStatus(){$('#status').classList.toggle('dark',tab!=='map'||mapStatusDark||!!document.querySelector('.page.open'));}
+new MutationObserver(syncStatus).observe(screenEl,{subtree:true,attributes:true,attributeFilter:['class']});
+function setTab(t){
+  if(t!=='map'&&openSheetEl)closeSheets();
+  tab=t;$$('.tabbar button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+  $('#tabGames').hidden=t!=='games';$('#tabCup').hidden=t!=='cup';$('#tabMe').hidden=t!=='me';
+  $('#condCard').hidden=true;
+  if(t==='games')renderGames();
+  if(t==='cup')showCup();
+  if(t==='me')startCardIdle();
+  syncStatus();
+}
+$$('.tabbar button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+$('#cond').addEventListener('click',()=>{const c=$('#condCard');c.hidden=!c.hidden;$('#cond').setAttribute('aria-expanded',String(!c.hidden));});
+screenEl.addEventListener('click',e=>{const s=e.target.closest('.switch');if(!s)return;const on=s.getAttribute('aria-checked')!=='true';s.setAttribute('aria-checked',String(on));
+  if(s.id==='availSw'){$('#availCard').classList.toggle('off',!on);toast(on?'You’ll get a ping when a game needs you.':'No pings. You can still join games from the map.');}});
+function gtitle(g){return g.sport==='tape'?g.format:g.format+' football';}
+const cap1=s=>s[0].toUpperCase()+s.slice(1);
+
+/* ---------- your games ---------- */
+const avail={pos:new Set(['Any position']),grid:new Set(['Tue-7','Thu-7','Fri-9','Sat-5','Sun-7'])};
+const POS=['Any position','Keeper','Defence','Midfield','Attack','Batting','Bowling'];
+const regulars=[
+  {name:'Tuesday turf 7s',when:'Tue and Thu, 7:30 pm',ground:'turf',core:11,cap:14,next:'Thu 2 Oct',until:'5:30 pm',held:false,sport:'football',faces:['Hamza Rauf','Ahmed Saeed','Bilal Khan','Zain Abbasi','Omar Farooq']},
+  {name:'Friday night tape-ball',when:'Fri, 9:30 pm',ground:'lawn',core:9,cap:12,next:'Fri 3 Oct',until:'7:30 pm',held:false,sport:'tape',faces:['Shayan Iqbal','Rayyan Zafar','Moiz Tahir','Talha Javed']}
+];
+function renderGames(){
+  $('#posChips').innerHTML=POS.map(p=>'<button type="button" aria-pressed="'+avail.pos.has(p)+'" data-pos="'+p+'">'+p+'</button>').join('');
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],slots=[['5','5 pm'],['7','7 pm'],['9','9 pm']];
+  $('#availGrid').innerHTML='<span></span>'+days.map(d=>'<span class="gh">'+d.slice(0,2)+'</span>').join('')+slots.map(s=>'<span class="gl">'+s[1]+'</span>'+days.map(d=>{const k=d+'-'+s[0];return '<button type="button" data-k="'+k+'" aria-pressed="'+avail.grid.has(k)+'" aria-label="'+d+' '+s[1]+'"></button>';}).join('')).join('');
+  const mine=games.filter(g=>g.me).sort((a,b)=>a.kick-b.kick);
+  $('#upcoming').innerHTML=mine.length?mine.map(g=>'<div class="up">'+ballIcon(g.sport,30)+'<div class="up-t"><b>'+gtitle(g)+'</b><small>'+GROUNDS[g.ground].name+', '+fmt(g.kick)+(g.ended?'. Finished.':g.live?'. Live now.':', '+until(g.kick))+'</small></div><button type="button" class="btn primary sm" data-gd="'+g.id+'">'+(g.ended?'Result':'Game day')+'</button></div>').join('')
+    :'<p class="empty">Games you join show up here. Find one on the map.</p>';
+  $('#regulars').innerHTML=regulars.map((r,i)=>'<div class="card"><div class="row"><div><b>'+r.name+'</b><small>'+r.when+', '+GROUNDS[r.ground].name+'</small></div>'+ballIcon(r.sport,28)+'</div>'+
+    '<div class="stack">'+r.faces.map(n=>'<span class="av" style="background:'+(n==='You'?'#E3342F':avColor(n))+'">'+(n==='You'?'You':initials(n))+'</span>').join('')+'<span class="more">'+r.core+' regular'+(r.core===1?'':'s')+', '+r.cap+' spots</span></div>'+
+    '<small>Next game '+r.next+'. Regulars can claim a spot until '+r.until+' that day. After that, open spots go to everyone at LUMS.</small>'+
+    '<button type="button" class="btn '+(r.held?'primary in':'ghost')+'" data-reg="'+i+'">'+(r.held?'Spot held for '+r.next:'Hold my spot')+'</button></div>').join('');
+}
+$('#tabGames').addEventListener('click',e=>{
+  const p=e.target.closest('[data-pos]');
+  if(p){const v=p.dataset.pos;if(v==='Any position')avail.pos=new Set([v]);else{avail.pos.delete('Any position');avail.pos.has(v)?avail.pos.delete(v):avail.pos.add(v);if(!avail.pos.size)avail.pos.add('Any position');}renderGames();return;}
+  const k=e.target.closest('[data-k]');
+  if(k){const v=k.dataset.k;avail.grid.has(v)?avail.grid.delete(v):avail.grid.add(v);k.setAttribute('aria-pressed',String(avail.grid.has(v)));return;}
+  const gdb=e.target.closest('[data-gd]');if(gdb){openGameDay(gdb.dataset.gd);return;}
+  const rg=e.target.closest('[data-reg]');
+  if(rg){const r=regulars[+rg.dataset.reg];r.held=!r.held;renderGames();toast(r.held?'Spot held. We’ll remind you on the day.':'Spot released for the next regular.');}
+});
+
+/* ---------- game day ---------- */
+const TEAMN=['Orange','Green'],TEAMC=['#F08A2E','#2F8A4E'];
+let gd=null;
+function openGameDay(id){const g=games.find(x=>x.id===id);if(!g)return;
+  if(!g.gd){const people=g.players.map(p=>p.name);if(g.me)people.splice(Math.min(g.meAt||0,people.length),0,'You');
+    g.gd={step:0,people,here:new Set(people.filter((p,i)=>p!=='You'&&i%4!==2)),teams:null,toss:null,first:0,score:null,fair:null,pts:null};}
+  gd=g.gd;gd.g=g;if(g.ended)gd.step=4;
+  $('#gdTitle').innerHTML=gtitle(g)+'<small>'+GROUNDS[g.ground].name+', '+fmt(g.kick)+'</small>';
+  renderGD();$('#gameday').classList.add('open');$('#gdBody').scrollTop=0;
+}
+function shortName(p){if(p==='You')return 'You';const a=p.split(' ');return a[0]+' '+a[1][0]+'.';}
+function balance(){const arr=[...gd.people];for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}gd.teams=[[],[]];arr.forEach((p,i)=>gd.teams[i%2].push(p));gd.moved=null;}
+function myTeam(){return gd.teams&&gd.teams[1].includes('You')?1:0;}
+function renderGD(){
+  const steps=['Check in','Teams','Toss','Score','Full time'];
+  $('#gdSteps').innerHTML=steps.map((s,i)=>'<span class="'+(i<gd.step?'done':i===gd.step?'cur':'')+'">'+s+'</span>').join('');
+  const b=$('#gdBody'),g=gd.g,tape=g.sport==='tape';
+  if(gd.step===0){
+    const n=gd.people.length,h=gd.here.size,meHere=gd.here.has('You');
+    let svg='<svg viewBox="0 0 230 230" width="230" height="230" role="img" aria-label="'+h+' of '+n+' players checked in"><circle cx="115" cy="115" r="88" fill="none" stroke="#DDE3DB" stroke-width="2" stroke-dasharray="4 6"/>'+
+      (tape?'<circle cx="115" cy="115" r="52" fill="#357F46"/><circle cx="115" cy="115" r="30" fill="none" stroke="rgba(255,255,255,.5)" stroke-dasharray="3 3"/><rect x="109" y="92" width="12" height="46" fill="#CDB88C"/>'
+           :'<rect x="75" y="88" width="80" height="54" rx="3" fill="#357F46"/><path d="M115 88v54" stroke="rgba(255,255,255,.7)"/><circle cx="115" cy="115" r="10" fill="none" stroke="rgba(255,255,255,.7)"/>');
+    gd.people.forEach((p,i)=>{const a=-Math.PI/2+i/n*Math.PI*2,x=115+Math.cos(a)*88,y=115+Math.sin(a)*88,on=gd.here.has(p),me=p==='You';
+      svg+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="13" fill="'+(on?(me?'#E3342F':'#15201B'):'#fff')+'" stroke="'+(on?'none':'#AEB7AF')+'" stroke-width="1.5"'+(on?'':' stroke-dasharray="3 3"')+(me&&on?' class="slot-pulse"':'')+'/><text x="'+x.toFixed(1)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="middle" font-size="'+(me?8:9)+'" font-weight="700" fill="'+(on?'#fff':'#8A948C')+'" font-family="-apple-system,system-ui,sans-serif">'+(me?'You':initials(p))+'</text>';});
+    svg+='</svg>';
+    const waiting=gd.people.filter(p=>!gd.here.has(p)&&p!=='You');
+    b.innerHTML='<div class="ringwrap">'+svg+'</div><h2>'+h+' of '+n+' here</h2><p>'+(meHere?'You’re checked in. Pick teams once most people have arrived.':'Check in when you reach the ground. We check once that you’re within 150 m of it, then throw the location away. Other players only see that you’ve arrived.')+'</p>'+
+      (waiting.length?'<p><b style="color:#15201B">Still on the way:</b> '+waiting.map(w=>w.split(' ')[0]).join(', ')+'</p>':'')+
+      '<div class="two"><button type="button" class="btn ghost" id="gdNudge"'+(waiting.length?'':' disabled')+'>Nudge '+waiting.length+'</button>'+(meHere?'<button type="button" class="btn primary" id="gdNext">Pick teams</button>':'<button type="button" class="btn primary" id="gdCheck">Check in</button>')+'</div>';
+  }else if(gd.step===1){
+    if(!gd.teams)balance();
+    b.innerHTML='<h2>Pick teams</h2><p>Tap a player to move them to the other side. Balance mixes positions and splits people who always play together.</p><div class="teams">'+[0,1].map(t=>'<div class="team '+(t?'g':'o')+'"><h4><i style="background:'+TEAMC[t]+'"></i>'+TEAMN[t]+' bibs, '+gd.teams[t].length+'</h4>'+gd.teams[t].map((p,i)=>'<button type="button" data-mv="'+t+':'+i+'" class="'+(gd.moved===p?'pop':'')+'">'+shortName(p)+(i===0?'<small>Captain</small>':'')+'</button>').join('')+'</div>').join('')+'</div><div class="two"><button type="button" class="btn ghost" id="gdBal">Balance</button><button type="button" class="btn primary" id="gdNext">Lock teams</button></div>';
+  }else if(gd.step===2){
+    const t=gd.toss;
+    b.innerHTML='<h2>Toss</h2><p>'+(t?t.label+' '+TEAMN[t.winner]+' picks.':'Green’s captain calls. Orange’s captain flips.')+'</p><div class="coinwrap" id="coinwrap"><div class="res" id="coinRes">'+(t?cap1(t.result):'')+'</div></div>'+
+      (t?'<div class="two">'+(tape?'<button type="button" class="btn primary" data-choose="bat">Bat first</button><button type="button" class="btn ghost" data-choose="bowl">Bowl first</button>':'<button type="button" class="btn primary" data-choose="kick">Kick off</button><button type="button" class="btn ghost" data-choose="ends">Pick ends</button>')+'</div>'
+        :'<div class="two"><button type="button" class="btn ghost" data-call="heads">Heads</button><button type="button" class="btn ghost" data-call="tails">Tails</button></div>');
+    $('#coinwrap').prepend(coin.canvas);coin.mount(t?t.result:null);
+  }else if(gd.step===3){
+    tape?renderTape(b):renderFootball(b);
+  }else{
+    renderFull(b);
+  }
+}
+function renderTape(b){
+  const s=gd.score||(gd.score={inn:0,bat:[gd.first,1-gd.first],runs:[0,0],wk:[0,0],balls:[0,0],over:[],newOver:false,hist:[]});
+  const i=s.inn,bt=s.bat[i],target=i===1?s.runs[0]+1:null,ov=x=>Math.floor(x/6)+'.'+x%6;
+  b.innerHTML='<div class="board" id="board"><div class="l"><span class="tn"><i style="background:'+TEAMC[bt]+'"></i>'+TEAMN[bt]+' batting</span><small>'+(i===0?'First innings':'Chasing '+target)+'</small></div>'+
+    '<div class="l"><span class="big">'+s.runs[i]+'/'+s.wk[i]+'</span><span><span class="big" style="font-size:38px">'+ov(s.balls[i])+'</span><small> of 8 overs</small></span></div>'+
+    (target?'<small>Needs '+Math.max(0,target-s.runs[1])+' from '+(48-s.balls[1])+' balls</small>':'')+
+    '<div class="over" aria-label="This over">'+s.over.map(x=>'<i class="'+(x==='W'?'w':(x==='4'||x==='6')?'b':'')+'">'+x+'</i>').join('')+'</div></div>'+
+    '<p>Everyone at LUMS sees this score on the map pin while the game is on.</p>'+
+    '<div class="pad">'+['0','1','2','3','4','6','W','Wd','NB'].map(x=>'<button type="button" data-ball="'+x+'" class="'+(x==='W'?'w':(x.length>1?'s':''))+'" aria-label="'+({W:'Wicket',Wd:'Wide',NB:'No ball'}[x]||x+' runs')+'">'+(x==='Wd'?'Wide':x==='NB'?'No ball':x)+'</button>').join('')+
+    '<button type="button" class="s" data-ball="undo">Undo</button><button type="button" class="s" data-ball="end" style="grid-column:span 2">'+(i===0?'End innings':'Finish match')+'</button></div>';
+}
+function tapeBall(x){
+  const s=gd.score,i=s.inn,maxW=Math.max(1,Math.floor(gd.people.length/2)-1);
+  if(x==='undo'){const h=s.hist.pop();if(h)Object.assign(s,JSON.parse(h),{hist:s.hist});renderGD();liveLabel();return;}
+  if(x==='end'){if(i===0)endInnings();else finishMatch();return;}
+  s.hist.push(JSON.stringify({inn:s.inn,runs:s.runs,wk:s.wk,balls:s.balls,over:s.over,newOver:s.newOver}));
+  if(s.newOver){s.over=[];s.newOver=false;}
+  if(x==='Wd'||x==='NB'){s.runs[i]++;s.over.push(x==='Wd'?'wd':'nb');}
+  else{if(x==='W')s.wk[i]++;else s.runs[i]+=+x;s.balls[i]++;s.over.push(x);if(s.balls[i]%6===0)s.newOver=true;}
+  liveLabel();
+  if(i===1&&s.runs[1]>s.runs[0]){finishMatch();return;}
+  if(s.balls[i]>=48||s.wk[i]>=maxW){if(i===0){endInnings();return;}finishMatch();return;}
+  renderGD();
+  if(x==='W'||x==='6'||x==='4'){const bd=$('#board');bd.classList.remove('hit');void bd.offsetWidth;bd.classList.add('hit');}
+}
+function endInnings(){const s=gd.score;s.inn=1;s.over=[];s.newOver=false;renderGD();liveLabel();toast(TEAMN[s.bat[1]]+' need '+(s.runs[0]+1)+' to win.');}
+function renderFootball(b){
+  const s=gd.score||(gd.score={goals:[0,0],hist:[],t0:Date.now()});
+  const min=1+Math.floor((Date.now()-s.t0)/60000);
+  b.innerHTML='<div class="board" id="board"><div class="l"><span class="tn">Live, minute '+min+'</span><small>Kicked off '+fmt(gd.g.kick)+'</small></div>'+
+    '<div class="l" style="justify-content:center;gap:18px"><span class="tn"><i style="background:'+TEAMC[0]+'"></i>Orange</span><span class="big">'+s.goals[0]+'–'+s.goals[1]+'</span><span class="tn">Green<i style="background:'+TEAMC[1]+'"></i></span></div></div>'+
+    '<p>Everyone at LUMS sees this score on the map pin while the game is on.</p>'+
+    '<div class="two"><button type="button" class="btn ghost" data-goal="0">Goal for Orange</button><button type="button" class="btn ghost" data-goal="1">Goal for Green</button></div>'+
+    '<div class="two"><button type="button" class="btn ghost" data-goal="undo">Undo</button><button type="button" class="btn primary" data-goal="end">Full time</button></div>';
+}
+function liveLabel(){const g=gd.g,s=gd.score;if(!s)return;
+  if(g.sport==='tape'){const i=s.inn;g.live=TEAMN[s.bat[i]]+' '+s.runs[i]+'/'+s.wk[i];}else g.live='Orange '+s.goals[0]+'–'+s.goals[1]+' Green';
+  updateLabel(g);}
+function result(){const g=gd.g,s=gd.score,mine=myTeam();
+  if(g.sport==='tape'){
+    const a=s.bat[0],c=s.bat[1],ov=x=>Math.floor(x/6)+'.'+x%6;const maxW=Math.max(1,Math.floor(gd.people.length/2)-1);
+    let head,win=null;
+    if(s.inn===0){head=TEAMN[a]+' '+s.runs[0]+'/'+s.wk[0]+'. Match ended early';}
+    else if(s.runs[1]>s.runs[0]){win=c;head=TEAMN[c]+' won by '+(maxW-s.wk[1])+' wicket'+(maxW-s.wk[1]===1?'':'s');}
+    else if(s.runs[1]===s.runs[0]){head='Tied';}
+    else{win=a;head=TEAMN[a]+' won by '+(s.runs[0]-s.runs[1])+' run'+(s.runs[0]-s.runs[1]===1?'':'s');}
+    return {head,win,lines:[[TEAMN[a],s.runs[0]+'/'+s.wk[0]+' ('+ov(s.balls[0])+')'],[TEAMN[c],s.inn?s.runs[1]+'/'+s.wk[1]+' ('+ov(s.balls[1])+')':'Did not bat']],mine};
+  }
+  const [o,gr]=s.goals;return {head:o===gr?'Draw, '+o+'–'+gr:TEAMN[o>gr?0:1]+' won '+Math.max(o,gr)+'–'+Math.min(o,gr),win:o===gr?null:(o>gr?0:1),lines:[['Orange',String(o)],['Green',String(gr)]],mine};
+}
+function finishMatch(){const g=gd.g,r=result();g.live=null;g.ended=r.head.replace(/\..*/,'');updateLabel(g);
+  if(gd.pts==null){gd.pts=10+(r.win===r.mine?5:0);const h=HOSTELS.find(x=>x[0]===MYH);h[1]+=gd.pts;h[2]+=gd.pts;}
+  gd.step=4;renderGD();}
+function renderFull(b){const g=gd.g,r=result();
+  b.innerHTML='<div class="mcard"><div class="brand"><span>Campus Pickup</span><span>'+GROUNDS[g.ground].name+', Tue 30 Sep</span></div><div class="res">'+r.head+'</div>'+
+    r.lines.map(l=>'<div class="ln"><span>'+l[0]+'</span><span>'+l[1]+'</span></div>').join('')+
+    '<div class="pts">You earned M-3 hostel '+gd.pts+' Cup points'+(r.win===r.mine?', including 5 for the win':'')+'</div></div>'+
+    '<div class="card"><b style="font-size:16px">Did everyone play fair?</b><div class="two"><button type="button" class="btn '+(gd.fair==='yes'?'primary in':'ghost')+'" data-fair="yes">'+(gd.fair==='yes'?'Thanks':'Yes, all good')+'</button><button type="button" class="btn ghost" data-fair="report">Report something</button></div><small>Only moderators see your answer. A game keeps its Cup points unless a report is upheld.</small></div>'+
+    '<div class="two"><button type="button" class="btn ghost" id="gdShare">Share to story</button><button type="button" class="btn primary" id="gdRegular">Play again next week</button></div>';
+}
+$('#gdBody').addEventListener('click',e=>{const t=e.target.closest('button');if(!t||t.disabled)return;
+  if(t.id==='gdCheck'){gd.here.add('You');renderGD();toast('Checked in. The host can see you’re here.');}
+  else if(t.id==='gdNudge'){toast('Reminder sent to everyone still on the way.');}
+  else if(t.id==='gdNext'){gd.step++;renderGD();$('#gdBody').scrollTop=0;}
+  else if(t.id==='gdBal'){balance();renderGD();}
+  else if(t.dataset.mv){const [tm,ix]=t.dataset.mv.split(':').map(Number);const p=gd.teams[tm].splice(ix,1)[0];gd.teams[1-tm].push(p);gd.moved=p;renderGD();}
+  else if(t.dataset.call){$$('#gdBody [data-call]').forEach(x=>x.disabled=true);const call=t.dataset.call,res=Math.random()<.5?'heads':'tails',winner=call===res?1:0;
+    coin.flip(res,()=>{gd.toss={call,result:res,winner,label:cap1(res)+'. '+TEAMN[winner]+' won the toss.'};renderGD();});}
+  else if(t.dataset.choose){const c=t.dataset.choose,w=gd.toss.winner;gd.first=c==='bat'?w:c==='bowl'?1-w:w;gd.step=3;renderGD();}
+  else if(t.dataset.ball){tapeBall(t.dataset.ball);}
+  else if(t.dataset.goal){const s=gd.score,v=t.dataset.goal;if(v==='end'){finishMatch();return;}if(v==='undo'){const h=s.hist.pop();if(h!=null)s.goals[h]--;}else{s.goals[+v]++;s.hist.push(+v);}renderGD();liveLabel();}
+  else if(t.dataset.fair){if(t.dataset.fair==='yes'){gd.fair='yes';renderGD();}else toast('Tell us what happened. A moderator reads every report the same day.');}
+  else if(t.id==='gdShare'){toast('Match card saved. Post it from your story.');}
+  else if(t.id==='gdRegular'){const g=gd.g;if(!regulars.some(r=>r.from===g.id)){regulars.unshift({from:g.id,name:(g.sport==='tape'?'Tuesday tape-ball':'Tuesday '+g.format),when:'Tue, '+fmt(g.kick),ground:g.ground,core:gd.people.length,cap:g.cap,next:'Tue 7 Oct',until:fmt(g.kick-2),held:true,sport:g.sport,faces:gd.people.slice(0,5)});}
+    toast('Added to Regulars. Everyone from tonight gets first pick next week.');}
+});
+
+/* ---------- 3D coin ---------- */
+const coin=(function(){
+  const canvas=document.createElement('canvas');canvas.setAttribute('aria-label','Coin toss');
+  let r,sc,cam,mesh,ready=false,busy=false;
+  const REST={heads:.6,tails:Math.PI+.6};
+  function face(kind){return tex(512,512,(g,W,H)=>{
+    const gr=g.createRadialGradient(W*.4,H*.35,20,W/2,H/2,W/2);gr.addColorStop(0,'#F0D38A');gr.addColorStop(1,'#B38A36');g.fillStyle=gr;g.fillRect(0,0,W,H);
+    g.strokeStyle='rgba(90,60,10,.55)';g.lineWidth=10;g.beginPath();g.arc(W/2,H/2,W*.43,0,Math.PI*2);g.stroke();
+    g.fillStyle='#6E4E14';g.textAlign='center';g.textBaseline='middle';
+    g.translate(W/2,H/2);g.rotate(-Math.PI/2);g.translate(-W/2,-H/2);
+    if(kind==='heads'){g.font='800 250px "Big Shoulders Display", "Arial Narrow", sans-serif';g.fillText('5',W/2,H*.47);g.font='700 40px -apple-system, system-ui, sans-serif';g.fillText('RUPEES',W/2,H*.76);}
+    else{g.beginPath();g.arc(W*.46,H*.5,W*.22,0,Math.PI*2);g.fill();g.fillStyle=gr;g.beginPath();g.arc(W*.54,H*.46,W*.19,0,Math.PI*2);g.fill();
+      g.fillStyle='#6E4E14';g.beginPath();for(let k=0;k<10;k++){const a=-Math.PI/2+k*Math.PI/5,rr=k%2?W*.035:W*.085;g.lineTo(W*.64+Math.cos(a)*rr,H*.4+Math.sin(a)*rr);}g.closePath();g.fill();}
+  });}
+  function init(){
+    try{r=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});}catch(e){return;}
+    r.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    sc=new THREE.Scene();cam=new THREE.PerspectiveCamera(34,1,.1,50);cam.position.set(0,2.2,5.6);cam.lookAt(0,.2,0);
+    const edge=new THREE.MeshStandardMaterial({color:'#B08A3E',metalness:.6,roughness:.35});
+    mesh=new THREE.Mesh(new THREE.CylinderGeometry(1,1,.12,72),[edge,new THREE.MeshStandardMaterial({map:face('heads'),metalness:.35,roughness:.4}),new THREE.MeshStandardMaterial({map:face('tails'),metalness:.35,roughness:.4})]);
+    mesh.rotation.x=REST.heads;sc.add(mesh);
+    const sh=new THREE.Mesh(new THREE.CircleGeometry(1.1,48),new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:.3}));sh.rotation.x=-Math.PI/2;sh.position.y=-.75;sc.add(sh);mesh.userData.sh=sh;
+    sc.add(new THREE.HemisphereLight('#FFFFFF','#223050',.8));
+    const k=new THREE.DirectionalLight('#FFE3A0',1.5);k.position.set(2,5,3);sc.add(k);
+    const rim=new THREE.PointLight('#9FB6FF',1,12);rim.position.set(-3,2,-2);sc.add(rim);
+    ready=true;
+  }
+  function size(){const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;r.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+  function draw(){r.render(sc,cam);}
+  return {canvas,
+    mount(res){if(!ready)init();if(!ready)return;size();if(!busy){mesh.rotation.x=res?REST[res]:REST.heads;mesh.position.y=0;}draw();},
+    flip(res,done){if(!ready||busy){done();return;}busy=true;const from=mesh.rotation.x,to=(Math.floor(from/(Math.PI*2))+6)*Math.PI*2+REST[res];const t0=performance.now(),D=reduce?10:1800;
+      const step=now=>{const t=Math.min(1,(now-t0)/D),e=1-Math.pow(1-t,3);mesh.rotation.x=from+(to-from)*e;mesh.position.y=Math.sin(Math.PI*t)*1.4;mesh.userData.sh.material.opacity=.3-.2*Math.sin(Math.PI*t);draw();
+        if(t<1)requestAnimationFrame(step);else{busy=false;done();}};requestAnimationFrame(step);}
+  };
+})();
+
+/* ---------- hostel cup ---------- */
+const HOSTELS=[['M-1',412,38],['M-2',377,51],['M-3',354,62],['M-4',301,20],['F-1',288,44],['M-5',250,12],['F-2',231,29],['M-6',190,8],['F-3',142,17]];
+const MYH='M-3';
+const sortedH=()=>[...HOSTELS].sort((a,b)=>b[1]-a[1]);
+function renderStand(){const s=sortedH(),max=s[0][1],idx=s.findIndex(h=>h[0]===MYH);
+  const gap=idx>0?s[idx-1][1]-s[idx][1]:0;
+  $('#cupStand').innerHTML=s.map((h,i)=>'<div class="r'+(h[0]===MYH?' myh':'')+'"><span class="rk">'+(i+1)+'</span><span class="hn">'+h[0]+'</span><span class="bar"><i style="width:'+(h[1]/max*100).toFixed(1)+'%"></i></span><span class="pt2">'+h[1]+'</span><span class="dl">+'+h[2]+'</span></div>').join('')+
+    '<small>'+(idx===0?'M-3 is top. Keep turning up.':'Your hostel, M-3, is '+gap+' points behind '+s[idx-1][0]+'. That’s about '+Math.max(1,Math.ceil(gap/10))+' games of turning up.')+' The right column is this week.</small>';
+  $('#pcPts').textContent=164+(HOSTELS.find(h=>h[0]===MYH)[1]-354);
+}
+function renderKo(){const m=(a,b,w,mine)=>'<div class="mt"><div class="'+(w===0?'win':'')+(a===MYH?' mine':'')+'"><span>'+a+'</span><span>'+(w==null?'':w===0?'W':'')+'</span></div><div class="'+(w===1?'win':'')+(b===MYH?' mine':'')+(b==='TBD'?' tbd':'')+'"><span>'+b+'</span><span>'+(w===1?'W':'')+'</span></div></div>';
+  $('#cupKo').innerHTML='<p class="sub" style="margin:0 0 12px">Inter-hostel tape-ball, 6 overs a side, Friday nights at the Main cricket ground. Run with SLUMS.</p><div class="bracket"><div class="col"><small>Quarter-finals</small>'+m('M-1','F-2',0)+m('M-3','M-6',0)+m('M-2','F-1',1)+m('M-4','M-5',0)+'</div><div class="col"><small>Semi-finals, Fri 3 Oct</small>'+m('M-1','M-3',null)+m('F-1','M-4',null)+'</div><div class="col"><small>Final, Fri 10 Oct</small>'+m('TBD','TBD',null)+'</div></div>';}
+$$('[data-cup]').forEach(b=>b.addEventListener('click',()=>{$$('[data-cup]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('#cupStand').hidden=b.dataset.cup!=='stand';$('#cupKo').hidden=b.dataset.cup!=='ko';}));
+const pod={};
+function easeBack(k){const c1=1.5,c3=c1+1;return 1+c3*Math.pow(k-1,3)+c1*Math.pow(k-1,2);}
+function initPod(){const c=$('#podium');
+  try{pod.r=new THREE.WebGLRenderer({canvas:c,antialias:true,alpha:true});}catch(e){pod.fail=true;return;}
+  pod.r.setPixelRatio(Math.min(window.devicePixelRatio||1,2));pod.r.shadowMap.enabled=true;pod.r.shadowMap.type=THREE.PCFSoftShadowMap;
+  pod.sc=new THREE.Scene();pod.cam=new THREE.PerspectiveCamera(30,1,.1,60);pod.cam.position.set(0,2.8,7.4);pod.cam.lookAt(0,.95,0);
+  pod.g=new THREE.Group();pod.sc.add(pod.g);
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(3.4,64),new THREE.MeshStandardMaterial({color:'#243560',roughness:.9}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;pod.g.add(floor);
+  pod.sc.add(new THREE.HemisphereLight('#C9D6FF','#141C33',.55));
+  const sp=new THREE.SpotLight('#FFE9B8',2.4,22,.6,.45);sp.position.set(0,7,3);sp.target.position.set(0,1,0);sp.castShadow=true;sp.shadow.mapSize.set(1024,1024);pod.sc.add(sp);pod.sc.add(sp.target);
+  const rim=new THREE.DirectionalLight('#7F9CFF',.6);rim.position.set(-4,3,-4);pod.sc.add(rim);
+  const pts=[[0,0],[.34,0],[.34,.07],[.12,.13],[.07,.4],[.13,.48],[.32,.6],[.42,.88],[.44,1.12],[.39,1.12],[.35,.9],[0,.74]].map(p=>new THREE.Vector2(p[0],p[1]));
+  const gold=new THREE.MeshStandardMaterial({color:'#E3B341',metalness:.55,roughness:.28,emissive:'#3A2600',emissiveIntensity:.35});
+  const tr=new THREE.Group();const cup=new THREE.Mesh(new THREE.LatheGeometry(pts,56),gold);cup.castShadow=true;tr.add(cup);
+  [-1,1].forEach(sx=>{const h=new THREE.Mesh(new THREE.TorusGeometry(.16,.035,10,24,Math.PI*1.2),gold);h.position.set(sx*.46,.86,0);h.rotation.z=sx>0?-Math.PI*.6:Math.PI*.6+Math.PI*.2;tr.add(h);});
+  tr.scale.setScalar(.85);pod.trophy=tr;pod.g.add(tr);
+  pod.blocks=[];pod.rot=0;pod.goal=-.18;
+  let dx=null;c.addEventListener('pointerdown',e=>{dx=e.clientX;c.setPointerCapture(e.pointerId);});
+  c.addEventListener('pointermove',e=>{if(dx==null)return;pod.goal+=(e.clientX-dx)*.01;dx=e.clientX;});
+  const end=()=>{dx=null;};c.addEventListener('pointerup',end);c.addEventListener('pointercancel',end);
+}
+function setPodium(top){pod.blocks.forEach(b=>{pod.g.remove(b.mesh);b.mesh.geometry.dispose();});pod.blocks=[];
+  const slots=[[1,-1.3,1.05,.15],[0,0,1.5,0],[2,1.3,.75,.3]];
+  slots.forEach(([rank,x,h,delay])=>{const hs=top[rank];if(!hs)return;const mine=hs[0]===MYH;
+    const front=tex(256,Math.round(256*h/1.15),(g,W,H)=>{g.fillStyle=mine?'#E3342F':'#F4F5F0';g.fillRect(0,0,W,H);g.fillStyle=mine?'#fff':'#15201B';g.textAlign='center';
+      g.font='900 '+Math.round(W*.42)+'px "Big Shoulders Display","Arial Narrow",sans-serif';g.textBaseline='top';g.fillText(String(rank+1),W/2,H*.08);
+      g.font='800 '+Math.round(W*.2)+'px "Big Shoulders Display","Arial Narrow",sans-serif';g.fillText(hs[0],W/2,H*.08+W*.44);
+      g.font='600 '+Math.round(W*.09)+'px -apple-system,system-ui,sans-serif';g.globalAlpha=.75;if(H>W*.9)g.fillText(hs[1]+' pts',W/2,H*.08+W*.68);});
+    const side=new THREE.MeshStandardMaterial({color:mine?'#B8231F':'#D6DCD2',roughness:.8}),top_=new THREE.MeshStandardMaterial({color:mine?'#EE5A55':'#EEF1EA',roughness:.8});
+    const geo=new THREE.BoxGeometry(1.2,h,1.2);geo.translate(0,h/2,0);
+    const m=new THREE.Mesh(geo,[side,side,top_,side,new THREE.MeshStandardMaterial({map:front,roughness:.8}),side]);m.position.x=x;m.castShadow=true;m.receiveShadow=true;m.scale.y=.001;pod.g.add(m);
+    pod.blocks.push({mesh:m,delay,h});});
+  pod.trophy.position.set(0,1.5,0);
+}
+function podResize(){const c=$('#podium'),w=c.clientWidth,h=c.clientHeight;if(!w||!h)return;pod.r.setSize(w,h,false);pod.cam.aspect=w/h;pod.cam.updateProjectionMatrix();}
+function showCup(){renderStand();renderKo();if(!pod.r&&!pod.fail)initPod();if(pod.fail)return;
+  const key=sortedH().slice(0,3).map(h=>h[0]+h[1]).join();if(key!==pod.key){pod.key=key;setPodium(sortedH().slice(0,3));pod.t0=performance.now();}
+  podResize();if(!pod.running){pod.running=true;requestAnimationFrame(podLoop);}}
+function podLoop(now){if(tab!=='cup'){pod.running=false;return;}
+  const t=reduce?99:(now-pod.t0)/1000;
+  pod.blocks.forEach(b=>{const k=Math.min(1,Math.max(0,(t-b.delay)/.75));b.mesh.scale.y=Math.max(.001,easeBack(k));});
+  const tk=Math.min(1,Math.max(0,(t-1)/.6));pod.trophy.scale.setScalar(.85*Math.max(.001,easeBack(tk)));
+  if(!reduce){pod.trophy.rotation.y+=.012;pod.trophy.position.y=1.5+Math.sin(now/700)*.03;}
+  pod.rot+=(pod.goal-pod.rot)*.12;pod.g.rotation.y=pod.rot;
+  pod.r.render(pod.sc,pod.cam);requestAnimationFrame(podLoop);}
+
+/* ---------- you: tilting player card ---------- */
+const pc=$('#pcard'),pw=$('#pwrap');let tiltHover=false,idleRaf=0;
+function setTilt(x,y){pc.style.transform='rotateY('+(x*26).toFixed(2)+'deg) rotateX('+(-y*26).toFixed(2)+'deg)';pc.style.setProperty('--mx',(50+x*90)+'%');pc.style.setProperty('--my',(50+y*90)+'%');}
+pw.addEventListener('pointermove',e=>{tiltHover=true;pc.classList.add('live');const r=pc.getBoundingClientRect();setTilt(clamp((e.clientX-r.left)/r.width-.5,-.6,.6),clamp((e.clientY-r.top)/r.height-.5,-.6,.6));});
+pw.addEventListener('pointerleave',()=>{tiltHover=false;pc.classList.remove('live');setTilt(0,0);});
+function startCardIdle(){const played=14+games.filter(g=>g.ended&&g.me).length;$('#pcGames').textContent=played;$('#pcPlayed').textContent=played;$('#pcShow').textContent=played-1;
+  if(reduce||idleRaf)return;let t0=performance.now();
+  const loop=now=>{if(tab!=='me'){idleRaf=0;return;}if(!tiltHover&&now-t0>900){pc.classList.add('live');setTilt(Math.sin(now/1500)*.16,Math.cos(now/2100)*.1);}idleRaf=requestAnimationFrame(loop);};idleRaf=requestAnimationFrame(loop);}
+$('#blockedBtn').addEventListener('click',()=>toast('You haven’t blocked anyone.'));
+$('#delBtn').addEventListener('click',e=>{const b=e.currentTarget;if(b.dataset.armed){delete b.dataset.armed;b.textContent='Delete account';toast('This is a prototype, so nothing was deleted. The app deletes everything within 30 days.');}else{b.dataset.armed='1';b.textContent='Tap again to delete your account';}});
+
+/* ---------- campuses ---------- */
+const CAMPUSES=[['Lahore',[['LUMS','on',1240,5450,2],['FAST Lahore','wait',311,5500,1]]],['Islamabad',[['NUST','soon',1302,14900,2],['FAST Islamabad','wait',208,6000,0]]],['Karachi',[['IBA Karachi','wait',187,4000,1]]]];
+let openCamp=null;
+function renderCampuses(){
+  $('#cbody').innerHTML='<p>Campus Pickup opens one campus at a time, so no one ever opens it to an empty map. A campus opens when 10% of its students are on the waitlist and two campus leads have run games in a WhatsApp group for two weeks.</p>'+
+    CAMPUSES.map(([city,list])=>'<div class="city"><h3>'+city+'</h3>'+list.map(([n,st,have,pop,leads])=>{const need=Math.round(pop*.1),pct=Math.min(100,have/need*100);
+      return '<button type="button" class="camp" data-camp="'+n+'" aria-expanded="'+(openCamp===n)+'"><span class="ct"><b>'+n+'</b><span class="state '+(st==='on'?'on':st==='soon'?'soon':'')+'">'+(st==='on'?'Live':st==='soon'?'Opens soon':'Waitlist')+'</span></span>'+
+        (st==='on'?'<small>You play here. '+have.toLocaleString()+' players verified.</small>':'<span class="prog"><i style="width:'+pct.toFixed(1)+'%"></i></span><small>'+have.toLocaleString()+' of '+need.toLocaleString()+' on the waitlist. '+leads+' of 2 campus leads.</small>')+
+        (openCamp===n&&st!=='on'?'<span class="acts"><span class="btn ghost" data-act="share" role="button" tabindex="0">Share waitlist link</span><span class="btn primary" data-act="lead" role="button" tabindex="0">Become a lead</span></span>':'')+'</button>';}).join('')+'</div>').join('')+
+    '<small style="color:var(--mut);font-size:12.5px">Sign-up numbers are examples. Student numbers are approximate.</small>';
+}
+$('#cbody').addEventListener('click',e=>{const a=e.target.closest('[data-act]');
+  if(a){e.stopPropagation();toast(a.dataset.act==='share'?'Link copied. Send it to friends at '+openCamp+'.':'Thanks. We’ll send you a lead kit: bibs, a pump and a guide to running the WhatsApp group.');return;}
+  const c=e.target.closest('[data-camp]');if(c){openCamp=openCamp===c.dataset.camp?null:c.dataset.camp;renderCampuses();}});
+
+/* ---------- navigation from notes ---------- */
+function go(where){
+  $$('.page').forEach(p=>{if(!(where==='campuses'&&p.id==='campuses'))p.classList.remove('open');});
+  if(['map','game','create','chat','verify'].includes(where))setTab('map');
+  if(where==='map'){closeSheets();}
+  else if(where==='game'){openGame('g1');}
+  else if(where==='create'){openCreate();}
+  else if(where==='chat'){openGame('g1');setTimeout(()=>openChat(games[0]),250);}
+  else if(where==='verify'){closeSheets();renderVerify(1);$('#verify').classList.add('open');}
+  else if(where==='games'||where==='cup'||where==='me')setTab(where);
+  else if(where==='gameday'){setTab('games');openGameDay('g2');}
+  else if(where==='campuses'){renderCampuses();$('#campuses').classList.add('open');}
+}
+$$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+
+$$('[data-nt]').forEach(b=>b.addEventListener('click',()=>{$$('[data-nt]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));$$('[data-np]').forEach(p=>p.hidden=p.dataset.np!==b.dataset.nt);}));
+/* ---------- boot ---------- */
+if(renderer){
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  build();games.forEach(makePin);Object.values(pins).forEach(p=>p.scale=1);
+  resize();new ResizeObserver(resize).observe(screenEl);
+  onRange();applyCam();requestAnimationFrame(frame);
+}else{
+  canvas.replaceWith(Object.assign(document.createElement('div'),{style:'position:absolute;inset:0;display:grid;place-items:center;color:#fff;padding:40px;text-align:center',textContent:'The 3D map needs WebGL, which this browser has turned off. The sheets and screens still work.'}));
+  onRange();
+}
+})();
+</script>
