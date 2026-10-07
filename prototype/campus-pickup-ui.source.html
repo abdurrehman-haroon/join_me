@@ -420,7 +420,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 
 /* v4: scroll-driven home */
 .top{z-index:7;}
-.ctitle{display:flex;flex-direction:column;align-items:center;color:#fff;opacity:0;pointer-events:none;line-height:1.1;}
+.ctitle{display:none;flex-direction:column;align-items:center;color:#fff;opacity:0;pointer-events:none;line-height:1.1;}
 .ctitle b{font-size:16px;font-weight:700;}
 .ctitle small{font-size:12px;font-weight:600;opacity:.8;font-variant-numeric:tabular-nums;}
 .topfade{position:absolute;left:0;right:0;top:0;height:160px;z-index:6;pointer-events:none;opacity:0;background:linear-gradient(180deg,rgba(16,24,42,.92) 0%,rgba(16,24,42,.7) 55%,rgba(16,24,42,0) 100%);}
@@ -493,7 +493,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 .crumbs span[title]{color:#9AA49D;}
 .crumbs i{font-style:normal;color:#9AA49D;}
 .crumbs .ok{width:16px;height:16px;border-radius:50%;background:var(--turf);display:inline-grid;place-items:center;}
-.hero{display:flex;align-items:flex-start;padding:100px 16px 18px;pointer-events:none;}
+.hero{display:flex;align-items:flex-start;padding:100px 60px 18px 16px;pointer-events:none;}
 .hero-in{width:100%;color:var(--ink);gap:6px;}
 .hero-k{font-weight:700;font-size:16px;color:var(--ink);margin:0;}
 .hero-big{font-family:var(--display);font-weight:900;line-height:.78;margin:0 0 6px;color:var(--ink);white-space:nowrap;letter-spacing:-.005em;display:inline-block;align-self:flex-start;}
@@ -510,6 +510,22 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 .hnote{color:var(--mut);font-size:13.5px;line-height:1.4;margin:-2px 0 0;}
 .hs-note{width:100%;border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px 14px;font:inherit;font-size:15px;color:var(--ink);box-sizing:border-box;}
 .hs-note:focus{outline:2px solid var(--ink);outline-offset:0;}
+
+/* v6: blocks and zoom levels */
+.story{transition:opacity .45s,transform .6s cubic-bezier(.2,.9,.25,1);transform-origin:50% 40%;}
+.story.zin{opacity:0;transform:scale(.9);transition:none;}
+.story.zout{opacity:0;transform:scale(1.08);transition:none;}
+.zoomrail{position:absolute;right:12px;top:118px;z-index:7;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--chalk);border-radius:16px;padding:6px 5px;box-shadow:0 8px 20px -10px rgba(0,0,0,.55);}
+.zoomrail button{width:34px;height:34px;border-radius:11px;border:0;background:var(--chalk2);font-size:20px;font-weight:600;color:var(--ink);line-height:1;}
+.zoomrail button:disabled{opacity:.35;cursor:default;}
+.zoomrail i{width:6px;height:6px;border-radius:50%;background:#C3CBC2;}
+.zoomrail i.on{background:var(--tape);height:14px;border-radius:3px;}
+.pl.vl.bl{background:var(--ink);}
+.pl.vl.bl b{color:#F4F5F0;font-size:20px;}
+.pl.vl.bl small{color:#C6D0C8;}
+.pl.vl.bl.sel{background:var(--tape);}
+.pl.vl.bl.sel small{color:#FFE3E1;}
+@media (prefers-reduced-motion: reduce){ .story{transition:opacity .15s;} .story.zin,.story.zout{transform:none;} }
 @media (prefers-reduced-motion: reduce){ .sheet,.page,.banner,.toast{transition-duration:.01s;} .num.in,.num.out,.slot-pulse,.m.new,.tick{animation:none;} }
 </style>
 
@@ -527,6 +543,20 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
     </div>
 
     <div class="npanel" data-np="screens">
+      <section>
+        <h2>New in v6: scroll across, zoom down</h2>
+        <p>Every level now works the same way. <b>Scrolling moves you across a level</b>: DHA's blocks, a block's places, a place's games or hangouts. <b>Zooming moves you down or up a level</b>. Pinch out on the card in front of you (trackpad pinch on a laptop, or the + button) to dive into it. Pinch in, or tap −, to pull back. The camera dives or rises to match, and the three dots on the zoom control show how deep you are.</p>
+        <div class="screens" role="group" aria-label="v6 screens">
+          <button type="button" data-v5="area">DHA blocks</button>
+          <button type="button" data-v6="ph3">Phase 3</button>
+          <button type="button" data-v6="ph6">Phase 6</button>
+        </div>
+        <ul class="shots">
+          <li><b>DHA</b> is split into blocks: Sector U (LUMS and the park), Phase 3 (CBTL Z Block and a futsal turf), Phase 5 (CBTL A Block) and Phase 6 (CBTL Raya). The block in front of you is outlined in red on the map.</li>
+          <li><b>The three CBTLs are real branches</b>, found with Google Places. The block layout on the map is schematic, not to scale.</li>
+          <li><b>The breadcrumb</b> follows you down: Lahore › DHA › Phase 3 › CBTL. Tap any part of it to jump back up.</li>
+        </ul>
+      </section>
       <section>
         <h2>New in v5: from campus to the city</h2>
         <p>The app no longer stops at the campus gate. The top bar is a breadcrumb, <b>Lahore › DHA › LUMS</b>. Tap DHA, or scroll past tonight's last game, and the camera lifts out of campus to show the area around it: roads, houses, CBTL, a futsal turf and a park, each with a live count. Tap a place to fly there. The page title is now one giant word, LUMS, DHA or CBTL, whose letters lift away as you scroll.</p>
@@ -810,6 +840,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
           <div><b>Air quality 168: unhealthy for sensitive groups</b><p>A normal game is fine. If you have asthma, keep it short. Once AQI passes 200, new games get a warning and hosts get a prompt to move indoors or shorten the game.</p></div>
           <div><b>Isha at 7:21 pm</b><p>Games show prayer times near kick-off, so players can plan a break or start after.</p></div>
         </div>
+        <div class="zoomrail" id="zoomRail" role="group" aria-label="Zoom level"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><i></i><i></i><i></i><button type="button" id="zoomOut" aria-label="Zoom out">−</button></div>
         <button type="button" class="mapbtn" id="mapBtn" data-explore><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10 2l7 4v8l-7 4-7-4V6z"/><path d="M3 6l7 4 7-4M10 10v8"/></svg><span>Explore map</span></button>
         <button type="button" class="fab" data-go="create">
           <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
@@ -1736,16 +1767,26 @@ $$('[data-nt]').forEach(b=>b.addEventListener('click',()=>{$$('[data-nt]').forEa
 /* ---------- v5: places, levels and the scroll story ---------- */
 var level='campus';
 const AREA={x:4,z:-6};
+const BLOCKS={
+  secu:{name:'Sector U',x0:-44,x1:44,z0:-40,z1:140,kids:['campus','park']},
+  ph3:{name:'Phase 3',x0:-150,x1:-44,z0:-140,z1:-40,kids:['cbtl3','futsal']},
+  ph5:{name:'Phase 5',x0:44,x1:150,z0:-140,z1:-40,kids:['cbtl5']},
+  ph6:{name:'Phase 6',x0:44,x1:150,z0:38,z1:140,kids:['cbtl6']}
+};
 const VENUES={
-  cbtl:{name:'CBTL',kind:'Café',dist:'6 min drive from LUMS',x:92,z:-58,here:9,fromLums:3,known:['Zain Abbasi','Hamza Rauf'],marker:'cup'},
-  futsal:{name:'Futsal turf',kind:'Futsal arena',dist:'8 min drive from LUMS',x:-84,z:-82,here:14,fromLums:5,known:['Bilal Khan'],marker:'ball'},
-  park:{name:'Park',kind:'Neighbourhood park',dist:'4 min walk from LUMS',x:-64,z:76,here:5,fromLums:2,known:[],marker:'pin'}
+  cbtl5:{name:'CBTL',full:'A Block, Phase 5',kind:'Café',dist:'about 6 min drive from LUMS',x:92,z:-74,here:9,fromLums:3,known:['Zain Abbasi','Hamza Rauf'],marker:'cup',block:'ph5'},
+  cbtl3:{name:'CBTL',full:'Z Block, Phase 3',kind:'Café',dist:'about 12 min drive from LUMS',x:-118,z:-64,here:6,fromLums:1,known:[],marker:'cup',block:'ph3'},
+  cbtl6:{name:'CBTL',full:'Raya, Phase 6',kind:'Café',dist:'about 10 min drive from LUMS',x:96,z:84,here:7,fromLums:2,known:['Talha Javed'],marker:'cup',block:'ph6'},
+  futsal:{name:'Futsal turf',full:'Phase 3',kind:'Futsal arena',dist:'about 9 min drive from LUMS',x:-80,z:-106,here:14,fromLums:5,known:['Bilal Khan'],marker:'ball',block:'ph3'},
+  park:{name:'Park',full:'Sector U',kind:'Neighbourhood park',dist:'4 min walk from LUMS',x:8,z:92,here:5,fromLums:2,known:[],marker:'pin',block:'secu'}
 };
 const hangouts=[
-  {id:'h1',venue:'cbtl',what:'Study',title:'Problem set and a cold brew',note:'Stuck on question 4b. Company and second brains welcome.',host:'Zara Khan',school:'LUMS, SSE, 3rd year',seats:3,joined:1,until:21.5,vis:'campus',state:'none'},
-  {id:'h2',venue:'cbtl',what:'Board games',title:'Catan, need two more',note:'Brought the board. Beginners are fine, I’ll explain the rules.',host:'Omar Farooq',school:'LUMS, SDSB, 4th year',seats:5,joined:3,from:20,until:22.5,vis:'verified',state:'none'},
+  {id:'h1',venue:'cbtl5',what:'Study',title:'Problem set and a cold brew',note:'Stuck on question 4b. Company and second brains welcome.',host:'Zara Khan',school:'LUMS, SSE, 3rd year',seats:3,joined:1,until:21.5,vis:'campus',state:'none'},
+  {id:'h2',venue:'cbtl5',what:'Board games',title:'Catan, need two more',note:'Brought the board. Beginners are fine, I’ll explain the rules.',host:'Omar Farooq',school:'LUMS, SDSB, 4th year',seats:5,joined:3,from:20,until:22.5,vis:'verified',state:'none'},
   {id:'h3',venue:'park',what:'Walk',title:'Two laps, then chai',note:'Easy pace. There’s a chai stall at the gate.',host:'Saad Mirza',school:'LUMS, SAHSOL, 2nd year',seats:4,joined:2,until:21,vis:'campus',state:'none'},
   {id:'h4',venue:'futsal',what:'Futsal',title:'5-a-side, Rs 400 each',note:'Court is booked 9 to 10 pm. Need three more.',host:'Bilal Khan',school:'LUMS, MGSHSS, 4th year',seats:9,joined:6,from:21,until:22,vis:'verified',state:'none'}
+  ,{id:'h5',venue:'cbtl3',what:'Chat',title:'Late chai and a chat',note:'Long week. Come talk about anything but exams.',host:'Ayesha Malik',school:'LUMS, MGSHSS, 2nd year',seats:3,joined:1,until:22.5,vis:'campus',state:'none'}
+  ,{id:'h6',venue:'cbtl6',what:'Study',title:'Group project, need a fourth',note:'Marketing case study. We have the slides, need ideas.',host:'Hassan Waheed',school:'LUMS, SDSB, 2nd year',seats:1,joined:2,from:20,until:21.5,vis:'campus',state:'none'}
 ];
 const VIS={friends:['Friends','People you both added'],campus:['LUMS students','Checked with a campus email'],verified:['Everyone verified','Phone and ID checked'],women:['Women only','Verified women']};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1767,9 +1808,9 @@ function buildArea(){
   let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
   const near=(x,z)=>{if(Math.abs(x)<44&&Math.abs(z)<38)return true;for(const v of Object.values(VENUES))if(Math.hypot(x-v.x,z-v.z)<(v.marker==='pin'?22:16))return true;
     for(const r of RX)if(Math.abs(x-r)<7)return true;for(const r of RZ)if(Math.abs(z-r)<7)return true;return false;};
-  const N=720,inst=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({roughness:.95}),N),dm=new THREE.Object3D(),col=new THREE.Color();
+  const N=2600,inst=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({roughness:.95}),N),dm=new THREE.Object3D(),col=new THREE.Color();
   const PAL=['#E6E0D2','#DCD5C4','#EDE8DC','#D3CBB8','#E9DCC4'];let n=0;
-  for(let x=-330;x<=330&&n<N;x+=10)for(let z=-330;z<=330&&n<N;z+=10){const jx=x+(rnd()-.5)*3,jz=z+(rnd()-.5)*3;if(near(jx,jz)||rnd()<.18)continue;
+  for(let x=-330;x<=330&&n<N;x+=10)for(let z=-330;z<=330&&n<N;z+=10){const jx=x+(rnd()-.5)*3,jz=z+(rnd()-.5)*3;if(near(jx,jz)||rnd()<.3)continue;
     const tall=rnd()<.07,w=4+rnd()*4,d=4+rnd()*4,h=tall?4+rnd()*4:1.3+rnd()*1.6;dm.position.set(jx,h/2,jz);dm.scale.set(w,h,d);dm.rotation.y=0;dm.updateMatrix();inst.setMatrixAt(n,dm.matrix);inst.setColorAt(n,col.set(PAL[Math.floor(rnd()*PAL.length)]));n++;}
   inst.count=n;inst.receiveShadow=true;scene.add(inst);
   const tg=new THREE.IcosahedronGeometry(1.1,0),tm=new THREE.MeshStandardMaterial({color:'#2F5A34',flatShading:true}),T=new THREE.InstancedMesh(tg,tm,260);let tn=0;
@@ -1778,7 +1819,7 @@ function buildArea(){
   T.count=tn;scene.add(T);
   const ringFor=(v,color)=>{const r=new THREE.Mesh(new THREE.RingGeometry(1.2,1.6,40),new THREE.MeshBasicMaterial({color:color||'#E3342F'}));r.rotation.x=-Math.PI/2;r.position.set(v.x,.08,v.z);scene.add(r);};
   // CBTL
-  {const v=VENUES.cbtl;const b=new THREE.Mesh(new THREE.BoxGeometry(9,3.4,7),new THREE.MeshStandardMaterial({color:'#4A3426',roughness:.8}));b.position.set(v.x,1.7,v.z);b.castShadow=true;scene.add(b);
+  function cafe(v){const b=new THREE.Mesh(new THREE.BoxGeometry(9,3.4,7),new THREE.MeshStandardMaterial({color:'#4A3426',roughness:.8}));b.position.set(v.x,1.7,v.z);b.castShadow=true;scene.add(b);
     const aw=new THREE.Mesh(new THREE.BoxGeometry(9.4,.25,2),new THREE.MeshStandardMaterial({color:'#C9772E'}));aw.position.set(v.x,2.6,v.z+4.3);scene.add(aw);
     const win=new THREE.MeshStandardMaterial({color:'#2B1E16',emissive:'#FFC27A',emissiveIntensity:0});windowMats.push(win);
     const wp=new THREE.Mesh(new THREE.PlaneGeometry(7.6,1.7),win);wp.position.set(v.x,1.3,v.z+3.52);scene.add(wp);
@@ -1790,30 +1831,43 @@ function buildArea(){
     const sl=new THREE.Mesh(new THREE.CylinderGeometry(1.06,.97,.5,28,1,true),new THREE.MeshStandardMaterial({color:'#E3342F',side:THREE.DoubleSide}));sl.position.y=-.1;g.add(sl);
     g.userData={base:8,phase:0};scene.add(g);venueMarkers.push(g);ringFor(v);}
   // futsal
-  {const v=VENUES.futsal;const t=new THREE.Mesh(new THREE.BoxGeometry(16,.2,10),[side0(),side0(),new THREE.MeshStandardMaterial({map:pitchTex(16,10,true)}),side0(),side0(),side0()]);t.position.set(v.x,.1,v.z);t.receiveShadow=true;scene.add(t);
+  function futsalB(v){const t=new THREE.Mesh(new THREE.BoxGeometry(16,.2,10),[side0(),side0(),new THREE.MeshStandardMaterial({map:pitchTex(16,10,true)}),side0(),side0(),side0()]);t.position.set(v.x,.1,v.z);t.receiveShadow=true;scene.add(t);
     const f=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(16.6,3,10.6)),new THREE.LineBasicMaterial({color:'#A9B2AA'}));f.position.set(v.x,1.5,v.z);scene.add(f);
     const ball=new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshStandardMaterial({color:'#F7F7F2',flatShading:true}));ball.add(new THREE.LineSegments(new THREE.EdgesGeometry(ball.geometry,1),new THREE.LineBasicMaterial({color:'#1B1F1C'})));
     const g=new THREE.Group();g.position.set(v.x,0,v.z);g.add(ball);g.userData={base:7,phase:1.3};scene.add(g);venueMarkers.push(g);ringFor(v);}
   // park
-  {const v=VENUES.park;const p=new THREE.Mesh(new THREE.CylinderGeometry(15,15,.16,56),new THREE.MeshStandardMaterial({color:'#4F8C57'}));p.position.set(v.x,.08,v.z);p.receiveShadow=true;scene.add(p);
+  function parkB(v){const p=new THREE.Mesh(new THREE.CylinderGeometry(15,15,.16,56),new THREE.MeshStandardMaterial({color:'#4F8C57'}));p.position.set(v.x,.08,v.z);p.receiveShadow=true;scene.add(p);
     const path=new THREE.Mesh(new THREE.RingGeometry(9,10.4,56),new THREE.MeshStandardMaterial({color:'#D9CDB0'}));path.rotation.x=-Math.PI/2;path.position.set(v.x,.18,v.z);scene.add(path);
     for(let i=0;i<14;i++){const a=i/14*Math.PI*2,r=12.5+(i%3);const tr=new THREE.Mesh(new THREE.IcosahedronGeometry(1.4,0),tm);tr.position.set(v.x+Math.cos(a)*r,1.4,v.z+Math.sin(a)*r);tr.castShadow=true;scene.add(tr);}
     const g=new THREE.Group();g.position.set(v.x,0,v.z);const pin=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshStandardMaterial({color:'#1D5B3A'}));const cone=new THREE.Mesh(new THREE.ConeGeometry(.9,1.6,24),pin.material);cone.rotation.x=Math.PI;cone.position.y=-1.1;g.add(pin);g.add(cone);
     g.userData={base:7.5,phase:2.1};scene.add(g);venueMarkers.push(g);ringFor(v,'#1D5B3A');}
+  Object.values(VENUES).forEach((v,i)=>{({cup:cafe,ball:futsalB,pin:parkB})[v.marker](v);venueMarkers[venueMarkers.length-1].userData.phase=i*1.3;});
+  Object.values(BLOCKS).forEach(B=>{const w=B.x1-B.x0-10,d=B.z1-B.z0-10,cx=(B.x0+B.x1)/2,cz=(B.z0+B.z1)/2;B.cx=cx;B.cz=cz;
+    B.fill=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color:'#E3342F',transparent:true,opacity:0,depthWrite:false}));B.fill.rotation.x=-Math.PI/2;B.fill.position.set(cx,.09,cz);scene.add(B.fill);
+    const pts=[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2],[-w/2,-d/2]].map(p=>new THREE.Vector3(cx+p[0],.3,cz+p[1]));
+    B.line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:'#E3342F',transparent:true,opacity:0}));scene.add(B.line);});
   makeVenueLabels();
 }
 function side0(){return new THREE.MeshStandardMaterial({color:'#3A6B45'});}
 const vlab={},vv=new THREE.Vector3();
-function makeVenueLabels(){[['lums',{x:0,z:0}]].concat(Object.entries(VENUES)).forEach(([k,v])=>{const b=document.createElement('button');b.type='button';b.className='pl vl hide';b.dataset.level=k==='lums'?'campus':k;$('#labels').appendChild(b);vlab[k]={el:b,x:v.x,z:v.z,y:k==='lums'?14:10.5};});updateVenueLabels();}
+function makeVenueLabels(){[['lums',{x:0,z:0}]].concat(Object.entries(VENUES)).concat(Object.entries(BLOCKS).map(([k,B])=>['b:'+k,{x:B.cx,z:B.cz}])).forEach(([k,v])=>{const b=document.createElement('button');b.type='button';b.className='pl vl hide'+(k.startsWith('b:')?' bl':'');b.dataset.level=k==='lums'?'campus':k.startsWith('b:')?k.slice(2):k;$('#labels').appendChild(b);vlab[k]={el:b,x:v.x,z:v.z,y:k==='lums'?14:k.startsWith('b:')?26:10.5};});updateVenueLabels();}
 function updateVenueLabels(){if(!vlab.lums)return;const pl=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);vlab.lums.el.innerHTML='<b>'+games.length+' games</b><small>LUMS, '+pl+' players</small>';
   Object.entries(VENUES).forEach(([k,v])=>{const n=hangouts.filter(h=>h.venue===k).length;vlab[k].el.innerHTML='<b>'+v.here+' here</b><small>'+v.name+(n?', '+n+' hangout'+(n>1?'s':''):'')+'</small>';
-    vlab[k].el.setAttribute('aria-label',v.name+', '+v.here+' people here. Go there.');});}
+    vlab[k].el.setAttribute('aria-label',v.name+', '+v.full+', '+v.here+' people here. Zoom in.');});
+  Object.keys(BLOCKS).forEach(k=>{const c=blockCount(k);vlab['b:'+k].el.innerHTML='<b>'+BLOCKS[k].name+'</b><small>'+c.on+' on tonight, '+c.here+' here</small>';vlab['b:'+k].el.setAttribute('aria-label',BLOCKS[k].name+', '+c.on+' things on tonight. Zoom in.');});}
+function blockCount(k){const B=BLOCKS[k];let on=0,here=0,hang=0;B.kids.forEach(c=>{if(c==='campus'){on+=games.length;here+=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);}else{const n=hangouts.filter(h=>h.venue===c).length;on+=n;hang+=n;here+=VENUES[c].here;}});return {on,here,hang};}
+function parentOf(l){if(l==='campus')return 'secu';if(BLOCKS[l])return 'area';if(VENUES[l])return VENUES[l].block;return null;}
+function labelOf(l){return l==='area'?'DHA':l==='campus'?'LUMS':BLOCKS[l]?BLOCKS[l].name:VENUES[l]?VENUES[l].name:l;}
+function pathOf(l){const p=[];let c=l;while(c){p.unshift(c);c=parentOf(c);}return p;}
 function venueLoop(now){
   if(renderer&&(tab==='map'||openSheetEl)&&vlab.lums){const W=screenEl.clientWidth,H=screenEl.clientHeight,free=camMode==='free';
-    Object.entries(vlab).forEach(([k,o])=>{const show=(level==='area'||(level===k&&(free||storyEl.scrollTop>story.heroH*.45))||(free&&level!=='campus'));
+    Object.entries(vlab).forEach(([k,o])=>{const late=free||storyEl.scrollTop>story.heroH*.45;
+      const show=k.startsWith('b:')?level==='area'&&late:k==='lums'?level==='secu'&&late:(level===VENUES[k].block&&late)||(level===k&&late);
       vv.set(o.x,o.y,o.z).project(camera);const x=clamp((vv.x+1)/2*W,58,W-58),y=(-vv.y+1)/2*H;
       o.el.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px) translate(-50%,-100%)';
-      o.el.classList.toggle('hide',!show||vv.z>1||!!openSheetEl);o.el.classList.toggle('sel',story.activeId==='p-'+k||level===k);});
+      o.el.classList.toggle('hide',!show||vv.z>1||y<128||!!openSheetEl);o.el.classList.toggle('sel',story.activeId==='p-'+k||story.activeId==='b-'+k.slice(2)||level===k||(k==='lums'&&story.activeId==='p-campus'));});
+    Object.entries(BLOCKS).forEach(([k,B])=>{const act=level===k||story.activeId==='b-'+k,tf=level==='area'||level===k?(act?.16:.035):0,tl=level==='area'||level===k?(act?.95:.3):0;
+      B.fill.material.opacity+=(tf-B.fill.material.opacity)*.12;B.line.material.opacity+=(tl-B.line.material.opacity)*.12;});
     venueMarkers.forEach(g=>{g.position.y=g.userData.base+(reduce?0:Math.sin(now/600+g.userData.phase)*.35);if(!reduce)g.rotation.y+=.012;});}
   requestAnimationFrame(venueLoop);}
 
@@ -1834,11 +1888,15 @@ function chapterHTML(g){const G=GROUNDS[g.ground],left=spotsLeft(g),inN=g.cap-le
 function placeHTML(k){
   if(k==='campus'){const pl=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);
     return '<section class="chap"><article class="gcard" data-kind="place" data-goto="campus" tabindex="0"><div class="gc-top"><span class="g-sport">Campus, where you study</span><span class="gc-time">LUMS</span></div><div class="gc-ground">LUMS</div>'+
-      '<div class="gc-mid"><span class="gc-num">'+games.length+'</span><span class="gc-lab">games tonight<small>'+pl+' players in so far</small></span></div><div class="gc-act"><button type="button" class="btn primary" data-goto="campus">Go to LUMS</button></div></article></section>';}
+      '<div class="gc-mid"><span class="gc-num">'+games.length+'</span><span class="gc-lab">games tonight<small>'+pl+' players in so far</small></span></div><div class="gc-act"><button type="button" class="btn primary" data-goto="campus">Zoom in to LUMS</button></div></article></section>';}
   const v=VENUES[k],n=hangouts.filter(h=>h.venue===k).length;
-  return '<section class="chap"><article class="gcard" data-kind="place" data-goto="'+k+'" tabindex="0"><div class="gc-top"><span class="g-sport">'+v.kind+'</span><span class="gc-time">'+v.dist.replace(' from LUMS','')+'</span></div><div class="gc-ground">'+v.name+'</div>'+
+  return '<section class="chap"><article class="gcard" data-kind="place" data-goto="'+k+'" tabindex="0"><div class="gc-top"><span class="g-sport">'+v.kind+', '+v.full+'</span><span class="gc-time">'+v.dist.replace(' from LUMS','')+'</span></div><div class="gc-ground">'+v.name+'</div>'+
     '<div class="gc-mid"><span class="gc-num" style="color:var(--turf)">'+v.here+'</span><span class="gc-lab">said they’re here<small>'+v.fromLums+' from LUMS. '+(n?n+' open hangout'+(n>1?'s':''):'No hangouts yet')+'.</small></span></div>'+
-    '<div class="gc-act"><button type="button" class="btn primary" data-goto="'+k+'">Go to '+v.name+'</button><button type="button" class="btn ghost" data-openhang="'+k+'">I’m here</button></div></article></section>';}
+    '<div class="gc-act"><button type="button" class="btn primary" data-goto="'+k+'">Zoom in to '+v.name+'</button><button type="button" class="btn ghost" data-openhang="'+k+'">I’m here</button></div></article></section>';}
+function blockHTML(k){const B=BLOCKS[k],c=blockCount(k),names=B.kids.map(labelOf);
+  return '<section class="chap"><article class="gcard" data-kind="place" data-goto="'+k+'" tabindex="0"><div class="gc-top"><span class="g-sport">DHA block</span><span class="gc-time">'+B.kids.length+' place'+(B.kids.length>1?'s':'')+'</span></div><div class="gc-ground">'+B.name+'</div>'+
+    '<div class="gc-mid"><span class="gc-num">'+c.on+'</span><span class="gc-lab">on tonight<small>'+names.join(' and ')+'. '+c.here+' people out.</small></span></div>'+
+    '<div class="gc-act"><button type="button" class="btn primary" data-goto="'+k+'">Zoom in to '+B.name+'</button></div></article></section>';}
 function presenceHTML(k){const v=VENUES[k],kn=v.known;
   return '<section class="chap"><article class="gcard" data-kind="presence"><div class="gc-top"><span class="g-sport">'+v.kind+', right now</span><span class="gc-time">'+v.name+'</span></div>'+
     '<div class="gc-mid"><span class="gc-num" style="color:var(--turf)">'+v.here+'</span><span class="gc-lab">said they’re here<small>'+v.fromLums+' from LUMS'+(kn.length?'. '+kn.map(first).map(cap1).join(' and ')+' '+(kn.length>1?'are':'is')+' here':'')+'.</small></span>'+
@@ -1858,24 +1916,33 @@ function hangoutHTML(h){const left=h.seats-h.joined,mine=h.state==='mine',vt=VIS
 function storyList(){const base=HOME.theta;
   if(level==='campus'){const gs=storyGames();return gs.map((g,i)=>{const G=GROUNDS[g.ground];return {id:g.id,html:chapterHTML(g),f:{x:G.x,z:G.z,r:30,phi:.98,th:base+(i%2?.2:-.16),hour:g.kick,ground:g.ground}};})
       .concat([{id:'p-out',html:'<section class="chap"><article class="gcard" data-kind="place" data-goto="area" tabindex="0"><div class="gc-top"><span class="g-sport">Around LUMS</span><span class="gc-time">DHA</span></div><div class="gc-ground">Also on nearby</div><div class="gc-mid"><span class="gc-num" style="color:var(--turf)">'+hangouts.length+'</span><span class="gc-lab">hangouts in DHA<small>'+Object.values(VENUES).reduce((n,v)=>n+v.here,0)+' people at CBTL, the futsal turf and the park.</small></span></div><div class="gc-act"><button type="button" class="btn primary" data-goto="area">See DHA tonight</button></div></article></section>',f:{x:AREA.x+30,z:AREA.z-20,r:170,phi:.78,th:base+.1,hour:21.8}}]);}
-  if(level==='area')return ['campus','cbtl','futsal','park'].map((k,i)=>{const v=k==='campus'?{x:0,z:0}:VENUES[k];return {id:'p-'+k,html:placeHTML(k),f:{x:v.x,z:v.z,r:k==='campus'?92:56,phi:.86,th:base+(i%2?.18:-.14),hour:NOW+.15*i,ring:k==='campus'?0:9}};});
+  if(level==='area')return Object.keys(BLOCKS).map((k,i)=>{const B=BLOCKS[k];return {id:'b-'+k,html:blockHTML(k),f:{x:B.cx,z:B.cz,r:170,phi:.8,th:base+(i%2?.16:-.12),hour:NOW+.12*i}};});
+  if(BLOCKS[level])return BLOCKS[level].kids.map((k,i)=>{const v=k==='campus'?{x:0,z:0}:VENUES[k];return {id:'p-'+k,html:placeHTML(k),f:{x:v.x,z:v.z,r:k==='campus'?92:52,phi:.88,th:base+(i%2?.18:-.14),hour:NOW+.15*i,ring:k==='campus'?0:9}};});
   const v=VENUES[level],hs=hangouts.filter(h=>h.venue===level);
   return [{id:'pres',html:presenceHTML(level),f:{x:v.x,z:v.z,r:40,phi:.92,th:base-.3,hour:NOW+.1}}].concat(hs.map((h,i)=>({id:h.id,html:hangoutHTML(h),f:{x:v.x,z:v.z,r:30,phi:.98,th:base+.1+i*.32,hour:NOW+.25+i*.15}})));}
 function endHTML(){if(level==='campus')return '<article class="gcard endcard"><div class="gc-ground">That’s tonight</div><p>No game at your time? Start one and it drops onto the map for everyone at LUMS.</p><div class="gc-act"><button type="button" class="btn primary" data-go="create">Start a game</button><button type="button" class="btn ghost" data-explore>Explore the map</button></div></article>';
   if(level==='area')return '<article class="gcard endcard"><div class="gc-ground">That’s DHA tonight</div><p>Places show up once people start meeting there. Know a good spot? Suggest it.</p><div class="gc-act"><button type="button" class="btn primary" data-suggest>Suggest a place</button><button type="button" class="btn ghost" data-explore>Explore the map</button></div></article>';
-  const v=VENUES[level];return '<article class="gcard endcard"><div class="gc-ground">Nothing that fits?</div><p>Open your own hangout at '+v.name+'. You choose who can see it and who sits with you.</p><div class="gc-act"><button type="button" class="btn primary" data-openhang="'+level+'">Open a hangout</button><button type="button" class="btn ghost" data-goto="area">Back to DHA</button></div></article>';}
+  if(BLOCKS[level])return '<article class="gcard endcard"><div class="gc-ground">That’s '+BLOCKS[level].name+'</div><p>Pinch in, or tap the minus button, to see the rest of DHA.</p><div class="gc-act"><button type="button" class="btn primary" data-goto="area">Zoom out to DHA</button><button type="button" class="btn ghost" data-explore>Explore the map</button></div></article>';
+  const v=VENUES[level];return '<article class="gcard endcard"><div class="gc-ground">Nothing that fits?</div><p>Open your own hangout at '+v.name+'. You choose who can see it and who sits with you.</p><div class="gc-act"><button type="button" class="btn primary" data-openhang="'+level+'">Open a hangout</button><button type="button" class="btn ghost" data-goto="'+v.block+'">Back to '+BLOCKS[v.block].name+'</button></div></article>';}
 function heroFor(){if(level==='campus'){const pl=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);return ['Tonight in','LUMS',games.length+' games and '+pl+' players. Scroll to walk the campus, game by game.'];}
-  if(level==='area')return ['Tonight around','DHA','Lahore. '+(1+Object.keys(VENUES).length)+' places with something on. Scroll to move between them.'];
-  const v=VENUES[level],n=hangouts.filter(h=>h.venue===level).length;return ['Right now at',v.name.toUpperCase(),v.here+' people here and '+n+' open hangout'+(n===1?'':'s')+'. '+v.kind+', '+v.dist+'.'];}
-function fitHero(){const el=$('#heroBig'),box=$('#heroIn');if(!el||!box)return;el.style.fontSize='100px';const w=el.getBoundingClientRect().width||1,W=box.clientWidth||screenEl.clientWidth-32;el.style.fontSize=Math.min(250,100*W/w).toFixed(1)+'px';}
-function renderCrumbs(){const parts=[['Lahore',null],['DHA','area']];if(level==='campus')parts.push(['LUMS','campus']);else if(level!=='area')parts.push([VENUES[level].name,level]);
+  if(level==='area')return ['Tonight around','DHA','Lahore. '+Object.keys(BLOCKS).length+' blocks with something on. Scroll through them, pinch out to zoom in.'];
+  if(BLOCKS[level]){const c=blockCount(level);return ['Tonight in DHA',BLOCKS[level].name.toUpperCase(),c.on+' things on and '+c.here+' people out. Scroll through the places, pinch out on one to zoom in.'];}
+  const v=VENUES[level],n=hangouts.filter(h=>h.venue===level).length;return ['Right now at',v.name.toUpperCase(),v.full+'. '+v.here+' people here and '+n+' open hangout'+(n===1?'':'s')+'. '+v.kind+', '+v.dist+'.'];}
+function fitHero(){const el=$('#heroBig'),box=$('#heroIn');if(!el||!box)return;el.style.fontSize='100px';const w=el.offsetWidth||1,W=box.clientWidth||screenEl.clientWidth-32;el.style.fontSize=Math.min(250,100*W/w).toFixed(1)+'px';}
+function renderCrumbs(){const path=pathOf(level);let parts=[['Lahore',null]].concat(path.map(l=>[labelOf(l),l]));let lead='';
+  if(parts.length>3){const hid=parts[parts.length-4];parts=parts.slice(-3);lead=hid[1]?'<button type="button" data-level="'+hid[1]+'" aria-label="Up to '+hid[0]+'">…</button><i aria-hidden="true">›</i>':'';}
   const ok='<span class="ok"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-  $('#crumbs').innerHTML=parts.map((p,i)=>{const cur=i===parts.length-1,lab=p[0]+(p[1]==='campus'?ok:'');return (i?'<i aria-hidden="true">›</i>':'')+(cur?'<b aria-current="location">'+lab+'</b>':p[1]?'<button type="button" data-level="'+p[1]+'">'+lab+'</button>':'<span title="City view comes later">'+lab+'</span>');}).join('');}
+  $('#crumbs').innerHTML=lead+parts.map((p,i)=>{const cur=i===parts.length-1,lab=p[0]+(p[1]==='campus'?ok:'');return (i?'<i aria-hidden="true">›</i>':'')+(cur?'<b aria-current="location">'+lab+'</b>':p[1]?'<button type="button" data-level="'+p[1]+'">'+lab+'</button>':'<span title="City view comes later">'+lab+'</span>');}).join('');
+  renderRail();}
+function renderRail(){const d=pathOf(level).length;$$('#zoomRail i').forEach((dot,i)=>dot.classList.toggle('on',i===d-1));
+  const up=parentOf(level);$('#zoomOut').disabled=!up;$('#zoomOut').setAttribute('aria-label',up?'Zoom out to '+labelOf(up):'Already at the widest view');
+  const dn=childOfActive();$('#zoomIn').disabled=!dn;$('#zoomIn').setAttribute('aria-label',dn?'Zoom in to '+labelOf(dn):'Nothing closer here');}
+function childOfActive(){if(level==='campus'||VENUES[level])return null;const id=story.activeId||story.ids[0];return id?id.slice(2):null;}
 function buildStory(){if(!storyEl)return;story.list=storyList();story.ids=story.list.map(it=>it.id);
   $('#chapters').innerHTML=story.list.map(it=>it.html).join('');$('#endChap').innerHTML=endHTML();
   const [k,w,sub]=heroFor();$('#heroK').textContent=k;$('#heroSub').textContent=sub;
-  const big=$('#heroBig');if(big.dataset.word!==w){big.dataset.word=w;big.setAttribute('aria-label',w);big.innerHTML=w.split('').map(c=>'<span aria-hidden="true">'+c+'</span>').join('');}
-  $('.segwrap').hidden=level!=='campus';$('#ctitle b').textContent=level==='campus'?'Tonight':level==='area'?'DHA':VENUES[level].name;
+  const big=$('#heroBig');if(big.dataset.word!==w){big.dataset.word=w;big.setAttribute('aria-label',w);big.innerHTML=w.split('').map(c=>'<span aria-hidden="true">'+(c===' '?'\u00a0':c)+'</span>').join('');}
+  $('.segwrap').hidden=level!=='campus';$('#ctitle b').textContent=level==='campus'?'Tonight':labelOf(level);
   fitHero();layoutStory();updateVenueLabels();}
 function layoutStory(){if(!storyEl)return;const H=storyEl.clientHeight;if(!H)return;story.H=H;fitHero();
   story.heroH=Math.round(H*.66);$('#hero').style.height=story.heroH+'px';
@@ -1885,8 +1952,9 @@ function layoutStory(){if(!storyEl)return;const H=storyEl.clientHeight;if(!H)ret
   story.items=cards.concat([endCard]).map(el=>({el,top:el.parentElement.offsetTop+el.offsetTop,h:el.offsetHeight}));
   story.anch=[0].concat(story.items.map(it=>Math.max(1,it.top+it.h/2-story.focusY)));
   for(let i=1;i<story.anch.length;i++)if(story.anch[i]<=story.anch[i-1])story.anch[i]=story.anch[i-1]+1;
-  const base=HOME.theta,ov=level==='campus'?{tx:0,tz:2.5,theta:base-.15,phi:.62,r:96,hour:NOW}:level==='area'?{tx:AREA.x,tz:AREA.z,theta:base-.1,phi:.72,r:320,hour:NOW}:{tx:VENUES[level].x+4,tz:VENUES[level].z-16,theta:base-.5,phi:.74,r:84,hour:NOW};
-  const end=level==='campus'?{tx:0,tz:2,theta:base+.25,phi:.8,r:86,hour:22.5}:level==='area'?{tx:AREA.x,tz:AREA.z,theta:base+.2,phi:.7,r:340,hour:NOW+.8}:{tx:VENUES[level].x,tz:VENUES[level].z,theta:base+.6,phi:.8,r:70,hour:NOW+1};
+  const base=HOME.theta,B=BLOCKS[level],V=VENUES[level];
+  const ov=level==='campus'?{tx:0,tz:2.5,theta:base-.15,phi:.62,r:96,hour:NOW}:level==='area'?{tx:AREA.x,tz:AREA.z,theta:base-.1,phi:.72,r:320,hour:NOW}:B?{tx:B.cx,tz:B.cz-30,theta:base-.2,phi:.7,r:200,hour:NOW}:{tx:V.x+4,tz:V.z-16,theta:base-.5,phi:.74,r:84,hour:NOW};
+  const end=level==='campus'?{tx:0,tz:2,theta:base+.25,phi:.8,r:86,hour:22.5}:level==='area'?{tx:AREA.x,tz:AREA.z,theta:base+.2,phi:.7,r:340,hour:NOW+.8}:B?{tx:B.cx,tz:B.cz,theta:base+.25,phi:.72,r:210,hour:NOW+.7}:{tx:V.x,tz:V.z,theta:base+.6,phi:.8,r:70,hour:NOW+1};
   story.kf=[ov].concat(story.list.map(it=>{const f=it.f,k=f.r*.3;return {tx:f.x+Math.sin(f.th)*k,tz:f.z+Math.cos(f.th)*k,theta:f.th,phi:f.phi,r:f.r,hour:f.hour,id:it.id,ground:f.ground,ring:f.ring,fx:f.x,fz:f.z};})).concat([end]);
   story.lastS=-1;}
 function storyFrame(){if(!story.kf.length)return;const s=storyEl.scrollTop,A=story.anch,K=story.kf;
@@ -1898,7 +1966,7 @@ function storyFrame(){if(!story.kf.length)return;const s=storyEl.scrollTop,A=sto
   const h=lerp(a.hour,b.hour,t);if(Math.abs(h-story.lastHour)>.004){story.lastHour=h;applyHour(h);$('#clock').textContent=fmt(Math.round(h*12)/12);}
   let best=null,bd=1e9;K.forEach((k,i)=>{if(!k.id)return;const d=Math.abs(s-A[i]);if(d<bd){bd=d;best=k;}});
   const act=best&&bd<story.H*.32?best:null,aid=act?act.id:null;
-  if(aid!==story.activeId){story.activeId=aid;Object.entries(pins).forEach(([id,p])=>p.lab.classList.toggle('sel',id===aid));
+  if(aid!==story.activeId){story.activeId=aid;renderRail();Object.entries(pins).forEach(([id,p])=>p.lab.classList.toggle('sel',id===aid));
     if(act&&act.ground){const G=GROUNDS[act.ground];selRing.position.set(G.x,.14,G.z);selRing.scale.setScalar(G.r?G.r/1.1:Math.max(G.w,G.d)/2.1);selRing.userData.on=true;}
     else if(act&&act.ring){selRing.position.set(act.fx,.14,act.fz);selRing.scale.setScalar(act.ring);selRing.userData.on=true;}else selRing.userData.on=false;}
   if(s===story.lastS)return;story.lastS=s;
@@ -1912,9 +1980,21 @@ function storyFrame(){if(!story.kf.length)return;const s=storyEl.scrollTop,A=sto
     it.el.style.opacity=String(d<0?1-clamp((ad-.1)/.28,0,1):1-clamp((ad-.16)/.5,0,.72));it.el.style.pointerEvents=d<-.3?'none':'';
     it.el.style.transform=reduce?'':'perspective(900px) translateY('+(d>0?d*36:0).toFixed(1)+'px) rotateX('+(d>0?Math.min(40,d*80):Math.max(-12,d*26)).toFixed(2)+'deg) scale('+(1-Math.min(.12,ad*.2)).toFixed(3)+')';});
 }
-function goLevel(l){if(!l||l===level)return;if(camMode!=='story')setExplore(false);if(openSheetEl)closeSheets();level=l;
-  storyEl.classList.add('swap');storyEl.scrollTop=0;buildStory();renderCrumbs();story.lastS=-1;story.lastHour=-1;story.activeId=null;story.flyUntil=performance.now()+(reduce?0:1600);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>storyEl.classList.remove('swap')));}
+function goLevel(l){if(!l||l===level)return;if(camMode!=='story')setExplore(false);if(openSheetEl)closeSheets();
+  const deeper=pathOf(l).length>pathOf(level).length;level=l;
+  storyEl.classList.remove('zin','zout');storyEl.classList.add(deeper?'zin':'zout');storyEl.scrollTop=0;buildStory();renderCrumbs();
+  story.lastS=-1;story.lastHour=-1;story.activeId=null;story.flyUntil=performance.now()+(reduce?0:1600);renderRail();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>storyEl.classList.remove('zin','zout')));}
+let lastZoom=0;
+function zoomStep(dir){const now=performance.now();if(now-lastZoom<900)return;lastZoom=now;
+  if(dir>0){const c=childOfActive();if(c)goLevel(c);else toast(level==='campus'?'Tap a game to open it.':'This is as close as it gets. Scroll to see what’s here.');}
+  else{const p=parentOf(level);if(p)goLevel(p);else toast('The whole-city view comes later.');}}
+storyEl.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();zoomStep(e.deltaY<0?1:-1);},{passive:false});
+let pinch0=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+storyEl.addEventListener('touchstart',e=>{if(e.touches.length===2)pinch0=tdist(e.touches);},{passive:true});
+storyEl.addEventListener('touchmove',e=>{if(e.touches.length!==2||!pinch0)return;const r=tdist(e.touches)/pinch0;if(r>1.35){zoomStep(1);pinch0=null;}else if(r<.72){zoomStep(-1);pinch0=null;}},{passive:true});
+storyEl.addEventListener('touchend',()=>{pinch0=null;});
+$('#zoomIn').addEventListener('click',()=>zoomStep(1));$('#zoomOut').addEventListener('click',()=>zoomStep(-1));
 function setExplore(on){camMode=on?'free':'story';storyEl.classList.toggle('off',on);$('#mapBtn span').textContent=on?'Back to tonight':'Explore map';
   $('#topfade').style.opacity=on?'0':String(clamp(storyEl.scrollTop/140,0,1));$('#ctitle').style.opacity=on?'0':'';
   if(on){const k=story.kf[0];Object.assign(goal,{tx:k.tx,tz:k.tz,r:k.r,phi:k.phi,theta:k.theta});selRing.userData.on=false;story.activeId=null;Object.values(pins).forEach(p=>p.lab.classList.remove('sel'));toast('Drag to turn, pinch or scroll to zoom.');}
@@ -1923,7 +2003,7 @@ screenEl.addEventListener('click',e=>{if(e.target.closest('[data-explore]')){set
   const lv=e.target.closest('[data-level]');if(lv&&!lv.closest('#chapters')){goLevel(lv.dataset.level);return;}});
 
 /* hangouts */
-const hs={venue:'cbtl',what:'Coffee',seats:3,until:21.5,vis:'campus'};
+const hs={venue:'cbtl5',what:'Coffee',seats:3,until:21.5,vis:'campus'};
 const canHostWomen=false; // the demo account isn't a verified woman
 function openHang(k){hs.venue=k;$('#hsTitle').textContent='Open a hangout at '+VENUES[k].name;renderHang();$('#hsNote').value='';openSheet($('#hangSheet'),true);
   const v=VENUES[k];focusPoint(v.x,v.z,36);}
@@ -1998,7 +2078,8 @@ setTilt=function(x,y){tiltX=x;tiltY=y;pc.style.transform='rotateY('+(flip*180+x*
 function cardFlip(){const st=$('#tabMe').scrollTop;flip=reduce?(st>160?1:0):easeIO(clamp((st-20)/260,0,1));setTilt(tiltX,tiltY);
   $('#flipHint').textContent=flip>.5?'Keep scrolling for your settings.':'Scroll to turn the card over.';$('#pbPts').textContent=$('#pcPts').textContent;}
 
-$$('[data-v5]').forEach(b=>b.addEventListener('click',()=>{go('map');const v=b.dataset.v5;goLevel(v==='area'?'area':'cbtl');if(v==='hang')setTimeout(()=>openHang('cbtl'),700);}));
+$$('[data-v5]').forEach(b=>b.addEventListener('click',()=>{go('map');const v=b.dataset.v5;goLevel(v==='area'?'area':'cbtl5');if(v==='hang')setTimeout(()=>openHang('cbtl5'),700);}));
+$$('[data-v6]').forEach(b=>b.addEventListener('click',()=>{go('map');goLevel(b.dataset.v6);}));
 /* ---------- boot ---------- */
 if(renderer){
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;

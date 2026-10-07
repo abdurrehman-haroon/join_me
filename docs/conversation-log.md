@@ -122,3 +122,26 @@ A written record of the design sessions: what was asked, what was built, the dec
   - The 3D map loads but **Lahore has no photorealistic 3D buildings**, only flat satellite imagery.
   - Decision: keep MapLibre, use Places for verification and Weather/AQ server-side.
 - The user pasted the demo key in chat. It was kept out of the artifact and git. Advised restricting or rotating it, and not pushing newer chat exports.
+
+## Session 6: DHA blocks, scroll across, zoom down (7 Oct)
+
+**Ask:** In DHA, swipe through DHA's blocks the way LUMS lets you swipe through games. To get more granular, zoom in, then swipe through what's inside.
+
+**What happened (artifact version 6):**
+- **One navigation rule at every level:**
+  - Scrolling moves across a level.
+  - Zooming moves down or up.
+  - Pinch out (touch), trackpad pinch or the + button dives into the card in front of you. Pinch in or − pulls back.
+  - A zoom control on the right shows three dots for depth.
+  - The page scales in or out to match the camera dive.
+- **Levels:** DHA › block › place.
+  - Blocks: Sector U (LUMS, park), Phase 3 (CBTL Z Block, futsal turf), Phase 5 (CBTL A Block), Phase 6 (CBTL Raya).
+  - The three CBTL branches are the real ones found with Google Places. The block layout is schematic.
+- On the 3D map each block gets an outline and fill, red when it's the one in front of you. Block labels show at DHA level, place labels at block level.
+- The breadcrumb is built from the real path (Lahore › DHA › Phase 3 › CBTL, trimmed to the last 3 parts) and every part can be tapped.
+- New hangouts: "Late chai and a chat" (CBTL Z Block) and "Group project, need a fourth" (CBTL Raya).
+- Bugs fixed:
+  - Houses only filled the west edge, because the generator hit its cap early.
+  - The giant title was measured mid-animation, and the space in "PHASE 5" collapsed.
+  - The centre title collided with the longer breadcrumb, so it was removed.
+  - Labels slid under the header.
