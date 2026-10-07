@@ -1,6 +1,6 @@
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
-Read the repository root `AGENTS.md` and shared files in `docs/` before project work. Claude reads root `CLAUDE.md` and this file too.
+Read the shared workflow in `docs/ai.md` before project work.
 
 ## Expo has changed — do not trust your training data
 

@@ -10,7 +10,7 @@ One repository for the mobile app and its API.
 
 ## Working together
 
-`docs/project.md` is shared product and architecture context. `docs/plan.md` is the build order; `docs/handoff.md` records the latest state. Codex reads `AGENTS.md`; Claude reads `CLAUDE.md`. Both point to the same tracked files.
+`docs/ai.md` gives both assistants the same workflow. Codex reads `AGENTS.md`; Claude reads `CLAUDE.md`. Both point to that one file. Project context, plan, and handoff live in `docs/`.
 
 From the repo root: `make context` prints the shared context, `make check` runs backend and frontend checks, `make api` starts the API, and `make app` starts Expo. Run `make api` and `make app` in separate terminals.
 
