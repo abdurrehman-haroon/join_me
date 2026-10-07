@@ -63,3 +63,31 @@ A written record of the design sessions: what was asked, what was built, the dec
 2. Set up the Expo project (dev build), commit and extend `openapi.yaml`, and build v1 screens against a mock server (week 1 of the plan).
 3. Confirm the real LUMS hostel names and ground names. The prototype uses placeholders (M-1…M-6, F-1…F-3, "Sports Complex turf", etc.).
 4. Check with SLUMS about a pilot partnership and the campus-lead role.
+
+## Session 4: scroll-driven motion (7 Oct)
+
+**Ask:** Inside LUMS, the app should move as you scroll up and down, not by zooming in and out on a screen that stays put. Add motion to screens and layouts as you move. Use web research and all installed skills and plugins, and produce an updated sample.
+
+**What happened:**
+- A research agent covered scrollytelling maps, native iOS scroll motion, React Native implementation and comfort → `research/03-scroll-driven-motion.md`. The apple-skills `design` skill was loaded for motion guidance; it targets SwiftUI, so only its principles apply.
+- Built **v4** (artifact version 4):
+  - **Home is now "Tonight at LUMS".** The 3D campus stays pinned in the background while you scroll a feed of tonight's games over it.
+    - Scroll position drives the camera through keyframes: an overview, then each ground in kick-off order, then a pull-back at the end.
+    - The camera dwells briefly at each ground and makes a small hop between grounds.
+    - The sky and lighting follow kick-off time, and the clock in the top bar updates as you scroll.
+    - Cards rise and stand up (rotateX from the bottom edge) as they reach the focus line, and cards above it fade out.
+    - The hero title collapses into a compact "Tonight" bar.
+    - The time slider was removed. Scrolling is now the timeline.
+    - "Explore map" switches to free orbit and zoom. You can join a game straight from its card, and the count rolls.
+  - **Game sheet:** the big count shrinks into a sticky mini header with Join, roster rows fade in, and the formation tilts up as it enters.
+  - **Hostel Cup:** the podium is pinned and its camera orbits with scroll while the content slides over it. Standings bars fill as they enter.
+  - **Player card:** pinned, and it flips over as you scroll to a back face with season stats.
+  - **All tabs:** large titles collapse into a compact bar, and pages ease in on tab change.
+  - **Calm motion** switch under You, alongside the iOS Reduce Motion setting.
+- Changes made after the research:
+  - Cut the camera's turn between grounds from about 85° to about 20° and halved the hop, to avoid combined turn, zoom and tilt.
+  - The notes say that in the app the camera should glide per chapter (`easeTo`), because per-frame MapLibre camera driving is unproven.
+- Bugs fixed:
+  - the conditions strip was duplicated and its card was missing;
+  - fog washed out the overview, so it now scales with camera distance;
+  - cards that had scrolled past stayed half-visible behind the header.

@@ -12,6 +12,7 @@ Everything from the design sessions of 30 Sep – 7 Oct 2026, saved so a new Cla
 | `research/01-ui-tools-and-references.md` | Round 1: the four sites, the RN 3D/motion toolkit, reference apps, anti-AI-look rules. |
 | `docs/chat-transcript-2026-10-07.zip` | Full export of the original chat, including the research agents' transcripts. |
 | `research/02-us-universities-and-growth.md` | Round 2: Yale, Princeton, Duke, Harvard, IMLeagues, pickup apps, Facebook/Fizz/Yik Yak, Pakistan specifics. |
+| `research/03-scroll-driven-motion.md` | Round 3: scrollytelling maps, scroll-linked motion on iOS, how to build it in React Native, comfort and Reduce Motion. |
 
 The old artifact link (claude.ai/artifact/AX6p7DahvZqeopRb1RSS6c) belongs to the old account and stops working when that account goes.
 
@@ -29,6 +30,9 @@ Built from what's on a LUMS ground at 7pm: mown turf, chalk lines, a tennis ball
   3. The controls stay quiet: chalk and ink only, no gradients, no frosted glass, no emoji.
   4. Every action gets a response: you drop into a formation slot, the count rolls down, a haptic fires.
 - **Avoided on purpose:** dark background with neon green, purple gradients, glass cards over the map, Inter, identical card grids.
+
+## v4: scroll-driven home (7 Oct)
+Home is "Tonight at LUMS". Scrolling the feed moves the 3D camera from ground to ground in kick-off order, the sky darkens with time, and cards stand up as they arrive. The game sheet, Hostel Cup and player card all respond to scroll too. In the app: Reanimated `useScrollOffset` drives the UI, and the MapLibre camera glides per chapter with `easeTo`, because per-frame driving is unproven. Details are in `docs/conversation-log.md` (Session 4).
 
 ## Screens in the prototype
 **v1 (the seven-week build):** live 3D map with a time slider and sport filter · game sheet with the big count, pitch formation, join/leave, live roster, report menu · Start a game (sport, ground, kick-off, players, visibility, repeat weekly) · game chat that closes 2h after kick-off · campus email verification · push notification banner.

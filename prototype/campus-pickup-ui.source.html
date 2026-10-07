@@ -417,6 +417,74 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 .camp small{color:var(--mut);font-size:12.5px;}
 .camp .acts{display:flex;gap:8px;}
 .camp .acts .btn{height:40px;font-size:14px;flex:1;border-radius:12px;padding:0 10px;}
+
+/* v4: scroll-driven home */
+.top{z-index:7;}
+.ctitle{display:flex;flex-direction:column;align-items:center;color:#fff;opacity:0;pointer-events:none;line-height:1.1;}
+.ctitle b{font-size:16px;font-weight:700;}
+.ctitle small{font-size:12px;font-weight:600;opacity:.8;font-variant-numeric:tabular-nums;}
+.topfade{position:absolute;left:0;right:0;top:0;height:160px;z-index:6;pointer-events:none;opacity:0;background:linear-gradient(180deg,rgba(16,24,42,.92) 0%,rgba(16,24,42,.7) 55%,rgba(16,24,42,0) 100%);}
+.story{position:absolute;left:0;right:0;top:0;bottom:84px;overflow-y:auto;overscroll-behavior:contain;z-index:3;scrollbar-width:none;transition:opacity .4s;}
+.story::-webkit-scrollbar{display:none;}
+.story.off{opacity:0;pointer-events:none;}
+#labels{z-index:4;}
+.hero{display:flex;align-items:flex-end;padding:0 18px 18px;pointer-events:none;background:linear-gradient(180deg,rgba(16,24,42,0) 45%,rgba(16,24,42,.5) 100%);}
+.hero-in{pointer-events:auto;color:#fff;transform-origin:left bottom;will-change:transform,opacity;display:flex;flex-direction:column;gap:10px;}
+.hero-t{font-family:var(--display);font-weight:900;font-size:60px;line-height:.84;margin:0;text-shadow:0 2px 24px rgba(0,0,0,.35);}
+.hero-s{font-size:15px;line-height:1.35;color:rgba(255,255,255,.9);max-width:26em;}
+.hero .cond{position:static;}
+.hint{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.75);}
+.hint svg{animation:nudge 1.8s ease-in-out 3;}
+@keyframes nudge{50%{transform:translateY(4px);}}
+.segwrap{position:sticky;top:104px;z-index:2;padding:0 14px 6px;pointer-events:none;}
+.segwrap .seg{position:static;display:inline-flex;pointer-events:auto;}
+.chap{position:relative;display:flex;align-items:flex-end;padding:0 12px;}
+.gcard{width:100%;background:var(--chalk);border-radius:24px;padding:14px 16px 14px;display:flex;flex-direction:column;gap:8px;box-shadow:0 22px 40px -18px rgba(0,0,0,.6);transform-origin:50% 100%;will-change:transform,opacity;cursor:pointer;}
+.gcard:focus-visible{outline:3px solid var(--tape);outline-offset:3px;}
+.gc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.gc-time{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;}
+.gc-ground{font-family:var(--display);font-weight:800;font-size:28px;line-height:.95;}
+.gc-mid{display:flex;align-items:flex-end;gap:10px;}
+.gc-num{font-family:var(--display);font-weight:900;font-size:64px;line-height:.78;color:var(--tape);font-variant-numeric:tabular-nums;}
+.gc-num.full{color:var(--mut);font-size:44px;}
+.gc-num.live{color:var(--turf);font-size:44px;}
+.gc-num.roll{animation:rollIn .5s cubic-bezier(.2,.9,.25,1.15);}
+.gc-lab{font-family:var(--display);font-weight:700;font-size:21px;line-height:1;flex:1;}
+.gc-lab small{display:block;font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--mut);margin-top:3px;}
+.gc-act{display:flex;gap:8px;}
+.gc-act .btn{height:46px;font-size:15.5px;border-radius:14px;}
+.gc-act .btn.ghost{flex:none;}
+.endcard p{color:var(--mut);font-size:14px;line-height:1.4;}
+.mapbtn{position:absolute;left:14px;bottom:100px;z-index:6;height:44px;border-radius:999px;border:0;background:var(--chalk);color:var(--ink);font-weight:650;font-size:14.5px;display:flex;align-items:center;gap:7px;padding:0 14px 0 12px;box-shadow:0 10px 22px -10px rgba(0,0,0,.6);}
+.fab{bottom:100px;height:44px;font-size:15px;}
+/* sheet scroll motion */
+.g-mini{position:sticky;top:-4px;z-index:3;margin:0 -20px -18px;padding:10px 20px;background:var(--chalk);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;opacity:0;pointer-events:none;}
+.g-mini b{font-family:var(--display);font-weight:900;font-size:26px;line-height:.9;color:var(--tape);}
+.g-mini span{flex:1;font-weight:650;font-size:14px;line-height:1.2;}
+.g-mini span small{display:block;color:var(--mut);font-weight:500;font-size:12px;}
+.spots,.formation,.roster li{will-change:transform,opacity;}
+.spots{transform-origin:left bottom;}
+.formation{transform-origin:50% 100%;}
+/* cup: podium pinned, content slides over it */
+#tabCup .podium{position:sticky;top:50px;z-index:0;}
+.slide-over{position:relative;z-index:1;background:var(--chalk);border-radius:26px 26px 0 0;margin:-6px -18px 0;padding:18px 18px 0;display:flex;flex-direction:column;gap:20px;box-shadow:0 -18px 30px -24px rgba(0,0,0,.45);}
+.stand .bar i{transform-origin:left center;transition:none;}
+/* player card flip */
+.pstage{height:720px;position:relative;}
+.pstage .pwrap{position:sticky;top:64px;}
+.pface{position:absolute;inset:0;border-radius:22px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform-style:preserve-3d;}
+.pback{transform:rotateY(180deg);background:repeating-linear-gradient(90deg,#173E2A 0 24px,#1B4630 24px 48px);padding:24px 22px;display:flex;flex-direction:column;gap:12px;}
+.pback h4{margin:0;font-family:var(--display);font-weight:800;font-size:30px;line-height:.9;color:#FFE3A0;}
+.pback dl{margin:0;display:flex;flex-direction:column;gap:9px;}
+.pback dt{font-size:11.5px;font-weight:650;opacity:.7;}
+.pback dd{margin:0;font-weight:650;font-size:15px;}
+.flip-hint{text-align:center;color:var(--mut);font-size:13px;margin-top:-6px;}
+/* collapsing large titles */
+.cbar{position:absolute;left:0;right:0;top:0;z-index:15;padding:54px 16px 10px;text-align:center;font-weight:700;font-size:16px;color:var(--ink);background:var(--chalk);border-bottom:1px solid var(--line);opacity:0;pointer-events:none;}
+.pt{transform-origin:left center;will-change:transform,opacity;}
+.tabpage:not([hidden]){animation:pageIn .38s cubic-bezier(.2,.9,.25,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(14px);}}
+@media (prefers-reduced-motion: reduce){ .tabpage:not([hidden]){animation:none;} .hint svg{animation:none;} }
 @media (prefers-reduced-motion: reduce){ .sheet,.page,.banner,.toast{transition-duration:.01s;} .num.in,.num.out,.slot-pulse,.m.new,.tick{animation:none;} }
 </style>
 
@@ -424,7 +492,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
   <div class="notes">
     <header>
       <h1>Campus Pickup</h1>
-      <p class="lead">A working iOS prototype. It covers the seven-week v1 plus the next set of features, drawn from how Yale, Princeton, Duke and Harvard run house sport. Everything on the phone can be tapped.</p>
+      <p class="lead">A working iOS prototype, now driven by scrolling. It covers the seven-week v1 plus the next set of features, drawn from how Yale, Princeton, Duke and Harvard run house sport. Everything on the phone can be tapped.</p>
     </header>
     <div class="ntabs" role="tablist" aria-label="Notes">
       <button type="button" role="tab" aria-selected="true" data-nt="screens">Screens</button>
@@ -435,9 +503,32 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 
     <div class="npanel" data-np="screens">
       <section>
+        <h2>New in v4: the campus moves when you scroll</h2>
+        <p>The home screen is now <b>Tonight at LUMS</b>. Instead of pinching a map that stays still, you scroll a feed of tonight's games and the camera moves with you. It starts above the whole campus, then flies down to each ground in kick-off order. The sky darkens as you scroll, because further down means later in the evening. Each card stands up from the ground as it reaches you, and the title shrinks into the top bar. Tap <b>Explore map</b> to turn and zoom the campus freely.</p>
+        <ul class="shots">
+          <li><b>Game sheet:</b> scroll it and the big number shrinks into a bar at the top that keeps a Join button. Players in the roster fade in as they come into view.</li>
+          <li><b>Hostel Cup:</b> the podium stays pinned at the top and turns while the standings slide up over it. Each hostel's bar fills as it comes into view.</li>
+          <li><b>Player card:</b> it stays pinned and flips over as you scroll, showing your semester on the back.</li>
+          <li><b>Every tab:</b> large titles collapse into the top bar the way iOS does it, and pages ease in when you switch tabs.</li>
+          <li><b>Comfort:</b> the camera does one thing at a time. It turns about 20° between grounds at most and only lifts a little between them. Calm motion (under You) and the iPhone's Reduce Motion setting switch to straight cuts and fades.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>How v4 gets built in the app</h2>
+        <div class="tbl"><table><thead><tr><th>Piece</th><th>In React Native</th></tr></thead><tbody>
+          <tr><td>Scroll position</td><td>One Reanimated <code>useScrollOffset</code> value drives everything on the UI thread through <code>interpolate</code>: the title, the card tilt and scale, the header fade. It only changes transform and opacity, never layout.</td></tr>
+          <tr><td>Map camera</td><td>MapLibre React Native v11 has no proven way to move the camera on every frame. So the camera glides with <code>easeTo</code> (700–900 ms) when a card crosses the focus line, and <code>flyTo</code> handles long jumps. Before trying continuous scrubbing, test <code>jumpTo</code> at about 30 fps on the oldest supported iPhone.</td></tr>
+          <tr><td>Sky and lighting</td><td>Switch the map style per game with a cross-fade, rather than recolouring every frame.</td></tr>
+          <tr><td>Feed</td><td>FlashList v2. Each card works out its motion from its own position in the list, so recycled cells don't carry stale state.</td></tr>
+          <tr><td>Bars and edges</td><td>Native tab and navigation bars, so the iOS 26 scroll-edge effect comes for free.</td></tr>
+          <tr><td>Reduce Motion</td><td>Reanimated's <code>useReducedMotion</code> plus the Calm motion switch: no flights, parallax or tilt, and 150 ms cross-fades instead.</td></tr>
+        </tbody></table></div>
+        <p class="muted">Sources: <a href="https://maplibre.org/maplibre-gl-js/docs/examples/fly-to-a-location-based-on-scroll-position/">MapLibre scroll fly-to example</a>, <a href="https://docs.mapbox.com/mapbox-gl-js/example/scroll-fly-to/">Mapbox scroll fly-to</a>, <a href="https://docs.swmansion.com/react-native-reanimated/docs/scroll/useScrollOffset">Reanimated useScrollOffset</a>, <a href="https://maplibre.org/maplibre-react-native/docs/components/camera">MapLibre RN camera</a>, <a href="https://shopify.engineering/flashlist-v2">FlashList v2</a>, <a href="https://webkit.org/blog/7551/responsive-design-for-motion/">WebKit on motion and vestibular triggers</a>.</p>
+      </section>
+      <section>
         <h2>v1: the seven-week build</h2>
         <div class="screens" role="group" aria-label="v1 screens">
-          <button type="button" data-go="map">Live map</button>
+          <button type="button" data-go="map">Tonight (home)</button>
           <button type="button" data-go="game">Game and roster</button>
           <button type="button" data-go="create">Start a game</button>
           <button type="button" data-go="chat">Game chat</button>
@@ -626,40 +717,56 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
         </span></div>
         <div class="island"></div>
 
+        <div class="topfade" id="topfade"></div>
         <div class="top">
           <button type="button" class="campus" data-go="verify" aria-label="LUMS, verified. Open campus email check">
             <span class="ok"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             LUMS <small>verified</small>
           </button>
-          <button type="button" class="me" aria-label="Your profile">AA</button>
+          <div class="ctitle" id="ctitle" aria-hidden="true"><b>Tonight</b><small id="clock">6:52 pm</small></div>
+          <button type="button" class="me" aria-label="Your profile" data-go="me">AA</button>
         </div>
-        <div class="seg" role="group" aria-label="Sport filter">
-          <button type="button" aria-pressed="true" data-sport="all">All</button>
-          <button type="button" aria-pressed="false" data-sport="football">Football</button>
-          <button type="button" aria-pressed="false" data-sport="tape">Tape-ball</button>
+
+        <div class="story" id="story" aria-label="Tonight's games. Scroll to move through the campus.">
+          <header class="hero" id="hero">
+            <div class="hero-in" id="heroIn">
+              <h1 class="hero-t">Tonight at LUMS</h1>
+              <p class="hero-s" id="heroSub">Scroll to walk the campus, game by game.</p>
+              <button type="button" class="cond" id="cond" aria-expanded="false" aria-controls="condCard"><span><svg width="11" height="11" viewBox="0 0 12 12"><path d="M8.5 1.2A5 5 0 1010.8 9 4 4 0 018.5 1.2z" fill="#15201B"/></svg>Isha 7:21 pm</span><span><i></i>AQI 168</span><span>31°C</span></button>
+              <span class="hint"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Scroll</span>
+            </div>
+          </header>
+          <div class="segwrap"><div class="seg" role="group" aria-label="Sport filter">
+            <button type="button" aria-pressed="true" data-sport="all">All</button>
+            <button type="button" aria-pressed="false" data-sport="football">Football</button>
+            <button type="button" aria-pressed="false" data-sport="tape">Tape-ball</button>
+          </div></div>
+          <div id="chapters"></div>
+          <section class="chap" id="endChap"><article class="gcard endcard">
+            <div class="gc-ground">That’s tonight</div>
+            <p>No game at your time? Start one and it drops onto the map for everyone at LUMS.</p>
+            <div class="gc-act"><button type="button" class="btn primary" data-go="create">Start a game</button><button type="button" class="btn ghost" data-explore>Explore the map</button></div>
+          </article></section>
+          <div id="storyTail"></div>
         </div>
-        <button type="button" class="recenter" id="recenter" aria-label="Recentre map">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#15201B" stroke-width="1.8"><circle cx="10" cy="10" r="6"/><path d="M10 1v4M10 15v4M1 10h4M15 10h4" stroke-linecap="round"/></svg>
-        </button>
 
-
-        <button type="button" class="cond" id="cond" aria-expanded="false" aria-controls="condCard"><span><svg width="11" height="11" viewBox="0 0 12 12"><path d="M8.5 1.2A5 5 0 1010.8 9 4 4 0 018.5 1.2z" fill="#15201B"/></svg>Isha 7:21 pm</span><span><i></i>AQI 168</span><span>31°C</span></button>
-        <div class="condcard" id="condCard" hidden>
+        <div class="condcard" style="z-index:8" id="condCard" hidden>
           <div><b>Air quality 168: unhealthy for sensitive groups</b><p>A normal game is fine. If you have asthma, keep it short. Once AQI passes 200, new games get a warning and hosts get a prompt to move indoors or shorten the game.</p></div>
           <div><b>Isha at 7:21 pm</b><p>Games show prayer times near kick-off, so players can plan a break or start after.</p></div>
         </div>
+        <button type="button" class="mapbtn" id="mapBtn" data-explore><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10 2l7 4v8l-7 4-7-4V6z"/><path d="M3 6l7 4 7-4M10 10v8"/></svg><span>Explore map</span></button>
         <button type="button" class="fab" data-go="create">
           <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
           Start a game
         </button>
 
-        <div class="timecard">
+        <div class="timecard" hidden>
           <div class="tc-row">
             <div><small>Kicking off by</small><div class="tc-time" id="tcTime">9:00 pm</div></div>
             <div class="tc-count" id="tcCount"><b>3</b>games</div>
           </div>
           <div class="range">
-            <input type="range" id="timeRange" min="19" max="23" step="0.25" value="21" aria-label="Show games kicking off by this time">
+            <input type="range" id="timeRange" min="19" max="23" step="0.25" value="23" aria-label="Show games kicking off by this time">
             <div class="track"></div>
             <div class="knob" id="knob"></div>
             <div class="ticks"><span>7</span><span>8</span><span>9</span><span>10</span><span>11 pm</span></div>
@@ -746,6 +853,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
           <div class="pt">Hostel Cup</div>
           <p class="sub">Fall 2026. Every game you turn up to earns points for your hostel.</p>
           <div class="podium" id="podiumWrap"><canvas id="podium" aria-label="Top three hostels on a podium. Drag to turn it."></canvas><small>Top three this semester</small></div>
+          <div class="slide-over">
           <div class="segs" role="group" aria-label="Cup view"><button type="button" aria-pressed="true" data-cup="stand">Standings</button><button type="button" aria-pressed="false" data-cup="ko">Night Series</button></div>
           <div id="cupStand" class="stand"></div>
           <div id="cupKo" hidden></div>
@@ -761,16 +869,25 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
             </ul>
             <small>Turning up is worth twice as much as winning, so the hostel that plays most wins the Cup. A game only counts once most of its players have checked in at the ground.</small>
           </div>
+          </div>
         </section>
 
         <!-- You -->
         <section class="tabpage" id="tabMe" hidden aria-label="Your profile">
-          <div class="pwrap" id="pwrap"><div class="pcard" id="pcard"><div class="lines"></div><div class="inner">
+          <div class="pstage" id="pstage"><div class="pwrap" id="pwrap"><div class="pcard" id="pcard"><div class="pface pfront"><div class="lines"></div><div class="inner">
             <div class="tp"><span>LUMS</span><span>Fall 2026</span></div>
             <div><div class="jn" id="pcGames">14</div><div class="nm">Ali Awan<small>M-3 hostel. Midfield, off-spin.</small></div></div>
             <div class="st"><div><b id="pcPlayed">14</b><small>Played</small></div><div><b id="pcShow">13</b><small>Turned up</small></div><div><b>3</b><small>Hosted</small></div><div><b id="pcPts">164</b><small>Cup pts</small></div></div>
-          </div><div class="sheen"></div></div></div>
-          <p class="sub" style="margin-top:-8px;text-align:center">The big number is games played this semester.</p>
+          </div><div class="sheen"></div></div>
+            <div class="pface pback"><h4>Fall 2026 so far</h4><dl>
+              <div><dt>Most played with</dt><dd>Hamza Rauf, 9 games</dd></div>
+              <div><dt>Favourite ground</dt><dd>Sports Complex turf</dd></div>
+              <div><dt>Usual time</dt><dd>Tue and Thu, 7:30 pm</dd></div>
+              <div><dt>Fair play</dt><dd>No reports this semester</dd></div>
+              <div><dt>Points for M-3</dt><dd id="pbPts">164</dd></div>
+            </dl></div>
+          </div></div>
+          <p class="flip-hint" id="flipHint">Scroll to turn the card over.</p></div>
           <div class="list">
             <button type="button" data-go="campuses">Campus<small>LUMS, verified ›</small></button>
           </div>
@@ -782,11 +899,15 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
             <div>A game needs you<button type="button" class="switch" role="switch" aria-checked="true" aria-label="A game needs you"></button></div>
           </div>
           <div class="list">
+            <div>Calm motion<button type="button" class="switch" role="switch" aria-checked="false" id="calmSw" aria-label="Calm motion: no camera flights or tilting cards"></button></div>
+          </div>
+          <div class="list">
             <button type="button" id="blockedBtn">Blocked people<small>None ›</small></button>
             <button type="button" id="delBtn" class="danger">Delete account</button>
           </div>
         </section>
 
+        <div class="cbar" id="cbar" aria-hidden="true"></div>
         <nav class="tabbar" role="tablist" aria-label="Sections">
           <button type="button" role="tab" data-tab="map" aria-selected="true"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 6.5l6.5-2.5 7 2.5L23 4v15.5L16.5 22l-7-2.5L3 22z"/><path d="M9.5 4v15.5M16.5 6.5V22"/></svg>Map</button>
           <button type="button" role="tab" data-tab="games" aria-selected="false"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="19" height="17" rx="3"/><path d="M3.5 10.5h19M8.5 3v4M17.5 3v4"/></svg>Your games</button>
@@ -814,7 +935,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
         <div class="homebar"></div>
       </div>
     </div>
-    <p class="stage-hint">Drag to rotate, scroll or pinch to zoom, tap a pin. Use the tab bar to reach Your games, Hostel Cup and your player card.</p>
+    <p class="stage-hint">Scroll inside the phone to move through the campus. Tap a card to open a game, or Explore map to turn the campus yourself.</p>
   </div>
 </div>
 
@@ -823,7 +944,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 (function(){
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const screenEl=$('#screen');
-const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sysReduce=matchMedia('(prefers-reduced-motion: reduce)').matches;let reduce=sysReduce;
 const NOW=18+52/60;
 function fmt(h){let hh=Math.floor(h),mm=Math.round((h-hh)*60);if(mm===60){hh++;mm=0;}const ap=hh>=12&&hh<24?'pm':'am';return (hh%12||12)+':'+String(mm).padStart(2,'0')+' '+ap;}
 function until(h){const m=Math.round((h-NOW)*60);if(m<60)return 'in '+m+' min';const a=Math.floor(m/60),b=m%60;return 'in '+a+' h'+(b?' '+b+' min':'');}
@@ -979,11 +1100,12 @@ function updateLabel(game){
 function visible(game){return game.kick<=filter.by+1e-6&&(filter.sport==='all'||filter.sport===game.sport);}
 
 /* camera */
+var camMode='story';
 const cam={tx:0,tz:2.5,theta:.22,phi:.9,r:76};const goal={...cam};const HOME={...cam};
 function resize(){const w=screenEl.clientWidth,h=screenEl.clientHeight;if(!renderer)return;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 function applyCam(){const sp=Math.sin(cam.phi);camera.position.set(cam.tx+cam.r*sp*Math.sin(cam.theta),cam.r*Math.cos(cam.phi),cam.tz+cam.r*sp*Math.cos(cam.theta));camera.lookAt(cam.tx,0,cam.tz);}
 function focusGround(key,r){const g=GROUNDS[key];const k=(r||26)*.3;goal.r=r||26;goal.tx=g.x+Math.sin(goal.theta)*k;goal.tz=g.z+Math.cos(goal.theta)*k;}
-function home(){Object.assign(goal,{tx:HOME.tx,tz:HOME.tz,r:HOME.r,phi:HOME.phi});}
+function home(){if(camMode==='story')return;Object.assign(goal,{tx:HOME.tx,tz:HOME.tz,r:HOME.r,phi:HOME.phi});}
 
 /* lighting by hour */
 let hour=21;
@@ -1016,15 +1138,15 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();goal.r=clamp(goal.r*(1+e.
 const ray=new THREE.Raycaster(),mv=new THREE.Vector2();
 function pick(e){const r=canvas.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mv,camera);
   const hit=ray.intersectObjects(ballMeshes,false)[0];if(hit){const id=hit.object.userData.gameId;const g=games.find(x=>x.id===id);if(g&&visible(g))openGame(id);}}
-$('#recenter').addEventListener('click',()=>{home();goal.theta=HOME.theta;});
 
 /* loop */
 let last=performance.now(),tt=0;const v3=new THREE.Vector3();
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;tt+=dt;
-  const k=1-Math.exp(-dt*7);
+  if(camMode==='story'&&!openSheetEl&&tab==='map')storyFrame();
+  const k=1-Math.exp(-dt*(camMode==='story'?6:7));
   ['tx','tz','r','phi','theta'].forEach(p=>cam[p]=lerp(cam[p],goal[p],k));
-  applyCam();
+  applyCam();scene.fog.near=cam.r*.75;scene.fog.far=cam.r*2.1;
   const W=screenEl.clientWidth,H=screenEl.clientHeight;
   games.forEach(g=>{const p=pins[g.id];if(!p)return;const vis=visible(g);
     p.scale=lerp(p.scale,vis?1:0,1-Math.exp(-dt*9));
@@ -1035,7 +1157,7 @@ function frame(now){
     p.ball.getWorldPosition(v3);v3.y+=1.1;v3.project(camera);
     const x=clamp((v3.x+1)/2*W,58,W-58),yy=(-v3.y+1)/2*H;
     p.lab.style.transform='translate('+x.toFixed(1)+'px,'+yy.toFixed(1)+'px) translate(-50%,-100%) scale('+(.6+.4*p.scale).toFixed(3)+')';
-    p.lab.classList.toggle('hide',p.scale<.5||v3.z>1||p.drop>.05);
+    p.lab.classList.toggle('hide',p.scale<.5||v3.z>1||p.drop>.05||(camMode==='story'&&!openSheetEl&&g.id!==story.activeId));
   });
   if(selRing.userData.on){selRing.material.opacity=.55+.35*Math.sin(tt*4);}else selRing.material.opacity=lerp(selRing.material.opacity,0,.2);
   if(ripple.userData.t!=null){ripple.userData.t+=dt;const t=ripple.userData.t;ripple.scale.setScalar(1+t*5);ripple.material.opacity=Math.max(0,.9-t*1.1);if(t>1)ripple.userData.t=null;}
@@ -1046,10 +1168,11 @@ function bounce(t){const n=7.5625,d=2.75;if(t<1/d)return n*t*t;if(t<2/d)return n
 
 /* ---------- time + filters ---------- */
 const range=$('#timeRange');
-function onRange(){filter.by=parseFloat(range.value);hour=filter.by;$('#tcTime').textContent=fmt(filter.by);
+function onRange(){filter.by=parseFloat(range.value);$('#tcTime').textContent=fmt(filter.by);
   const pct=(filter.by-19)/4*100;$('#knob').style.left='calc(10px + (100% - 20px) * '+(pct/100)+')';
   const n=games.filter(visible).length;$('#tcCount').innerHTML='<b>'+n+'</b>'+(n===1?'game':'games');
-  if(renderer)applyHour(hour);}
+  if(renderer&&camMode!=='story')applyHour(hour);
+  buildStory();}
 range.addEventListener('input',onRange);
 $$('.seg button').forEach(b=>b.addEventListener('click',()=>{$$('.seg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));filter.sport=b.dataset.sport;onRange();}));
 
@@ -1247,6 +1370,7 @@ function setTab(t){
 $$('.tabbar button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 $('#cond').addEventListener('click',()=>{const c=$('#condCard');c.hidden=!c.hidden;$('#cond').setAttribute('aria-expanded',String(!c.hidden));});
 screenEl.addEventListener('click',e=>{const s=e.target.closest('.switch');if(!s)return;const on=s.getAttribute('aria-checked')!=='true';s.setAttribute('aria-checked',String(on));
+  if(s.id==='calmSw'){reduce=on||sysReduce;story.lastS=-1;$$('.gcard').forEach(c=>c.style.transform='');toast(on?'Calm motion on. The camera cuts between grounds and cards stop tilting.':'Calm motion off.');}
   if(s.id==='availSw'){$('#availCard').classList.toggle('off',!on);toast(on?'You’ll get a ping when a game needs you.':'No pings. You can still join games from the map.');}});
 function gtitle(g){return g.sport==='tape'?g.format:g.format+' football';}
 const cap1=s=>s[0].toUpperCase()+s.slice(1);
@@ -1539,12 +1663,118 @@ function go(where){
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 
 $$('[data-nt]').forEach(b=>b.addEventListener('click',()=>{$$('[data-nt]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));$$('[data-np]').forEach(p=>p.hidden=p.dataset.np!==b.dataset.nt);}));
+/* ---------- v4: scroll-driven "Tonight" story ---------- */
+const story={kf:[],anch:[],items:[],ids:[],H:0,heroH:0,focusY:0,activeId:null,lastHour:-1,lastS:-1};
+const storyEl=$('#story');
+const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function storyGames(){return games.filter(g=>filter.sport==='all'||filter.sport===g.sport).sort((a,b)=>a.kick-b.kick);}
+function chapterHTML(g){const G=GROUNDS[g.ground],left=spotsLeft(g),inN=g.cap-left;
+  const faces=(g.me?['You']:[]).concat(g.players.map(p=>p.name)).slice(0,4);
+  const num=g.live?'<span class="gc-num live">Live</span>':g.ended?'<span class="gc-num full">Done</span>':left<=0?'<span class="gc-num full">Full</span>':'<span class="gc-num" data-num>'+left+'</span>';
+  const lab=g.live?g.live:g.ended?g.ended:left<=0?'Game is full':left===1?'Last spot':'spots left';
+  const act=g.ended?'<button type="button" class="btn primary in" data-open>See result</button>'
+    :g.me?'<button type="button" class="btn primary in" data-open>You’re in</button>'
+    :left>0?'<button type="button" class="btn primary" data-join>Join game</button>':'<button type="button" class="btn primary" disabled>Game is full</button>';
+  return '<section class="chap"><article class="gcard" data-id="'+g.id+'" tabindex="0" aria-label="'+gtitle(g)+' at '+G.name+', '+fmt(g.kick)+'">'+
+    '<div class="gc-top"><span class="g-sport">'+ballIcon(g.sport,20)+gtitle(g)+'</span><span class="gc-time">'+fmt(g.kick)+'</span></div>'+
+    '<div class="gc-ground">'+G.name+'</div>'+
+    '<div class="gc-mid">'+num+'<span class="gc-lab">'+lab+'<small>'+inN+' of '+g.cap+' in, kicks off '+until(g.kick)+'</small></span><span class="stack">'+faces.map(n=>'<span class="av" style="background:'+(n==='You'?'#E3342F':avColor(n))+'">'+(n==='You'?'You':initials(n))+'</span>').join('')+'</span></div>'+
+    '<div class="gc-act">'+act+'<button type="button" class="btn ghost" data-open>Details</button></div></article></section>';}
+function buildStory(){if(!storyEl)return;const list=storyGames();story.ids=list.map(g=>g.id);
+  $('#chapters').innerHTML=list.map(chapterHTML).join('');
+  const players=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);
+  $('#heroSub').textContent=games.length+' games and '+players+' players tonight. Scroll to walk the campus, game by game.';
+  layoutStory();}
+function layoutStory(){if(!storyEl)return;const H=storyEl.clientHeight;if(!H)return;story.H=H;
+  story.heroH=Math.round(H*.64);$('#hero').style.height=story.heroH+'px';
+  const chapH=Math.round(H*.58);
+  $$('#chapters .chap').forEach(c=>c.style.height=chapH+'px');$('#endChap').style.height=chapH+'px';$('#storyTail').style.height=Math.round(H*.36)+'px';
+  story.focusY=H*.68;
+  const cards=$$('#chapters .gcard'),endCard=$('#endChap .gcard');
+  story.items=cards.concat([endCard]).map(el=>({el,top:el.parentElement.offsetTop+el.offsetTop,h:el.offsetHeight}));
+  const list=story.ids.map(id=>games.find(g=>g.id===id));
+  story.anch=[0].concat(story.items.map(it=>Math.max(1,it.top+it.h/2-story.focusY)));
+  for(let i=1;i<story.anch.length;i++)if(story.anch[i]<=story.anch[i-1])story.anch[i]=story.anch[i-1]+1;
+  story.kf=[{tx:0,tz:2.5,theta:HOME.theta-.15,phi:.62,r:96,hour:NOW}].concat(list.map((g,i)=>{const G=GROUNDS[g.ground],th=HOME.theta+(i%2?.2:-.16),r=30,k=r*.3;
+    return {tx:G.x+Math.sin(th)*k,tz:G.z+Math.cos(th)*k,theta:th,phi:.98,r,hour:g.kick,id:g.id,ground:g.ground};}))
+    .concat([{tx:0,tz:2,theta:HOME.theta+.25,phi:.8,r:86,hour:22.5}]);
+  story.lastS=-1;}
+function storyFrame(){if(!story.kf.length)return;const s=storyEl.scrollTop,A=story.anch,K=story.kf;
+  let j=0;while(j<A.length-2&&s>=A[j+1])j++;
+  const t=clamp((s-A[j])/(A[j+1]-A[j]),0,1),hold=clamp((t-.12)/.76,0,1),e=easeIO(hold),a=K[j],b=K[j+1];
+  const hop=Math.sin(Math.PI*e)*(a.ground&&b.ground?6:0);
+  goal.tx=lerp(a.tx,b.tx,e);goal.tz=lerp(a.tz,b.tz,e);goal.theta=lerp(a.theta,b.theta,e);goal.phi=lerp(a.phi,b.phi,e);goal.r=lerp(a.r,b.r,e)+hop;
+  if(reduce)Object.assign(cam,goal);
+  const h=lerp(a.hour,b.hour,t);if(Math.abs(h-story.lastHour)>.004){story.lastHour=h;applyHour(h);$('#clock').textContent=fmt(Math.round(h*12)/12);}
+  // which chapter is active
+  let best=null,bd=1e9;K.forEach((k,i)=>{if(!k.id)return;const d=Math.abs(s-A[i]);if(d<bd){bd=d;best=k;}});
+  const act=best&&bd<story.H*.32?best:null,aid=act?act.id:null;
+  if(aid!==story.activeId){story.activeId=aid;Object.entries(pins).forEach(([id,p])=>p.lab.classList.toggle('sel',id===aid));
+    if(act){const G=GROUNDS[act.ground];selRing.position.set(G.x,.14,G.z);selRing.scale.setScalar(G.r?G.r/1.1:Math.max(G.w,G.d)/2.1);selRing.userData.on=true;}else selRing.userData.on=false;}
+  if(s===story.lastS)return;story.lastS=s;
+  // hero and header
+  const p=clamp(s/(story.heroH*.7),0,1);
+  $('#heroIn').style.transform=reduce?'':'translateY('+(-p*56).toFixed(1)+'px) scale('+(1-p*.16).toFixed(3)+')';
+  $('#heroIn').style.opacity=String(clamp(1-p*1.35,0,1));
+  $('#ctitle').style.opacity=String(clamp((p-.55)/.35,0,1));
+  $('#topfade').style.opacity=String(clamp(s/140,0,1));
+  // cards rise and stand up as they reach the focus line
+  story.items.forEach(it=>{const d=(it.top+it.h/2-s-story.focusY)/story.H,ad=Math.abs(d);
+    it.el.style.opacity=String(d<0?1-clamp((ad-.1)/.28,0,1):1-clamp((ad-.16)/.5,0,.72));it.el.style.pointerEvents=d<-.3?'none':'';
+    it.el.style.transform=reduce?'':'perspective(900px) translateY('+(d>0?d*36:0).toFixed(1)+'px) rotateX('+(d>0?Math.min(40,d*80):Math.max(-12,d*26)).toFixed(2)+'deg) scale('+(1-Math.min(.12,ad*.2)).toFixed(3)+')';});
+}
+function setExplore(on){camMode=on?'free':'story';storyEl.classList.toggle('off',on);$('#mapBtn span').textContent=on?'Back to tonight':'Explore map';
+  $('#topfade').style.opacity=on?'0':String(clamp(storyEl.scrollTop/140,0,1));$('#ctitle').style.opacity=on?'0':'';
+  if(on){Object.assign(goal,{tx:HOME.tx,tz:HOME.tz,r:HOME.r,phi:HOME.phi,theta:HOME.theta});selRing.userData.on=false;story.activeId=null;Object.values(pins).forEach(p=>p.lab.classList.remove('sel'));toast('Drag to turn the campus, pinch or scroll to zoom.');}
+  else{story.lastS=-1;story.lastHour=-1;}}
+screenEl.addEventListener('click',e=>{if(e.target.closest('[data-explore]'))setExplore(camMode==='story');});
+$('#chapters').addEventListener('click',e=>{const card=e.target.closest('.gcard');if(!card)return;const g=games.find(x=>x.id===card.dataset.id);if(!g)return;
+  if(e.target.closest('[data-join]')){const prev=spotsLeft(g);g.me=true;g.meAt=g.players.length;updateLabel(g);buildStory();
+    const n=$('#chapters .gcard[data-id="'+g.id+'"] [data-num]');if(n&&!reduce)n.classList.add('roll');
+    toast('You’re in. '+(prev-1>0?(prev-1)+' spots left.':'That was the last spot.')+' We’ll remind you 30 minutes before.');return;}
+  openGame(g.id);});
+$('#chapters').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('gcard'))openGame(e.target.dataset.id);});
+
+/* ---------- v4: scroll motion inside the game sheet ---------- */
+const gb=$('#gameBody');
+function sheetMotion(){const st=gb.scrollTop,H=gb.clientHeight,p=clamp(st/130,0,1);
+  const sp=gb.querySelector('.spots');if(sp){sp.style.transform=reduce?'':'translateY('+(-p*12).toFixed(1)+'px) scale('+(1-p*.3).toFixed(3)+')';sp.style.opacity=String(1-p*.9);}
+  const mini=gb.querySelector('.g-mini');if(mini){const m=clamp((st-110)/50,0,1);mini.style.opacity=String(m);mini.style.pointerEvents=m>.5?'auto':'none';}
+  const f=gb.querySelector('.formation');if(f&&!reduce){const d=(f.offsetTop-st-H*.62)/H;f.style.transform='perspective(700px) rotateX('+clamp(d*110,0,58).toFixed(1)+'deg)';}
+  gb.querySelectorAll('.roster li').forEach(li=>{const e=clamp((H-(li.offsetTop-st))/90,0,1);li.style.opacity=String(.15+.85*e);li.style.transform=reduce?'':'translateY('+((1-e)*18).toFixed(1)+'px)';});}
+gb.addEventListener('scroll',sheetMotion,{passive:true});
+const _renderGame=renderGame;
+renderGame=function(game,prevLeft){_renderGame(game,prevLeft);const left=spotsLeft(game);
+  const mini=document.createElement('div');mini.className='g-mini';mini.setAttribute('aria-hidden','true');
+  mini.innerHTML='<b>'+(left<=0?'Full':left)+'</b><span>'+(left<=0?'Game is full':left===1?'Last spot':'spots left')+', '+fmt(game.kick)+'<small>'+GROUNDS[game.ground].name+'</small></span>'+(game.me||left<=0?'':'<button type="button" class="btn primary sm" data-minijoin>Join</button>');
+  gb.prepend(mini);const mj=mini.querySelector('[data-minijoin]');if(mj)mj.addEventListener('click',()=>{gb.scrollTo({top:0,behavior:reduce?'auto':'smooth'});setTimeout(()=>{const b=$('#joinBtn');if(b)b.click();},reduce?0:420);});
+  sheetMotion();};
+
+/* ---------- v4: collapsing large titles + cup and card scroll ---------- */
+const cbar=$('#cbar');
+function titleMotion(page){const st=page.scrollTop,p=clamp(st/70,0,1),t=page.querySelector('.pt');
+  if(t){t.style.transform=reduce?'':'scale('+(1-p*.12).toFixed(3)+')';t.style.opacity=String(1-p);}
+  cbar.textContent=t?t.textContent:'';cbar.style.opacity=String(clamp((st-40)/30,0,1));}
+['#tabGames','#tabCup','#tabMe'].forEach(sel=>{const page=$(sel);page.addEventListener('scroll',()=>{titleMotion(page);
+  if(sel==='#tabCup')cupMotion();if(sel==='#tabMe')cardFlip();},{passive:true});});
+const _setTab=setTab;setTab=function(t){_setTab(t);cbar.style.opacity='0';const page={games:'#tabGames',cup:'#tabCup',me:'#tabMe'}[t];
+  if(page){$(page).scrollTop=0;titleMotion($(page));}if(t==='map')layoutStory();if(t==='me')cardFlip();if(t==='cup')cupMotion();};
+$$('.tabbar button').forEach(b=>{const nb=b.cloneNode(true);b.replaceWith(nb);nb.addEventListener('click',()=>setTab(nb.dataset.tab));});
+function cupMotion(){const page=$('#tabCup'),st=page.scrollTop,H=page.clientHeight;pod.scrollP=clamp(st/320,0,1);
+  page.querySelectorAll('.stand .r').forEach(r=>{const e=clamp((H-(r.offsetTop-st))/120,0,1),bar=r.querySelector('.bar i');if(bar)bar.style.transform=reduce?'':'scaleX('+(.08+.92*easeIO(e)).toFixed(3)+')';});}
+const _podLoop=podLoop;
+podLoop=function(now){if(pod.cam&&!reduce){const p=pod.scrollP||0;pod.cam.position.set(Math.sin(p*1.1)*2.2,2.8-p*.7,7.4-p*1.5);pod.cam.lookAt(0,.95+p*.1,0);}return _podLoop(now);};
+let flip=0;const _setTilt=setTilt;let tiltX=0,tiltY=0;
+setTilt=function(x,y){tiltX=x;tiltY=y;pc.style.transform='rotateY('+(flip*180+x*26).toFixed(2)+'deg) rotateX('+(-y*26).toFixed(2)+'deg)';pc.style.setProperty('--mx',(50+x*90)+'%');pc.style.setProperty('--my',(50+y*90)+'%');};
+function cardFlip(){const st=$('#tabMe').scrollTop;flip=reduce?(st>160?1:0):easeIO(clamp((st-20)/260,0,1));setTilt(tiltX,tiltY);
+  $('#flipHint').textContent=flip>.5?'Keep scrolling for your settings.':'Scroll to turn the card over.';$('#pbPts').textContent=$('#pcPts').textContent;}
+
 /* ---------- boot ---------- */
 if(renderer){
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   build();games.forEach(makePin);Object.values(pins).forEach(p=>p.scale=1);
   resize();new ResizeObserver(resize).observe(screenEl);
-  onRange();applyCam();requestAnimationFrame(frame);
+  onRange();layoutStory();new ResizeObserver(layoutStory).observe($('#story'));storyFrame();Object.assign(cam,goal);applyCam();requestAnimationFrame(frame);
 }else{
   canvas.replaceWith(Object.assign(document.createElement('div'),{style:'position:absolute;inset:0;display:grid;place-items:center;color:#fff;padding:40px;text-align:center',textContent:'The 3D map needs WebGL, which this browser has turned off. The sheets and screens still work.'}));
   onRange();
