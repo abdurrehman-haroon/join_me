@@ -7,6 +7,7 @@ Updated: 2026-10-07
 - One repo with `frontend/` and `backend/`.
 - Go health endpoint, initial database migration, and Expo starter screen with API health check.
 - Shared API contract currently defines only `GET /healthz`.
+- Both assistants use the same workflow in `docs/ai.md`.
 
 ## Next
 
