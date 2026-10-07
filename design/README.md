@@ -1,5 +1,7 @@
 # Campus Pickup: handoff
 
+Current engineering decisions, v1 scope, and implementation status live in `../docs/project.md`, `../docs/plan.md`, and `../docs/handoff.md`. This folder preserves the design exploration; its prototype includes features beyond the current v1 scope.
+
 Everything from the design sessions of 30 Sep – 7 Oct 2026, saved so a new Claude account (or a person) can pick up where we stopped.
 
 ## What's in this folder
@@ -31,7 +33,7 @@ Built from what's on a LUMS ground at 7pm: mown turf, chalk lines, a tennis ball
 - **Avoided on purpose:** dark background with neon green, purple gradients, glass cards over the map, Inter, identical card grids.
 
 ## Screens in the prototype
-**v1 (the seven-week build):** live 3D map with a time slider and sport filter · game sheet with the big count, pitch formation, join/leave, live roster, report menu · Start a game (sport, ground, kick-off, players, visibility, repeat weekly) · game chat that closes 2h after kick-off · campus email verification · push notification banner.
+**Core v1 flow represented here:** game map with sport filter · game sheet with the big count, join/leave, live roster, report menu · Start a game (sport, ground, kick-off, players, visibility) · game chat that closes 2h after kick-off · campus email verification · push notification banner. The time slider, detailed 3D treatment, and repeat-weekly control are explorations; see `../docs/plan.md` for the current build scope.
 
 **Next (roadmap):** Game day (check in → bib teams → 3D Rs 5 coin toss → live ball-by-ball tape-ball or football score shown on the map pin → match card + fair-play question) · Your games (I'm free to play, positions, weekly availability grid, Regulars) · Hostel Cup (3D podium, standings, Night Series bracket, points rules) · Player card (3D tilt) · New campuses (waitlist progress) · conditions strip on the map (prayer time, AQI, temperature).
 
@@ -49,7 +51,7 @@ The four safety rules from the plan still hold for every feature: visibility in 
 ## Recommended React Native stack for the UI
 Reanimated 4 + Gesture Handler · `@gorhom/bottom-sheet` (snap points 62% / 78%) · `@shopify/react-native-skia` for the formation, pins and digit roll · `react-native-filament` for real 3D moments · Rive for sport icons · Moti for simple transitions · `expo-haptics` (medium on join, warning on last spot, heavy + success on pin drop). The 3D campus in the real app comes from MapLibre: a 55° pitch, `fill-extrusion` buildings from a campus GeoJSON, chalk-textured ground polygons, and a day/night style swap. The three.js scene in the prototype only stands in for it. Avoid react-three-fiber/native and Spline for now.
 
-## Where we stopped / next steps
+## Original design handoff / next steps (historical)
 1. The user reviews the prototype and picks which screens to refine.
 2. Then: set up the Expo project (a dev build, not Expo Go), commit `openapi.yaml`, and start building the real v1 screens against a mock server, per week 1 of the plan.
 

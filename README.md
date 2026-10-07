@@ -7,6 +7,7 @@ One repository for the mobile app and its API.
 - `frontend/`: Expo mobile app
 - `backend/`: Go HTTP API, database migrations, and deployment config
 - `openapi.yaml`: shared API contract
+- `design/`: Floodlight visual prototype and design research
 
 ## Working together
 

@@ -1,11 +1,11 @@
 # First build plan
 
-1. Pick the first campus and its email domain. Agree on visibility rules.
-2. Define users, games, rosters, and errors in `openapi.yaml`.
-3. Build campus sign-in and verification in the Go API; connect the app.
-4. Build pin creation and nearby search using PostGIS. Add visibility tests before exposing pins.
-5. Build joining and leaving with capacity enforced in a database transaction.
-6. Add live roster and chat, reports, and three push notifications.
-7. Test real games on campus, then prepare deployment and store builds.
+1. Confirm LUMS pilot access, the email domain, and visibility rules. Run the manual WhatsApp game pilot described in `design/docs/build-plan-v1.md`.
+2. Define users, games, rosters, and errors in `openapi.yaml` so backend and frontend can work in parallel.
+3. Build campus sign-in and verification in Go; connect the Expo app.
+4. Prove MapLibre works in an Expo development build with campus tiles. Build a simple game map and the Floodlight game sheet; keep the spots-left count prominent.
+5. Build pin creation and nearby search with PostGIS. Put visibility in SQL and pass the visibility tests before exposing pins.
+6. Build join and leave with capacity enforced in a database transaction, then live roster, chat, reports, and three push notifications.
+7. Deploy the API, test real games at LUMS, then prepare store builds.
 
-The app currently has a launch screen and API health check. Game data is not implemented yet.
+Keep the first release focused on finding and filling games. The prototype's time scrubber, weekly repeats, game-day scoring, Hostel Cup, player cards, and extra 3D moments are design references for later phases unless separately approved for v1.

@@ -8,13 +8,14 @@ Updated: 2026-10-07
 - Go health endpoint, initial database migration, and Expo starter screen with API health check.
 - Shared API contract currently defines only `GET /healthz`.
 - Both assistants use the same workflow in `docs/ai.md`.
+- The Floodlight prototype and its research are in `design/`. LUMS is the pilot campus in the design.
 
 ## Next
 
-Agree on the first campus and email domain. Define auth and game endpoints in `openapi.yaml` before implementing them.
+Confirm LUMS pilot access and email domain. Define auth and game endpoints in `openapi.yaml`. Prove MapLibre in an Expo development build before building the map UI.
 
 ## Blockers
 
-- No campus selected yet.
+- LUMS pilot access and email domain are not yet confirmed.
 
 Keep this file factual and short. Replace stale entries after each merged milestone.
