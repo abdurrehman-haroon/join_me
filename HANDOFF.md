@@ -9,6 +9,7 @@ Everything from the design sessions of 30 Sep – 7 Oct 2026, saved so a new Cla
 | `prototype/campus-pickup-ui.source.html` | The same page without the `<html>/<head>/<body>` wrapper. This is the format the Claude Artifact tool publishes. Republish this file to get a shareable link on the new account. |
 | `docs/build-plan-v1.md` | The original build plan (seven weeks, one campus, the go/no-go targets). Still the source of truth for scope. |
 | `research/01-ui-tools-and-references.md` | Round 1: the four sites, the RN 3D/motion toolkit, reference apps, anti-AI-look rules. |
+| `docs/chat-transcript-2026-10-07.zip` | Full export of the original chat, including the research agents' transcripts. |
 | `research/02-us-universities-and-growth.md` | Round 2: Yale, Princeton, Duke, Harvard, IMLeagues, pickup apps, Facebook/Fizz/Yik Yak, Pakistan specifics. |
 
 The old artifact link (claude.ai/artifact/AX6p7DahvZqeopRb1RSS6c) belongs to the old account and stops working when that account goes.
