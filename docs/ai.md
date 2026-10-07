@@ -4,6 +4,10 @@
 2. Work on a feature branch. Keep API changes aligned with `openapi.yaml`.
 3. Finish: run `make check`. Keep `docs/project.md`, `docs/plan.md`, and `docs/handoff.md` current when decisions, scope, or implementation state change. Commit those updates with the work.
 
+Code quality, always: favor readable, explicit, domain-named code with the main flow visible. Avoid needless layers, helpers, hooks, interfaces, and unrelated refactors. Keep validation, authorization, errors, concurrency, SQL, and coordinates easy to trace; test behavior and review the diff for readability.
+
+Before writing or reviewing code, read all of `docs/code-practice.md` and apply it. Documentation-only tasks can use the summary above.
+
 Never push to GitHub without asking the user first and receiving explicit approval for that specific push. Do not infer approval from earlier pushes or broad access.
 
 Keep these files short and factual. Never commit secrets or chat transcripts.
