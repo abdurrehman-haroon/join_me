@@ -1,77 +1,82 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { checkApiHealth } from './src/api';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { LUMS_CENTER, MAP_STYLE_URL } from './src/mapConfig';
 
-type ApiState = 'checking' | 'online' | 'offline';
+const demoGames = [
+  { id: 'football', sport: 'Football', title: 'Football pickup', coordinates: [74.4079, 31.4708] as [number, number], spots: 4 },
+  { id: 'cricket', sport: 'Tape-ball', title: 'Tape-ball cricket', coordinates: [74.4092, 31.4699] as [number, number], spots: 3 },
+];
 
 export default function App() {
-  const [apiState, setApiState] = useState<ApiState>('checking');
-
-  async function refreshStatus() {
-    setApiState('checking');
-    try {
-      await checkApiHealth();
-      setApiState('online');
-    } catch {
-      setApiState('offline');
-    }
-  }
-
-  useEffect(() => {
-    let active = true;
-    checkApiHealth()
-      .then(() => { if (active) setApiState('online'); })
-      .catch(() => { if (active) setApiState('offline'); });
-    return () => { active = false; };
-  }, []);
+  const [selectedGame, setSelectedGame] = useState<(typeof demoGames)[number] | null>(null);
+  const [mapFailed, setMapFailed] = useState(false);
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <StatusBar style="dark" />
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>CAMPUS PICKUP</Text>
-        <Text style={styles.title}>Find your next game.</Text>
-        <Text style={styles.subtitle}>Football and tape-ball cricket with people on your campus.</Text>
+      <Map
+        style={styles.map}
+        mapStyle={MAP_STYLE_URL}
+        onDidFailLoadingMap={() => setMapFailed(true)}
+        onDidFinishLoadingStyle={() => setMapFailed(false)}
+      >
+        <Camera initialViewState={{ center: LUMS_CENTER, zoom: 16, pitch: 35 }} />
+        {demoGames.map((game) => (
+          <Marker key={game.id} id={game.id} lngLat={game.coordinates} onPress={() => setSelectedGame(game)}>
+            <View style={styles.marker}>
+              <Text style={styles.markerText}>{game.spots} spots</Text>
+            </View>
+          </Marker>
+        ))}
+      </Map>
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Games nearby</Text>
-          <Text style={styles.panelBody}>No games to show yet. Game pins and campus verification are next.</Text>
+      <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>CAMPUS PICKUP · LUMS</Text>
+          <Text style={styles.heading}>Games on the map</Text>
+          <Text style={styles.note}>Sample pins for testing MapLibre</Text>
         </View>
 
-        <View style={styles.statusRow}>
-          <View style={styles.statusText}>
-            <Text style={styles.statusLabel}>API connection</Text>
-            <Text style={styles.statusValue}>
-              {apiState === 'checking' ? 'Checking…' : apiState === 'online' ? 'Connected' : 'Unavailable'}
-            </Text>
+        {mapFailed && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Map could not load</Text>
+            <Text style={styles.cardBody}>Check your internet connection and map style URL.</Text>
           </View>
-          {apiState === 'checking' ? (
-            <ActivityIndicator color="#145c48" />
-          ) : (
-            <Pressable accessibilityRole="button" onPress={() => void refreshStatus()} style={styles.retryButton}>
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
-    </SafeAreaView>
+        )}
+
+        {selectedGame && (
+          <View style={styles.card}>
+            <View style={styles.cardTop}>
+              <Text style={styles.sport}>{selectedGame.sport}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close game details" onPress={() => setSelectedGame(null)}>
+                <Text style={styles.close}>Close</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.cardTitle}>{selectedGame.title}</Text>
+            <Text style={styles.cardBody}>{selectedGame.spots} spots left · Demo game</Text>
+          </View>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f3f5ef' },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 54 },
-  eyebrow: { color: '#145c48', fontSize: 13, fontWeight: '700', letterSpacing: 2 },
-  title: { color: '#17251e', fontSize: 38, fontWeight: '800', marginTop: 18 },
-  subtitle: { color: '#526258', fontSize: 17, lineHeight: 25, marginTop: 14 },
-  panel: { backgroundColor: '#fff', borderRadius: 20, marginTop: 40, padding: 24 },
-  panelTitle: { color: '#17251e', fontSize: 21, fontWeight: '700' },
-  panelBody: { color: '#526258', fontSize: 16, lineHeight: 24, marginTop: 12 },
-  statusRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: 28 },
-  statusText: { flex: 1 },
-  statusLabel: { color: '#526258', fontSize: 13 },
-  statusValue: { color: '#17251e', fontSize: 16, fontWeight: '600', marginTop: 3 },
-  retryButton: { borderColor: '#145c48', borderRadius: 10, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 10 },
-  retryText: { color: '#145c48', fontWeight: '700' },
+  screen: { flex: 1, backgroundColor: '#f4f5f0' },
+  map: { flex: 1 },
+  overlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between' },
+  header: { backgroundColor: '#f4f5f0', marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 16 },
+  eyebrow: { color: '#1d5b3a', fontSize: 12, fontWeight: '700', letterSpacing: 1.5 },
+  heading: { color: '#15201b', fontSize: 26, fontWeight: '800', marginTop: 5 },
+  note: { color: '#526258', fontSize: 13, marginTop: 4 },
+  marker: { backgroundColor: '#e3342f', borderColor: '#f4f5f0', borderRadius: 18, borderWidth: 2, paddingHorizontal: 12, paddingVertical: 7 },
+  markerText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  card: { backgroundColor: '#f4f5f0', borderRadius: 16, margin: 16, padding: 18 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between' },
+  sport: { color: '#1d5b3a', fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  close: { color: '#1d5b3a', fontSize: 13, fontWeight: '700' },
+  cardTitle: { color: '#15201b', fontSize: 22, fontWeight: '800', marginTop: 6 },
+  cardBody: { color: '#526258', fontSize: 15, marginTop: 4 },
 });

@@ -16,7 +16,7 @@ Campus verification; create and discover game pins; join and leave a capacity-li
 - `openapi.yaml`: source of truth for HTTP request and response shapes.
 - `backend/migrations/`: database schema changes.
 
-These are target choices. Only the Go health endpoint and Expo starter are implemented so far.
+These are target choices. The Go health endpoint, Expo starter, and a MapLibre map spike with sample pins are implemented. The map uses OpenFreeMap's public Liberty style until campus tiles are hosted.
 
 ## Design
 
@@ -24,7 +24,7 @@ Use the Floodlight direction in `design/README.md` and the interactive reference
 
 ## Current state
 
-The Go API serves `GET /healthz`. The Expo app shows a starter screen and checks that endpoint. Database tables exist as a migration, but the API does not connect to PostgreSQL yet. No auth, games, map, or chat is implemented.
+The Go API serves `GET /healthz`. The Expo app has a MapLibre map centered on LUMS with two sample game pins. Native simulator behavior still needs a development build. Database tables exist as a migration, but the API does not connect to PostgreSQL yet. No auth, real games, or chat is implemented.
 
 ## Open decisions
 
