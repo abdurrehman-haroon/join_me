@@ -91,3 +91,34 @@ A written record of the design sessions: what was asked, what was built, the dec
   - the conditions strip was duplicated and its card was missing;
   - fog washed out the overview, so it now scales with camera distance;
   - cards that had scrolled past stayed half-visible behind the header.
+
+## Session 5: beyond campus, hangouts, Google Maps (7 Oct)
+
+**Ask:**
+1. The "Tonight at LUMS" title sat mid-screen. Make it one giant word at the top.
+2. Don't stop at the university. LUMS is in DHA, which is in Lahore, so build upward. Let people check in at places like CBTL, open an "active session" others can join, and see how many people are there.
+3. Later, try the Google Maps demo key (Dynamic Maps, Photorealistic 3D, Places UI Kit, Weather).
+
+**What happened:**
+- Research → `research/04-places-and-hangouts.md` and `research/05-google-maps-platform.md`.
+- Built **v5** (artifact version 5):
+  - The title is one giant word (LUMS / DHA / CBTL) fitted to the screen width, with letters that lift away on scroll.
+  - A breadcrumb (Lahore › DHA › LUMS) replaces the campus chip.
+  - The 3D world now extends beyond campus: roads, houses, a campus wall, and CBTL (café with a floating coffee cup), a futsal turf and a park, each with live count labels.
+  - Scrolling past the last campus game rises out to DHA. The DHA view lists places, and tapping one flies there.
+  - At a venue:
+    - A count of people who tapped "I'm here", with names only for friends who chose to share.
+    - Hangouts with host, seats and end time ("Catan, need two more, 8 to 10:30 pm").
+    - Ask to join, then the host approves.
+    - Your own hangout: plan, note, seats, until, visibility. A join request arrives.
+  - Women-only hangouts can only be hosted by verified women. The option is locked for this demo account.
+- Bugs fixed:
+  - the giant title measured its box instead of its text;
+  - the café label covered the title;
+  - a text patch partly failed and was re-applied.
+- Google test page (`labs/google-3d/`, local only, key in a git-ignored file):
+  - Places found LUMS and 3 CBTL branches in DHA (Phase 3, 5, 6).
+  - Weather works (27°C, clear, feels 30°C).
+  - The 3D map loads but **Lahore has no photorealistic 3D buildings**, only flat satellite imagery.
+  - Decision: keep MapLibre, use Places for verification and Weather/AQ server-side.
+- The user pasted the demo key in chat. It was kept out of the artifact and git. Advised restricting or rotating it, and not pushing newer chat exports.

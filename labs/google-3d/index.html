@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google 3D Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&display=swap">
+<style>
+:root{--ink:#15201B;--chalk:#F4F5F0;--tape:#E3342F;--turf:#1D5B3A;--mut:#5B6960;--line:rgba(21,32,27,.12);
+  --display:"Big Shoulders Display","Arial Narrow",sans-serif;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;}
+html,body{margin:0;height:100%;background:#1A2540;color:var(--ink);font-family:var(--sans);}
+#map{position:fixed;inset:0;z-index:0;}
+#map gmp-map-3d{width:100%;height:100%;display:block;}
+.story{position:relative;z-index:1;width:min(420px,100%);padding:0 16px;box-sizing:border-box;}
+.chap{min-height:100vh;display:flex;align-items:flex-end;padding-bottom:12vh;box-sizing:border-box;}
+.chap:first-child{align-items:flex-start;padding-top:16px;}
+.card{background:var(--chalk);border-radius:22px;padding:16px 18px;box-shadow:0 22px 40px -18px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:8px;width:100%;}
+h1{font-family:var(--display);font-weight:900;font-size:72px;line-height:.82;margin:0;}
+h2{font-family:var(--display);font-weight:800;font-size:32px;line-height:.95;margin:0;}
+p{margin:0;line-height:1.45;font-size:14.5px;}
+.mut{color:var(--mut);}
+.k{font-weight:700;font-size:13px;color:var(--mut);}
+.big{font-family:var(--display);font-weight:900;font-size:56px;line-height:.85;color:var(--tape);}
+ul{margin:4px 0 0;padding-left:18px;font-size:14px;line-height:1.45;}
+.ok{color:var(--turf);font-weight:700;}
+.bad{color:var(--tape);font-weight:700;}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;}
+.status{position:fixed;right:12px;bottom:12px;z-index:2;background:var(--chalk);border-radius:12px;padding:8px 12px;font-size:12.5px;max-width:300px;box-shadow:0 10px 24px -12px rgba(0,0,0,.6);}
+button{font:inherit;font-weight:650;border:0;border-radius:12px;padding:10px 14px;background:var(--ink);color:var(--chalk);cursor:pointer;align-self:flex-start;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<main class="story" id="story">
+  <section class="chap" data-shot="lums"><div class="card">
+    <span class="k">Google 3D test, local only</span>
+    <h1>LUMS</h1>
+    <p>Google's photorealistic 3D map is behind this page. Scroll and the camera flies between places, the same story as the app's home screen. If the map looks flat or blurry, Google doesn't have proper 3D coverage of Lahore yet.</p>
+    <p class="mut" id="lumsInfo">Looking up LUMS with Places…</p>
+  </div></section>
+
+  <section class="chap" data-shot="weather"><div class="card">
+    <span class="k">Weather API at LUMS</span>
+    <div class="big" id="temp">…</div>
+    <p id="wx">Checking current conditions…</p>
+    <p class="mut">This would feed the conditions strip. In the app a server would fetch it every 15–30 minutes for everyone, so the cost stays close to zero.</p>
+  </div></section>
+
+  <section class="chap" data-shot="cbtl"><div class="card">
+    <span class="k">Places API: is there a CBTL in DHA?</span>
+    <h2 id="cbtlHead">Searching…</h2>
+    <ul id="cbtlList"></ul>
+    <p class="mut">Places only lets you store the place ID. Names and addresses have to be fetched again when shown, so we'd keep our own venue data and use Google to check it.</p>
+  </div></section>
+
+  <section class="chap" data-shot="dha"><div class="card">
+    <span class="k">Pulling back</span>
+    <h2>DHA from above</h2>
+    <p>This is the area view from the prototype, with real buildings. Drag the map to look around.</p>
+    <button type="button" id="orbit">Orbit LUMS</button>
+  </div></section>
+</main>
+
+<div class="status" id="status">Loading…</div>
+
+<script src="config.local.js"></script>
+<script>
+// Google's documented dynamic loader for the Maps JavaScript API.
+(g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})
+({key:window.GMAPS_KEY,v:"beta"});
+
+const $=s=>document.querySelector(s);
+const status=t=>{$('#status').textContent=t;};
+// Fallback positions, replaced by Places results when found. Approximate.
+const spots={
+  lums:{lat:31.4704,lng:74.4108},
+  cbtl:null,
+  dha:{lat:31.4740,lng:74.4000}
+};
+const shots={
+  lums:()=>({center:{...spots.lums,altitude:GROUND},range:900,tilt:62,heading:25}),
+  weather:()=>({center:{...spots.lums,altitude:GROUND},range:500,tilt:70,heading:110}),
+  cbtl:()=>spots.cbtl?{center:{...spots.cbtl,altitude:GROUND},range:350,tilt:68,heading:200}:{center:{...spots.dha,altitude:GROUND},range:2500,tilt:55,heading:200},
+  dha:()=>({center:{...spots.dha,altitude:GROUND},range:5200,tilt:50,heading:0})
+};
+let map,current='lums';
+const GROUND=215; // Lahore is about 210 m above sea level; camera targets need ground height
+
+async function main(){
+  if(!window.GMAPS_KEY||window.GMAPS_KEY.includes('PASTE')){status('Add your key to config.local.js first.');return;}
+  let Map3DElement,Marker3DElement;
+  try{({Map3DElement,Marker3DElement}=await google.maps.importLibrary('maps3d'));}
+  catch(e){status('3D maps library failed to load: '+e.message);return;}
+  map=new Map3DElement({...shots.lums(),mode:'HYBRID'});
+  $('#map').append(map);
+  status('3D map loaded. Scroll the cards.');
+
+  // Places: find LUMS and CBTL branches (2 calls).
+  try{
+    const {Place}=await google.maps.importLibrary('places');
+    const lums=await Place.searchByText({textQuery:'Lahore University of Management Sciences, DHA, Lahore',fields:['displayName','formattedAddress','location'],maxResultCount:1});
+    const L=lums.places&&lums.places[0];
+    if(L){spots.lums={lat:L.location.lat(),lng:L.location.lng()};spots.dha={lat:spots.lums.lat+.004,lng:spots.lums.lng-.012};
+      $('#lumsInfo').innerHTML='Places found <b>'+L.displayName+'</b> at '+L.formattedAddress+'.';
+      map.append(new Marker3DElement({position:{...spots.lums,altitude:60},altitudeMode:'RELATIVE_TO_GROUND',extruded:true,label:'LUMS'}));
+      if(current==='lums')fly('lums');}
+    else $('#lumsInfo').textContent='Places returned nothing for LUMS.';
+
+    const res=await Place.searchByText({textQuery:'The Coffee Bean & Tea Leaf Lahore',fields:['displayName','formattedAddress','location'],maxResultCount:10});
+    const list=(res.places||[]);
+    const dha=list.filter(p=>/DHA Phase|Phase \d+ D\.?H\.?A|Defence Raya/i.test(p.formattedAddress||''));
+    $('#cbtlHead').innerHTML=dha.length?'<span class="ok">Yes</span>, '+dha.length+' in DHA':'<span class="bad">None found</span> in DHA';
+    $('#cbtlList').innerHTML=list.map(p=>'<li>'+(/DHA Phase|Phase \d+ D\.?H\.?A|Defence Raya/i.test(p.formattedAddress||'')?'<b>':'')+p.displayName+', '+p.formattedAddress+(/DHA Phase|Phase \d+ D\.?H\.?A|Defence Raya/i.test(p.formattedAddress||'')?'</b>':'')+'</li>').join('')||'<li>No results.</li>';
+    const pick=dha[0]||list[0];
+    if(pick){spots.cbtl={lat:pick.location.lat(),lng:pick.location.lng()};
+      map.append(new Marker3DElement({position:{...spots.cbtl,altitude:40},altitudeMode:'RELATIVE_TO_GROUND',extruded:true,label:'CBTL'}));}
+  }catch(e){$('#lumsInfo').textContent='Places lookup failed: '+e.message;$('#cbtlHead').textContent='Places lookup failed';}
+
+  // Weather: 1 call.
+  try{
+    const u='https://weather.googleapis.com/v1/currentConditions:lookup?key='+encodeURIComponent(window.GMAPS_KEY)+'&location.latitude='+spots.lums.lat+'&location.longitude='+spots.lums.lng;
+    const r=await fetch(u);const w=await r.json();
+    if(!r.ok)throw new Error((w.error&&w.error.message)||r.status);
+    $('#temp').textContent=Math.round(w.temperature.degrees)+'°C';
+    $('#wx').textContent=(w.weatherCondition&&w.weatherCondition.description&&w.weatherCondition.description.text||'Conditions unknown')+'. Feels like '+Math.round(w.feelsLikeTemperature.degrees)+'°C. Humidity '+w.relativeHumidity+'%.';
+  }catch(e){$('#temp').textContent='—';$('#wx').textContent='Weather lookup failed: '+e.message;}
+
+  // Scroll chapters: glide the camera when a card reaches the middle, like the app would.
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){const s=en.target.dataset.shot;if(s!==current){current=s;fly(s);}}});},{threshold:.55});
+  document.querySelectorAll('.chap').forEach(c=>io.observe(c));
+  $('#orbit').addEventListener('click',()=>{map.flyCameraAround({camera:{center:{...spots.lums,altitude:GROUND},range:900,tilt:62,heading:0},durationMillis:12000,repeatCount:1});});
+}
+function fly(s){if(!map)return;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  map.stopCameraAnimation&&map.stopCameraAnimation();
+  map.flyCameraTo({endCamera:shots[s](),durationMillis:reduce?1:2200});}
+main();
+</script>
+</body>
+</html>

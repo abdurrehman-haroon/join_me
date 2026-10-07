@@ -428,9 +428,9 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 .story::-webkit-scrollbar{display:none;}
 .story.off{opacity:0;pointer-events:none;}
 #labels{z-index:4;}
-.hero{display:flex;align-items:flex-end;padding:0 18px 18px;pointer-events:none;background:linear-gradient(180deg,rgba(16,24,42,0) 45%,rgba(16,24,42,.5) 100%);}
+
 .hero-in{pointer-events:auto;color:#fff;transform-origin:left bottom;will-change:transform,opacity;display:flex;flex-direction:column;gap:10px;}
-.hero-t{font-family:var(--display);font-weight:900;font-size:60px;line-height:.84;margin:0;text-shadow:0 2px 24px rgba(0,0,0,.35);}
+
 .hero-s{font-size:15px;line-height:1.35;color:rgba(255,255,255,.9);max-width:26em;}
 .hero .cond{position:static;}
 .hint{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.75);}
@@ -485,6 +485,31 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 .tabpage:not([hidden]){animation:pageIn .38s cubic-bezier(.2,.9,.25,1);}
 @keyframes pageIn{from{opacity:0;transform:translateY(14px);}}
 @media (prefers-reduced-motion: reduce){ .tabpage:not([hidden]){animation:none;} .hint svg{animation:none;} }
+
+/* v5: places */
+.crumbs{display:flex;align-items:center;gap:5px;background:var(--chalk);border-radius:999px;padding:6px 12px;font-size:14px;color:var(--mut);box-shadow:0 6px 16px -8px rgba(0,0,0,.5);white-space:nowrap;}
+.crumbs button{border:0;background:none;padding:2px 0;font:inherit;font-weight:600;color:var(--mut);cursor:pointer;text-decoration:underline;text-decoration-color:rgba(91,105,96,.35);text-underline-offset:3px;}
+.crumbs b{font-weight:700;color:var(--ink);display:flex;align-items:center;gap:5px;}
+.crumbs span[title]{color:#9AA49D;}
+.crumbs i{font-style:normal;color:#9AA49D;}
+.crumbs .ok{width:16px;height:16px;border-radius:50%;background:var(--turf);display:inline-grid;place-items:center;}
+.hero{display:flex;align-items:flex-start;padding:100px 16px 18px;pointer-events:none;}
+.hero-in{width:100%;color:var(--ink);gap:6px;}
+.hero-k{font-weight:700;font-size:16px;color:var(--ink);margin:0;}
+.hero-big{font-family:var(--display);font-weight:900;line-height:.78;margin:0 0 6px;color:var(--ink);white-space:nowrap;letter-spacing:-.005em;display:inline-block;align-self:flex-start;}
+.hero-big span{display:inline-block;will-change:transform;}
+.hero-s{color:var(--ink);font-size:15px;margin:0 0 6px;font-weight:550;text-shadow:0 0 12px rgba(244,232,214,.95),0 0 4px rgba(244,232,214,.9);}
+.hint{color:rgba(21,32,27,.7);}
+.story.swap{opacity:0;transition:none;}
+.pl.vl b{color:var(--turf);}
+.pl.vl.sel b{color:#7FD39C;}
+.hhost{display:flex;align-items:center;gap:9px;font-weight:650;font-size:14.5px;line-height:1.2;}
+.hhost .av{width:32px;height:32px;font-size:11.5px;}
+.hhost small{display:block;font-weight:500;color:var(--mut);font-size:12px;}
+.tier{font-style:normal;font-size:10.5px;font-weight:700;background:var(--turf);color:#fff;border-radius:999px;padding:1px 6px;margin-right:3px;}
+.hnote{color:var(--mut);font-size:13.5px;line-height:1.4;margin:-2px 0 0;}
+.hs-note{width:100%;border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px 14px;font:inherit;font-size:15px;color:var(--ink);box-sizing:border-box;}
+.hs-note:focus{outline:2px solid var(--ink);outline-offset:0;}
 @media (prefers-reduced-motion: reduce){ .sheet,.page,.banner,.toast{transition-duration:.01s;} .num.in,.num.out,.slot-pulse,.m.new,.tick{animation:none;} }
 </style>
 
@@ -492,7 +517,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
   <div class="notes">
     <header>
       <h1>Campus Pickup</h1>
-      <p class="lead">A working iOS prototype, now driven by scrolling. It covers the seven-week v1 plus the next set of features, drawn from how Yale, Princeton, Duke and Harvard run house sport. Everything on the phone can be tapped.</p>
+      <p class="lead">A working iOS prototype, now driven by scrolling and reaching beyond the campus. It covers the seven-week v1 plus the next set of features, drawn from how Yale, Princeton, Duke and Harvard run house sport. Everything on the phone can be tapped.</p>
     </header>
     <div class="ntabs" role="tablist" aria-label="Notes">
       <button type="button" role="tab" aria-selected="true" data-nt="screens">Screens</button>
@@ -502,6 +527,33 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
     </div>
 
     <div class="npanel" data-np="screens">
+      <section>
+        <h2>New in v5: from campus to the city</h2>
+        <p>The app no longer stops at the campus gate. The top bar is a breadcrumb, <b>Lahore › DHA › LUMS</b>. Tap DHA, or scroll past tonight's last game, and the camera lifts out of campus to show the area around it: roads, houses, CBTL, a futsal turf and a park, each with a live count. Tap a place to fly there. The page title is now one giant word, LUMS, DHA or CBTL, whose letters lift away as you scroll.</p>
+        <div class="screens" role="group" aria-label="v5 screens">
+          <button type="button" data-v5="area">DHA tonight</button>
+          <button type="button" data-v5="cbtl">CBTL hangouts</button>
+          <button type="button" data-v5="hang">Open a hangout</button>
+        </div>
+        <ul class="shots">
+          <li><b>Hangouts</b> are the café version of a pickup game. A host opens one at a public place, like "Catan, need two more, 8 to 10:30 pm". It has seats, an end time and who can see it. You ask to join, and the host says yes or no.</li>
+          <li><b>"I'm here"</b> adds you to a place's count. The count only includes people who tapped it. The app never tracks anyone's location, and names show only to friends who chose to share.</li>
+          <li><b>Women-only hangouts</b> can only be opened by verified women, and nobody else can see them. This demo account isn't one, so that option is locked.</li>
+          <li><b>Trust tiers.</b> Campus-email people are marked Campus. People outside a campus will need a phone check plus a selfie check before they can see "Everyone verified" hangouts, and more before they can host.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>What the research says about this idea</h2>
+        <p><b>Broadcasting where people are has failed again and again.</b> Facebook Nearby Friends was shut in 2022, Zenly in 2023, and Highlight never took off. IRL raised $170M and collapsed when about 95% of its users turned out to be bots. What lasts is <b>host-led, time-boxed, small-group</b>. Timeleft reports 15,000 people at stranger dinners every Wednesday (its own figures), and Bumble rebuilt BFF around groups in 2025. So hangouts are hosted and ended by a person, not a live dot on a map.</p>
+        <p><b>The main risk in Pakistan is what happens after people meet.</b> The Digital Rights Foundation logged 3,012 cases of online abuse against women in 2025, mostly on WhatsApp and Facebook. So chat stays inside the app and disappears afterwards, phone numbers are never shared, and hosts approve strangers.</p>
+        <p><b>Avoid an empty map.</b> Show planned hangouts ("8 to 10:30 pm"), not only "right now". Start with 3–5 venues near LUMS, hosted by campus people you already have. Don't buy installs.</p>
+        <p><b>Check CBTL first.</b> CBTL has about 10 branches in Lahore. A DHA one is listed by third parties but not on an official store list, so confirm it before building around it.</p>
+        <p class="muted">Sources: <a href="https://www.thurrott.com/cloud/266802/facebook-is-killing-nearby-friends-and-other-location-based-features">Thurrott</a>, <a href="https://intl.life360.com/blog/what-happened-to-zenly">Life360 on Zenly</a>, <a href="https://techcrunch.com/2024/07/31/founder-behind-social-media-app-irl-charged-with-fraud">TechCrunch on IRL</a>, <a href="https://timeleft.com/blog/dinner-with-strangers/">Timeleft</a>, <a href="https://techcrunch.com/2025/09/18/bumble-bffs-revamped-app-is-here-focusing-on-friend-groups-and-community-building">TechCrunch on Bumble BFF</a>, <a href="https://digitalrightsfoundation.pk/inside-pakistans-digital-abuse-crisis-new-drf-report-documents-thousands-of-cases-of-online-violence-against-women/">Digital Rights Foundation</a>, <a href="https://propakistani.pk/2025/02/25/the-coffee-bean-tea-leaf-expands-in-pakistan-with-the-opening-of-its-27th-store-in-lake-city-lahore/amp/">ProPakistani on CBTL</a>.</p>
+      </section>
+      <section>
+        <h2>How it fits the plan</h2>
+        <p>This is a bigger product than the build plan's wedge, which deliberately chose pickup sport over general meetups because meetups have no natural host or rhythm. Hangouts keep both: there's always a host, and there's an end time. The recommendation is one app with places nested inside places, where the campus stays home and a trust tier. Expand in this order: win pickup on campus, then campus people host at 3–5 nearby venues, then invite verified non-students in DHA, then Lahore. Each step waits for the report rate and the share of joins that actually meet up to hold steady.</p>
+      </section>
       <section>
         <h2>New in v4: the campus moves when you scroll</h2>
         <p>The home screen is now <b>Tonight at LUMS</b>. Instead of pinching a map that stays still, you scroll a feed of tonight's games and the camera moves with you. It starts above the whole campus, then flies down to each ground in kick-off order. The sky darkens as you scroll, because further down means later in the evening. Each card stands up from the ground as it reaches you, and the title shrinks into the top bar. Tap <b>Explore map</b> to turn and zoom the campus freely.</p>
@@ -590,6 +642,16 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
           <tr><td>First-year ladder</td><td>A separate, lower-stakes table so new students aren't put off.</td><td>Harvard Yard Bucket</td></tr>
           <tr><td>Ramadan mode</td><td>Suggested kick-off times move to after iftar.</td><td>LUMS Ramadan cricket league</td></tr>
           <tr><td>Android</td><td>Already a deadline in the plan. React Native makes it a port.</td><td>Your plan</td></tr>
+        </tbody></table></div>
+      </section>
+      <section>
+        <h2>Phase 4: places beyond the campus</h2>
+        <div class="tbl"><table><thead><tr><th>Feature</th><th>Why</th><th>Taken from</th></tr></thead><tbody>
+          <tr><td>Place levels</td><td>The breadcrumb goes City › Area › Place. The campus stays home, and the area view shows nearby venues with counts.</td><td>Andrew Chen's "atomic network"</td></tr>
+          <tr><td>Hangouts at venues</td><td>Host-led, time-boxed, seats, end time, host approves. Planned hangouts come before "right now".</td><td>Timeleft, Bumble BFF groups</td></tr>
+          <tr><td>"I'm here" counts</td><td>Counts only what people declared. No background location, ever.</td><td>Lessons from Nearby Friends and Zenly</td></tr>
+          <tr><td>Verification tiers</td><td>Campus, then Verified (phone plus selfie), then a further check before hosting. Shown as a badge.</td><td>Fizz, Yik Yak's failure</td></tr>
+          <tr><td>Venue partners</td><td>Free first: a "group of 4 coming at 8" signal and an optional offer. Test whether one café chain will pay before building ad products.</td><td>Swarm specials, Fever</td></tr>
         </tbody></table></div>
       </section>
       <section>
@@ -719,10 +781,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
 
         <div class="topfade" id="topfade"></div>
         <div class="top">
-          <button type="button" class="campus" data-go="verify" aria-label="LUMS, verified. Open campus email check">
-            <span class="ok"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            LUMS <small>verified</small>
-          </button>
+          <nav class="crumbs" id="crumbs" aria-label="Where you are"></nav>
           <div class="ctitle" id="ctitle" aria-hidden="true"><b>Tonight</b><small id="clock">6:52 pm</small></div>
           <button type="button" class="me" aria-label="Your profile" data-go="me">AA</button>
         </div>
@@ -730,8 +789,9 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
         <div class="story" id="story" aria-label="Tonight's games. Scroll to move through the campus.">
           <header class="hero" id="hero">
             <div class="hero-in" id="heroIn">
-              <h1 class="hero-t">Tonight at LUMS</h1>
-              <p class="hero-s" id="heroSub">Scroll to walk the campus, game by game.</p>
+              <p class="hero-k" id="heroK">Tonight in</p>
+              <h1 class="hero-big" id="heroBig"></h1>
+              <p class="hero-s" id="heroSub"></p>
               <button type="button" class="cond" id="cond" aria-expanded="false" aria-controls="condCard"><span><svg width="11" height="11" viewBox="0 0 12 12"><path d="M8.5 1.2A5 5 0 1010.8 9 4 4 0 018.5 1.2z" fill="#15201B"/></svg>Isha 7:21 pm</span><span><i></i>AQI 168</span><span>31°C</span></button>
               <span class="hint"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Scroll</span>
             </div>
@@ -742,11 +802,7 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
             <button type="button" aria-pressed="false" data-sport="tape">Tape-ball</button>
           </div></div>
           <div id="chapters"></div>
-          <section class="chap" id="endChap"><article class="gcard endcard">
-            <div class="gc-ground">That’s tonight</div>
-            <p>No game at your time? Start one and it drops onto the map for everyone at LUMS.</p>
-            <div class="gc-act"><button type="button" class="btn primary" data-go="create">Start a game</button><button type="button" class="btn ghost" data-explore>Explore the map</button></div>
-          </article></section>
+          <section class="chap" id="endChap"></section>
           <div id="storyTail"></div>
         </div>
 
@@ -815,6 +871,20 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;}
           </div>
         </section>
 
+        <!-- Hangout sheet -->
+        <section class="sheet" id="hangSheet" aria-label="Open a hangout">
+          <div class="grab"><i></i></div>
+          <div class="sbody">
+            <div class="c-title" id="hsTitle">Open a hangout</div>
+            <div class="field"><small>What’s the plan</small><div class="chips" id="hsWhat" role="group" aria-label="Plan"></div></div>
+            <div class="field"><small>Say something</small><input class="hs-note" id="hsNote" maxlength="80" placeholder="Working on a problem set. Company welcome." aria-label="Say something"></div>
+            <div class="field"><small>How many can join you</small><div class="stepper"><button type="button" id="hsMinus" aria-label="Fewer">−</button><div class="val"><b id="hsSeats">3</b><small id="hsSeatsLab">people besides you</small></div><button type="button" id="hsPlus" aria-label="More">+</button></div></div>
+            <div class="field"><small>Until</small><div class="times" id="hsUntil" role="group" aria-label="Until"></div></div>
+            <div class="field"><small>Who can see it</small><div class="opts" role="radiogroup" aria-label="Who can see it" id="hsVis"></div><p class="vis-note" id="hsVisNote"></p></div>
+            <p class="vis-note">People ask to join and you say yes or no. The app shows the café, never where you’re sitting, and the hangout ends at the time you pick. Hangouts can only be opened at public places on the map.</p>
+            <button type="button" class="btn primary" id="hsOpen">Open hangout</button>
+          </div>
+        </section>
         <!-- Chat -->
         <section class="page" id="chat" aria-label="Game chat">
           <div class="phead">
@@ -1144,7 +1214,7 @@ let last=performance.now(),tt=0;const v3=new THREE.Vector3();
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;tt+=dt;
   if(camMode==='story'&&!openSheetEl&&tab==='map')storyFrame();
-  const k=1-Math.exp(-dt*(camMode==='story'?6:7));
+  const k=1-Math.exp(-dt*(camMode==='story'?(performance.now()<story.flyUntil?2.2:6):7));
   ['tx','tz','r','phi','theta'].forEach(p=>cam[p]=lerp(cam[p],goal[p],k));
   applyCam();scene.fog.near=cam.r*.75;scene.fog.far=cam.r*2.1;
   const W=screenEl.clientWidth,H=screenEl.clientHeight;
@@ -1157,7 +1227,7 @@ function frame(now){
     p.ball.getWorldPosition(v3);v3.y+=1.1;v3.project(camera);
     const x=clamp((v3.x+1)/2*W,58,W-58),yy=(-v3.y+1)/2*H;
     p.lab.style.transform='translate('+x.toFixed(1)+'px,'+yy.toFixed(1)+'px) translate(-50%,-100%) scale('+(.6+.4*p.scale).toFixed(3)+')';
-    p.lab.classList.toggle('hide',p.scale<.5||v3.z>1||p.drop>.05||(camMode==='story'&&!openSheetEl&&g.id!==story.activeId));
+    p.lab.classList.toggle('hide',p.scale<.5||v3.z>1||p.drop>.05||level!=='campus'||(camMode==='story'&&!openSheetEl&&g.id!==story.activeId));
   });
   if(selRing.userData.on){selRing.material.opacity=.55+.35*Math.sin(tt*4);}else selRing.material.opacity=lerp(selRing.material.opacity,0,.2);
   if(ripple.userData.t!=null){ripple.userData.t+=dt;const t=ripple.userData.t;ripple.scale.setScalar(1+t*5);ripple.material.opacity=Math.max(0,.9-t*1.1);if(t>1)ripple.userData.t=null;}
@@ -1663,10 +1733,91 @@ function go(where){
 $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 
 $$('[data-nt]').forEach(b=>b.addEventListener('click',()=>{$$('[data-nt]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));$$('[data-np]').forEach(p=>p.hidden=p.dataset.np!==b.dataset.nt);}));
-/* ---------- v4: scroll-driven "Tonight" story ---------- */
-const story={kf:[],anch:[],items:[],ids:[],H:0,heroH:0,focusY:0,activeId:null,lastHour:-1,lastS:-1};
+/* ---------- v5: places, levels and the scroll story ---------- */
+var level='campus';
+const AREA={x:4,z:-6};
+const VENUES={
+  cbtl:{name:'CBTL',kind:'Café',dist:'6 min drive from LUMS',x:92,z:-58,here:9,fromLums:3,known:['Zain Abbasi','Hamza Rauf'],marker:'cup'},
+  futsal:{name:'Futsal turf',kind:'Futsal arena',dist:'8 min drive from LUMS',x:-84,z:-82,here:14,fromLums:5,known:['Bilal Khan'],marker:'ball'},
+  park:{name:'Park',kind:'Neighbourhood park',dist:'4 min walk from LUMS',x:-64,z:76,here:5,fromLums:2,known:[],marker:'pin'}
+};
+const hangouts=[
+  {id:'h1',venue:'cbtl',what:'Study',title:'Problem set and a cold brew',note:'Stuck on question 4b. Company and second brains welcome.',host:'Zara Khan',school:'LUMS, SSE, 3rd year',seats:3,joined:1,until:21.5,vis:'campus',state:'none'},
+  {id:'h2',venue:'cbtl',what:'Board games',title:'Catan, need two more',note:'Brought the board. Beginners are fine, I’ll explain the rules.',host:'Omar Farooq',school:'LUMS, SDSB, 4th year',seats:5,joined:3,from:20,until:22.5,vis:'verified',state:'none'},
+  {id:'h3',venue:'park',what:'Walk',title:'Two laps, then chai',note:'Easy pace. There’s a chai stall at the gate.',host:'Saad Mirza',school:'LUMS, SAHSOL, 2nd year',seats:4,joined:2,until:21,vis:'campus',state:'none'},
+  {id:'h4',venue:'futsal',what:'Futsal',title:'5-a-side, Rs 400 each',note:'Court is booked 9 to 10 pm. Need three more.',host:'Bilal Khan',school:'LUMS, MGSHSS, 4th year',seats:9,joined:6,from:21,until:22,vis:'verified',state:'none'}
+];
+const VIS={friends:['Friends','People you both added'],campus:['LUMS students','Checked with a campus email'],verified:['Everyone verified','Phone and ID checked'],women:['Women only','Verified women']};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const first=n=>n==='You'?'you':n.split(' ')[0];
+const story={kf:[],anch:[],items:[],ids:[],H:0,heroH:0,focusY:0,activeId:null,lastHour:-1,lastS:-1,flyUntil:0,list:[]};
 const storyEl=$('#story');
 const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+/* the wider area: roads, houses, venues */
+const venueMarkers=[];
+function buildArea(){
+  camera.far=1500;camera.updateProjectionMatrix();
+  const big=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshStandardMaterial({color:'#BDB298',roughness:1}));big.rotation.x=-Math.PI/2;big.position.y=-.03;big.receiveShadow=true;scene.add(big);
+  const road=new THREE.MeshStandardMaterial({color:'#6E6A61',roughness:1}),RX=[-150,-44,44,150],RZ=[-140,-40,38,140];
+  RX.forEach(v=>{const m=new THREE.Mesh(new THREE.BoxGeometry(6,.06,900),road);m.position.set(v,.02,0);scene.add(m);});
+  RZ.forEach(v=>{const m=new THREE.Mesh(new THREE.BoxGeometry(900,.06,6),road);m.position.set(0,.02,v);scene.add(m);});
+  const wallM=new THREE.MeshStandardMaterial({color:'#D8CDB4'});
+  [[0,-33,74,.5],[0,31,74,.5],[-37,-1,.5,64],[37,-1,.5,64]].forEach(w=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w[2],.9,w[3]),wallM);m.position.set(w[0],.45,w[1]);scene.add(m);});
+  let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const near=(x,z)=>{if(Math.abs(x)<44&&Math.abs(z)<38)return true;for(const v of Object.values(VENUES))if(Math.hypot(x-v.x,z-v.z)<(v.marker==='pin'?22:16))return true;
+    for(const r of RX)if(Math.abs(x-r)<7)return true;for(const r of RZ)if(Math.abs(z-r)<7)return true;return false;};
+  const N=720,inst=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({roughness:.95}),N),dm=new THREE.Object3D(),col=new THREE.Color();
+  const PAL=['#E6E0D2','#DCD5C4','#EDE8DC','#D3CBB8','#E9DCC4'];let n=0;
+  for(let x=-330;x<=330&&n<N;x+=10)for(let z=-330;z<=330&&n<N;z+=10){const jx=x+(rnd()-.5)*3,jz=z+(rnd()-.5)*3;if(near(jx,jz)||rnd()<.18)continue;
+    const tall=rnd()<.07,w=4+rnd()*4,d=4+rnd()*4,h=tall?4+rnd()*4:1.3+rnd()*1.6;dm.position.set(jx,h/2,jz);dm.scale.set(w,h,d);dm.rotation.y=0;dm.updateMatrix();inst.setMatrixAt(n,dm.matrix);inst.setColorAt(n,col.set(PAL[Math.floor(rnd()*PAL.length)]));n++;}
+  inst.count=n;inst.receiveShadow=true;scene.add(inst);
+  const tg=new THREE.IcosahedronGeometry(1.1,0),tm=new THREE.MeshStandardMaterial({color:'#2F5A34',flatShading:true}),T=new THREE.InstancedMesh(tg,tm,260);let tn=0;
+  for(let i=0;i<2000&&tn<260;i++){const x=(rnd()-.5)*640,z=(rnd()-.5)*640;if(Math.abs(x)<40&&Math.abs(z)<34)continue;let onRoad=false;for(const r of RX)if(Math.abs(x-r)<5)onRoad=true;for(const r of RZ)if(Math.abs(z-r)<5)onRoad=true;if(onRoad)continue;
+    const s=.8+rnd()*.9;dm.position.set(x,s,z);dm.scale.set(s,s*1.2,s);dm.updateMatrix();T.setMatrixAt(tn++,dm.matrix);}
+  T.count=tn;scene.add(T);
+  const ringFor=(v,color)=>{const r=new THREE.Mesh(new THREE.RingGeometry(1.2,1.6,40),new THREE.MeshBasicMaterial({color:color||'#E3342F'}));r.rotation.x=-Math.PI/2;r.position.set(v.x,.08,v.z);scene.add(r);};
+  // CBTL
+  {const v=VENUES.cbtl;const b=new THREE.Mesh(new THREE.BoxGeometry(9,3.4,7),new THREE.MeshStandardMaterial({color:'#4A3426',roughness:.8}));b.position.set(v.x,1.7,v.z);b.castShadow=true;scene.add(b);
+    const aw=new THREE.Mesh(new THREE.BoxGeometry(9.4,.25,2),new THREE.MeshStandardMaterial({color:'#C9772E'}));aw.position.set(v.x,2.6,v.z+4.3);scene.add(aw);
+    const win=new THREE.MeshStandardMaterial({color:'#2B1E16',emissive:'#FFC27A',emissiveIntensity:0});windowMats.push(win);
+    const wp=new THREE.Mesh(new THREE.PlaneGeometry(7.6,1.7),win);wp.position.set(v.x,1.3,v.z+3.52);scene.add(wp);
+    const tbl=new THREE.MeshStandardMaterial({color:'#E9E2D2'});[-3,0,3].forEach(o=>{const t=new THREE.Mesh(new THREE.CylinderGeometry(.6,.6,.9,16),tbl);t.position.set(v.x+o,.45,v.z+6.6);scene.add(t);});
+    const g=new THREE.Group();g.position.set(v.x,0,v.z+1);
+    const cup=new THREE.Mesh(new THREE.CylinderGeometry(1.15,.85,1.7,28),new THREE.MeshStandardMaterial({color:'#F7F5EE',roughness:.4}));g.add(cup);
+    const cof=new THREE.Mesh(new THREE.CircleGeometry(1.05,28),new THREE.MeshStandardMaterial({color:'#5A3A22'}));cof.rotation.x=-Math.PI/2;cof.position.y=.84;g.add(cof);
+    const hd=new THREE.Mesh(new THREE.TorusGeometry(.45,.14,10,20),new THREE.MeshStandardMaterial({color:'#F7F5EE'}));hd.position.set(1.15,.05,0);g.add(hd);
+    const sl=new THREE.Mesh(new THREE.CylinderGeometry(1.06,.97,.5,28,1,true),new THREE.MeshStandardMaterial({color:'#E3342F',side:THREE.DoubleSide}));sl.position.y=-.1;g.add(sl);
+    g.userData={base:8,phase:0};scene.add(g);venueMarkers.push(g);ringFor(v);}
+  // futsal
+  {const v=VENUES.futsal;const t=new THREE.Mesh(new THREE.BoxGeometry(16,.2,10),[side0(),side0(),new THREE.MeshStandardMaterial({map:pitchTex(16,10,true)}),side0(),side0(),side0()]);t.position.set(v.x,.1,v.z);t.receiveShadow=true;scene.add(t);
+    const f=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(16.6,3,10.6)),new THREE.LineBasicMaterial({color:'#A9B2AA'}));f.position.set(v.x,1.5,v.z);scene.add(f);
+    const ball=new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshStandardMaterial({color:'#F7F7F2',flatShading:true}));ball.add(new THREE.LineSegments(new THREE.EdgesGeometry(ball.geometry,1),new THREE.LineBasicMaterial({color:'#1B1F1C'})));
+    const g=new THREE.Group();g.position.set(v.x,0,v.z);g.add(ball);g.userData={base:7,phase:1.3};scene.add(g);venueMarkers.push(g);ringFor(v);}
+  // park
+  {const v=VENUES.park;const p=new THREE.Mesh(new THREE.CylinderGeometry(15,15,.16,56),new THREE.MeshStandardMaterial({color:'#4F8C57'}));p.position.set(v.x,.08,v.z);p.receiveShadow=true;scene.add(p);
+    const path=new THREE.Mesh(new THREE.RingGeometry(9,10.4,56),new THREE.MeshStandardMaterial({color:'#D9CDB0'}));path.rotation.x=-Math.PI/2;path.position.set(v.x,.18,v.z);scene.add(path);
+    for(let i=0;i<14;i++){const a=i/14*Math.PI*2,r=12.5+(i%3);const tr=new THREE.Mesh(new THREE.IcosahedronGeometry(1.4,0),tm);tr.position.set(v.x+Math.cos(a)*r,1.4,v.z+Math.sin(a)*r);tr.castShadow=true;scene.add(tr);}
+    const g=new THREE.Group();g.position.set(v.x,0,v.z);const pin=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshStandardMaterial({color:'#1D5B3A'}));const cone=new THREE.Mesh(new THREE.ConeGeometry(.9,1.6,24),pin.material);cone.rotation.x=Math.PI;cone.position.y=-1.1;g.add(pin);g.add(cone);
+    g.userData={base:7.5,phase:2.1};scene.add(g);venueMarkers.push(g);ringFor(v,'#1D5B3A');}
+  makeVenueLabels();
+}
+function side0(){return new THREE.MeshStandardMaterial({color:'#3A6B45'});}
+const vlab={},vv=new THREE.Vector3();
+function makeVenueLabels(){[['lums',{x:0,z:0}]].concat(Object.entries(VENUES)).forEach(([k,v])=>{const b=document.createElement('button');b.type='button';b.className='pl vl hide';b.dataset.level=k==='lums'?'campus':k;$('#labels').appendChild(b);vlab[k]={el:b,x:v.x,z:v.z,y:k==='lums'?14:10.5};});updateVenueLabels();}
+function updateVenueLabels(){if(!vlab.lums)return;const pl=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);vlab.lums.el.innerHTML='<b>'+games.length+' games</b><small>LUMS, '+pl+' players</small>';
+  Object.entries(VENUES).forEach(([k,v])=>{const n=hangouts.filter(h=>h.venue===k).length;vlab[k].el.innerHTML='<b>'+v.here+' here</b><small>'+v.name+(n?', '+n+' hangout'+(n>1?'s':''):'')+'</small>';
+    vlab[k].el.setAttribute('aria-label',v.name+', '+v.here+' people here. Go there.');});}
+function venueLoop(now){
+  if(renderer&&(tab==='map'||openSheetEl)&&vlab.lums){const W=screenEl.clientWidth,H=screenEl.clientHeight,free=camMode==='free';
+    Object.entries(vlab).forEach(([k,o])=>{const show=(level==='area'||(level===k&&(free||storyEl.scrollTop>story.heroH*.45))||(free&&level!=='campus'));
+      vv.set(o.x,o.y,o.z).project(camera);const x=clamp((vv.x+1)/2*W,58,W-58),y=(-vv.y+1)/2*H;
+      o.el.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px) translate(-50%,-100%)';
+      o.el.classList.toggle('hide',!show||vv.z>1||!!openSheetEl);o.el.classList.toggle('sel',story.activeId==='p-'+k||level===k);});
+    venueMarkers.forEach(g=>{g.position.y=g.userData.base+(reduce?0:Math.sin(now/600+g.userData.phase)*.35);if(!reduce)g.rotation.y+=.012;});}
+  requestAnimationFrame(venueLoop);}
+
+/* story content per level */
 function storyGames(){return games.filter(g=>filter.sport==='all'||filter.sport===g.sport).sort((a,b)=>a.kick-b.kick);}
 function chapterHTML(g){const G=GROUNDS[g.ground],left=spotsLeft(g),inN=g.cap-left;
   const faces=(g.me?['You']:[]).concat(g.players.map(p=>p.name)).slice(0,4);
@@ -1675,65 +1826,143 @@ function chapterHTML(g){const G=GROUNDS[g.ground],left=spotsLeft(g),inN=g.cap-le
   const act=g.ended?'<button type="button" class="btn primary in" data-open>See result</button>'
     :g.me?'<button type="button" class="btn primary in" data-open>You’re in</button>'
     :left>0?'<button type="button" class="btn primary" data-join>Join game</button>':'<button type="button" class="btn primary" disabled>Game is full</button>';
-  return '<section class="chap"><article class="gcard" data-id="'+g.id+'" tabindex="0" aria-label="'+gtitle(g)+' at '+G.name+', '+fmt(g.kick)+'">'+
+  return '<section class="chap"><article class="gcard" data-kind="game" data-id="'+g.id+'" tabindex="0" aria-label="'+gtitle(g)+' at '+G.name+', '+fmt(g.kick)+'">'+
     '<div class="gc-top"><span class="g-sport">'+ballIcon(g.sport,20)+gtitle(g)+'</span><span class="gc-time">'+fmt(g.kick)+'</span></div>'+
     '<div class="gc-ground">'+G.name+'</div>'+
     '<div class="gc-mid">'+num+'<span class="gc-lab">'+lab+'<small>'+inN+' of '+g.cap+' in, kicks off '+until(g.kick)+'</small></span><span class="stack">'+faces.map(n=>'<span class="av" style="background:'+(n==='You'?'#E3342F':avColor(n))+'">'+(n==='You'?'You':initials(n))+'</span>').join('')+'</span></div>'+
     '<div class="gc-act">'+act+'<button type="button" class="btn ghost" data-open>Details</button></div></article></section>';}
-function buildStory(){if(!storyEl)return;const list=storyGames();story.ids=list.map(g=>g.id);
-  $('#chapters').innerHTML=list.map(chapterHTML).join('');
-  const players=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);
-  $('#heroSub').textContent=games.length+' games and '+players+' players tonight. Scroll to walk the campus, game by game.';
-  layoutStory();}
-function layoutStory(){if(!storyEl)return;const H=storyEl.clientHeight;if(!H)return;story.H=H;
-  story.heroH=Math.round(H*.64);$('#hero').style.height=story.heroH+'px';
-  const chapH=Math.round(H*.58);
-  $$('#chapters .chap').forEach(c=>c.style.height=chapH+'px');$('#endChap').style.height=chapH+'px';$('#storyTail').style.height=Math.round(H*.36)+'px';
+function placeHTML(k){
+  if(k==='campus'){const pl=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);
+    return '<section class="chap"><article class="gcard" data-kind="place" data-goto="campus" tabindex="0"><div class="gc-top"><span class="g-sport">Campus, where you study</span><span class="gc-time">LUMS</span></div><div class="gc-ground">LUMS</div>'+
+      '<div class="gc-mid"><span class="gc-num">'+games.length+'</span><span class="gc-lab">games tonight<small>'+pl+' players in so far</small></span></div><div class="gc-act"><button type="button" class="btn primary" data-goto="campus">Go to LUMS</button></div></article></section>';}
+  const v=VENUES[k],n=hangouts.filter(h=>h.venue===k).length;
+  return '<section class="chap"><article class="gcard" data-kind="place" data-goto="'+k+'" tabindex="0"><div class="gc-top"><span class="g-sport">'+v.kind+'</span><span class="gc-time">'+v.dist.replace(' from LUMS','')+'</span></div><div class="gc-ground">'+v.name+'</div>'+
+    '<div class="gc-mid"><span class="gc-num" style="color:var(--turf)">'+v.here+'</span><span class="gc-lab">said they’re here<small>'+v.fromLums+' from LUMS. '+(n?n+' open hangout'+(n>1?'s':''):'No hangouts yet')+'.</small></span></div>'+
+    '<div class="gc-act"><button type="button" class="btn primary" data-goto="'+k+'">Go to '+v.name+'</button><button type="button" class="btn ghost" data-openhang="'+k+'">I’m here</button></div></article></section>';}
+function presenceHTML(k){const v=VENUES[k],kn=v.known;
+  return '<section class="chap"><article class="gcard" data-kind="presence"><div class="gc-top"><span class="g-sport">'+v.kind+', right now</span><span class="gc-time">'+v.name+'</span></div>'+
+    '<div class="gc-mid"><span class="gc-num" style="color:var(--turf)">'+v.here+'</span><span class="gc-lab">said they’re here<small>'+v.fromLums+' from LUMS'+(kn.length?'. '+kn.map(first).map(cap1).join(' and ')+' '+(kn.length>1?'are':'is')+' here':'')+'.</small></span>'+
+    (kn.length?'<span class="stack">'+kn.map(n=>'<span class="av" style="background:'+avColor(n)+'">'+initials(n)+'</span>').join('')+'</span>':'')+'</div>'+
+    '<p class="hnote">This counts people who tapped “I’m here”. The app never tracks where anyone is, and you only see names of friends who chose to share.</p>'+
+    '<div class="gc-act"><button type="button" class="btn '+(v.me?'primary in':'ghost')+'" data-here="'+k+'">'+(v.me?'You’re here':'I’m here')+'</button><button type="button" class="btn primary" data-openhang="'+k+'">Open a hangout</button></div></article></section>';}
+function hangoutHTML(h){const left=h.seats-h.joined,mine=h.state==='mine',vt=VIS[h.vis][0];
+  const act=mine?(h.requests?'<button type="button" class="btn primary" data-accept="'+h.id+'">Say yes to Sara</button>':'<button type="button" class="btn primary in" disabled>Your hangout is live</button>')
+    :h.state==='none'?(left>0?'<button type="button" class="btn primary" data-ask="'+h.id+'">Ask to join</button>':'<button type="button" class="btn primary" disabled>Table is full</button>')
+    :h.state==='pending'?'<button type="button" class="btn primary" disabled>Asked. Waiting for '+first(h.host)+'</button>'
+    :'<button type="button" class="btn primary in" data-hchat="'+h.id+'">You’re in. Open chat</button>';
+  return '<section class="chap"><article class="gcard hcard" data-kind="hang" data-id="'+h.id+'">'+
+    '<div class="gc-top"><span class="hhost"><span class="av" style="background:'+(mine?'#E3342F':avColor(h.host))+'">'+(mine?'You':initials(h.host))+'</span><span>'+(mine?'You':esc(h.host))+'<small><em class="tier">Campus</em>'+esc(h.school)+'</small></span></span><span class="gc-time">'+(h.from?fmt(h.from).replace(/ pm$/,'')+' to '+fmt(h.until):'Now to '+fmt(h.until))+'</span></div>'+
+    '<div class="gc-ground">'+esc(h.title)+'</div>'+(h.note?'<p class="hnote">'+esc(h.note)+'</p>':'')+
+    '<div class="gc-mid"><span class="gc-num">'+Math.max(0,left)+'</span><span class="gc-lab">'+(left===1?'seat left':'seats left')+'<small>'+(h.joined+1)+' at the table. Visible to '+vt.toLowerCase()+'.</small></span></div>'+
+    '<div class="gc-act">'+act+'</div></article></section>';}
+function storyList(){const base=HOME.theta;
+  if(level==='campus'){const gs=storyGames();return gs.map((g,i)=>{const G=GROUNDS[g.ground];return {id:g.id,html:chapterHTML(g),f:{x:G.x,z:G.z,r:30,phi:.98,th:base+(i%2?.2:-.16),hour:g.kick,ground:g.ground}};})
+      .concat([{id:'p-out',html:'<section class="chap"><article class="gcard" data-kind="place" data-goto="area" tabindex="0"><div class="gc-top"><span class="g-sport">Around LUMS</span><span class="gc-time">DHA</span></div><div class="gc-ground">Also on nearby</div><div class="gc-mid"><span class="gc-num" style="color:var(--turf)">'+hangouts.length+'</span><span class="gc-lab">hangouts in DHA<small>'+Object.values(VENUES).reduce((n,v)=>n+v.here,0)+' people at CBTL, the futsal turf and the park.</small></span></div><div class="gc-act"><button type="button" class="btn primary" data-goto="area">See DHA tonight</button></div></article></section>',f:{x:AREA.x+30,z:AREA.z-20,r:170,phi:.78,th:base+.1,hour:21.8}}]);}
+  if(level==='area')return ['campus','cbtl','futsal','park'].map((k,i)=>{const v=k==='campus'?{x:0,z:0}:VENUES[k];return {id:'p-'+k,html:placeHTML(k),f:{x:v.x,z:v.z,r:k==='campus'?92:56,phi:.86,th:base+(i%2?.18:-.14),hour:NOW+.15*i,ring:k==='campus'?0:9}};});
+  const v=VENUES[level],hs=hangouts.filter(h=>h.venue===level);
+  return [{id:'pres',html:presenceHTML(level),f:{x:v.x,z:v.z,r:40,phi:.92,th:base-.3,hour:NOW+.1}}].concat(hs.map((h,i)=>({id:h.id,html:hangoutHTML(h),f:{x:v.x,z:v.z,r:30,phi:.98,th:base+.1+i*.32,hour:NOW+.25+i*.15}})));}
+function endHTML(){if(level==='campus')return '<article class="gcard endcard"><div class="gc-ground">That’s tonight</div><p>No game at your time? Start one and it drops onto the map for everyone at LUMS.</p><div class="gc-act"><button type="button" class="btn primary" data-go="create">Start a game</button><button type="button" class="btn ghost" data-explore>Explore the map</button></div></article>';
+  if(level==='area')return '<article class="gcard endcard"><div class="gc-ground">That’s DHA tonight</div><p>Places show up once people start meeting there. Know a good spot? Suggest it.</p><div class="gc-act"><button type="button" class="btn primary" data-suggest>Suggest a place</button><button type="button" class="btn ghost" data-explore>Explore the map</button></div></article>';
+  const v=VENUES[level];return '<article class="gcard endcard"><div class="gc-ground">Nothing that fits?</div><p>Open your own hangout at '+v.name+'. You choose who can see it and who sits with you.</p><div class="gc-act"><button type="button" class="btn primary" data-openhang="'+level+'">Open a hangout</button><button type="button" class="btn ghost" data-goto="area">Back to DHA</button></div></article>';}
+function heroFor(){if(level==='campus'){const pl=games.reduce((n,g)=>n+g.cap-spotsLeft(g),0);return ['Tonight in','LUMS',games.length+' games and '+pl+' players. Scroll to walk the campus, game by game.'];}
+  if(level==='area')return ['Tonight around','DHA','Lahore. '+(1+Object.keys(VENUES).length)+' places with something on. Scroll to move between them.'];
+  const v=VENUES[level],n=hangouts.filter(h=>h.venue===level).length;return ['Right now at',v.name.toUpperCase(),v.here+' people here and '+n+' open hangout'+(n===1?'':'s')+'. '+v.kind+', '+v.dist+'.'];}
+function fitHero(){const el=$('#heroBig'),box=$('#heroIn');if(!el||!box)return;el.style.fontSize='100px';const w=el.getBoundingClientRect().width||1,W=box.clientWidth||screenEl.clientWidth-32;el.style.fontSize=Math.min(250,100*W/w).toFixed(1)+'px';}
+function renderCrumbs(){const parts=[['Lahore',null],['DHA','area']];if(level==='campus')parts.push(['LUMS','campus']);else if(level!=='area')parts.push([VENUES[level].name,level]);
+  const ok='<span class="ok"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  $('#crumbs').innerHTML=parts.map((p,i)=>{const cur=i===parts.length-1,lab=p[0]+(p[1]==='campus'?ok:'');return (i?'<i aria-hidden="true">›</i>':'')+(cur?'<b aria-current="location">'+lab+'</b>':p[1]?'<button type="button" data-level="'+p[1]+'">'+lab+'</button>':'<span title="City view comes later">'+lab+'</span>');}).join('');}
+function buildStory(){if(!storyEl)return;story.list=storyList();story.ids=story.list.map(it=>it.id);
+  $('#chapters').innerHTML=story.list.map(it=>it.html).join('');$('#endChap').innerHTML=endHTML();
+  const [k,w,sub]=heroFor();$('#heroK').textContent=k;$('#heroSub').textContent=sub;
+  const big=$('#heroBig');if(big.dataset.word!==w){big.dataset.word=w;big.setAttribute('aria-label',w);big.innerHTML=w.split('').map(c=>'<span aria-hidden="true">'+c+'</span>').join('');}
+  $('.segwrap').hidden=level!=='campus';$('#ctitle b').textContent=level==='campus'?'Tonight':level==='area'?'DHA':VENUES[level].name;
+  fitHero();layoutStory();updateVenueLabels();}
+function layoutStory(){if(!storyEl)return;const H=storyEl.clientHeight;if(!H)return;story.H=H;fitHero();
+  story.heroH=Math.round(H*.66);$('#hero').style.height=story.heroH+'px';
+  const chapH=Math.round(H*.58);$$('#chapters .chap').forEach(c=>c.style.height=chapH+'px');$('#endChap').style.height=chapH+'px';$('#storyTail').style.height=Math.round(H*.36)+'px';
   story.focusY=H*.68;
   const cards=$$('#chapters .gcard'),endCard=$('#endChap .gcard');
   story.items=cards.concat([endCard]).map(el=>({el,top:el.parentElement.offsetTop+el.offsetTop,h:el.offsetHeight}));
-  const list=story.ids.map(id=>games.find(g=>g.id===id));
   story.anch=[0].concat(story.items.map(it=>Math.max(1,it.top+it.h/2-story.focusY)));
   for(let i=1;i<story.anch.length;i++)if(story.anch[i]<=story.anch[i-1])story.anch[i]=story.anch[i-1]+1;
-  story.kf=[{tx:0,tz:2.5,theta:HOME.theta-.15,phi:.62,r:96,hour:NOW}].concat(list.map((g,i)=>{const G=GROUNDS[g.ground],th=HOME.theta+(i%2?.2:-.16),r=30,k=r*.3;
-    return {tx:G.x+Math.sin(th)*k,tz:G.z+Math.cos(th)*k,theta:th,phi:.98,r,hour:g.kick,id:g.id,ground:g.ground};}))
-    .concat([{tx:0,tz:2,theta:HOME.theta+.25,phi:.8,r:86,hour:22.5}]);
+  const base=HOME.theta,ov=level==='campus'?{tx:0,tz:2.5,theta:base-.15,phi:.62,r:96,hour:NOW}:level==='area'?{tx:AREA.x,tz:AREA.z,theta:base-.1,phi:.72,r:320,hour:NOW}:{tx:VENUES[level].x+4,tz:VENUES[level].z-16,theta:base-.5,phi:.74,r:84,hour:NOW};
+  const end=level==='campus'?{tx:0,tz:2,theta:base+.25,phi:.8,r:86,hour:22.5}:level==='area'?{tx:AREA.x,tz:AREA.z,theta:base+.2,phi:.7,r:340,hour:NOW+.8}:{tx:VENUES[level].x,tz:VENUES[level].z,theta:base+.6,phi:.8,r:70,hour:NOW+1};
+  story.kf=[ov].concat(story.list.map(it=>{const f=it.f,k=f.r*.3;return {tx:f.x+Math.sin(f.th)*k,tz:f.z+Math.cos(f.th)*k,theta:f.th,phi:f.phi,r:f.r,hour:f.hour,id:it.id,ground:f.ground,ring:f.ring,fx:f.x,fz:f.z};})).concat([end]);
   story.lastS=-1;}
 function storyFrame(){if(!story.kf.length)return;const s=storyEl.scrollTop,A=story.anch,K=story.kf;
   let j=0;while(j<A.length-2&&s>=A[j+1])j++;
   const t=clamp((s-A[j])/(A[j+1]-A[j]),0,1),hold=clamp((t-.12)/.76,0,1),e=easeIO(hold),a=K[j],b=K[j+1];
-  const hop=Math.sin(Math.PI*e)*(a.ground&&b.ground?6:0);
+  const hop=Math.sin(Math.PI*e)*(a.id&&b.id?Math.min(a.r,b.r)*.2:0);
   goal.tx=lerp(a.tx,b.tx,e);goal.tz=lerp(a.tz,b.tz,e);goal.theta=lerp(a.theta,b.theta,e);goal.phi=lerp(a.phi,b.phi,e);goal.r=lerp(a.r,b.r,e)+hop;
   if(reduce)Object.assign(cam,goal);
   const h=lerp(a.hour,b.hour,t);if(Math.abs(h-story.lastHour)>.004){story.lastHour=h;applyHour(h);$('#clock').textContent=fmt(Math.round(h*12)/12);}
-  // which chapter is active
   let best=null,bd=1e9;K.forEach((k,i)=>{if(!k.id)return;const d=Math.abs(s-A[i]);if(d<bd){bd=d;best=k;}});
   const act=best&&bd<story.H*.32?best:null,aid=act?act.id:null;
   if(aid!==story.activeId){story.activeId=aid;Object.entries(pins).forEach(([id,p])=>p.lab.classList.toggle('sel',id===aid));
-    if(act){const G=GROUNDS[act.ground];selRing.position.set(G.x,.14,G.z);selRing.scale.setScalar(G.r?G.r/1.1:Math.max(G.w,G.d)/2.1);selRing.userData.on=true;}else selRing.userData.on=false;}
+    if(act&&act.ground){const G=GROUNDS[act.ground];selRing.position.set(G.x,.14,G.z);selRing.scale.setScalar(G.r?G.r/1.1:Math.max(G.w,G.d)/2.1);selRing.userData.on=true;}
+    else if(act&&act.ring){selRing.position.set(act.fx,.14,act.fz);selRing.scale.setScalar(act.ring);selRing.userData.on=true;}else selRing.userData.on=false;}
   if(s===story.lastS)return;story.lastS=s;
-  // hero and header
   const p=clamp(s/(story.heroH*.7),0,1);
-  $('#heroIn').style.transform=reduce?'':'translateY('+(-p*56).toFixed(1)+'px) scale('+(1-p*.16).toFixed(3)+')';
-  $('#heroIn').style.opacity=String(clamp(1-p*1.35,0,1));
+  $('#heroIn').style.opacity=String(clamp(1-p*1.3,0,1));
+  $$('#heroBig span').forEach((sp,i)=>{sp.style.transform=reduce?'':'translateY('+(-p*(26+i*22)).toFixed(1)+'px) rotate('+((i-1.5)*p*3).toFixed(2)+'deg)';});
+  $('#heroK').style.transform=$('#heroSub').style.transform=reduce?'':'translateY('+(-p*30).toFixed(1)+'px)';
   $('#ctitle').style.opacity=String(clamp((p-.55)/.35,0,1));
   $('#topfade').style.opacity=String(clamp(s/140,0,1));
-  // cards rise and stand up as they reach the focus line
   story.items.forEach(it=>{const d=(it.top+it.h/2-s-story.focusY)/story.H,ad=Math.abs(d);
     it.el.style.opacity=String(d<0?1-clamp((ad-.1)/.28,0,1):1-clamp((ad-.16)/.5,0,.72));it.el.style.pointerEvents=d<-.3?'none':'';
     it.el.style.transform=reduce?'':'perspective(900px) translateY('+(d>0?d*36:0).toFixed(1)+'px) rotateX('+(d>0?Math.min(40,d*80):Math.max(-12,d*26)).toFixed(2)+'deg) scale('+(1-Math.min(.12,ad*.2)).toFixed(3)+')';});
 }
+function goLevel(l){if(!l||l===level)return;if(camMode!=='story')setExplore(false);if(openSheetEl)closeSheets();level=l;
+  storyEl.classList.add('swap');storyEl.scrollTop=0;buildStory();renderCrumbs();story.lastS=-1;story.lastHour=-1;story.activeId=null;story.flyUntil=performance.now()+(reduce?0:1600);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>storyEl.classList.remove('swap')));}
 function setExplore(on){camMode=on?'free':'story';storyEl.classList.toggle('off',on);$('#mapBtn span').textContent=on?'Back to tonight':'Explore map';
   $('#topfade').style.opacity=on?'0':String(clamp(storyEl.scrollTop/140,0,1));$('#ctitle').style.opacity=on?'0':'';
-  if(on){Object.assign(goal,{tx:HOME.tx,tz:HOME.tz,r:HOME.r,phi:HOME.phi,theta:HOME.theta});selRing.userData.on=false;story.activeId=null;Object.values(pins).forEach(p=>p.lab.classList.remove('sel'));toast('Drag to turn the campus, pinch or scroll to zoom.');}
+  if(on){const k=story.kf[0];Object.assign(goal,{tx:k.tx,tz:k.tz,r:k.r,phi:k.phi,theta:k.theta});selRing.userData.on=false;story.activeId=null;Object.values(pins).forEach(p=>p.lab.classList.remove('sel'));toast('Drag to turn, pinch or scroll to zoom.');}
   else{story.lastS=-1;story.lastHour=-1;}}
-screenEl.addEventListener('click',e=>{if(e.target.closest('[data-explore]'))setExplore(camMode==='story');});
-$('#chapters').addEventListener('click',e=>{const card=e.target.closest('.gcard');if(!card)return;const g=games.find(x=>x.id===card.dataset.id);if(!g)return;
-  if(e.target.closest('[data-join]')){const prev=spotsLeft(g);g.me=true;g.meAt=g.players.length;updateLabel(g);buildStory();
-    const n=$('#chapters .gcard[data-id="'+g.id+'"] [data-num]');if(n&&!reduce)n.classList.add('roll');
-    toast('You’re in. '+(prev-1>0?(prev-1)+' spots left.':'That was the last spot.')+' We’ll remind you 30 minutes before.');return;}
-  openGame(g.id);});
-$('#chapters').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('gcard'))openGame(e.target.dataset.id);});
+screenEl.addEventListener('click',e=>{if(e.target.closest('[data-explore]')){setExplore(camMode==='story');return;}
+  const lv=e.target.closest('[data-level]');if(lv&&!lv.closest('#chapters')){goLevel(lv.dataset.level);return;}});
+
+/* hangouts */
+const hs={venue:'cbtl',what:'Coffee',seats:3,until:21.5,vis:'campus'};
+const canHostWomen=false; // the demo account isn't a verified woman
+function openHang(k){hs.venue=k;$('#hsTitle').textContent='Open a hangout at '+VENUES[k].name;renderHang();$('#hsNote').value='';openSheet($('#hangSheet'),true);
+  const v=VENUES[k];focusPoint(v.x,v.z,36);}
+function focusPoint(x,z,r){const k=r*.3;goal.r=r;goal.tx=x+Math.sin(goal.theta)*k;goal.tz=z+Math.cos(goal.theta)*k;}
+function renderHang(){$('#hsWhat').innerHTML=['Coffee','Study','Chat','Board games','Food','Walk'].map(w=>'<button type="button" aria-pressed="'+(hs.what===w)+'" data-what="'+w+'">'+w+'</button>').join('');
+  $('#hsSeats').textContent=hs.seats;$('#hsSeatsLab').textContent=hs.seats===1?'person besides you':'people besides you';
+  $('#hsUntil').innerHTML=[20,20.5,21,21.5,22,23].map(t=>'<button type="button" aria-pressed="'+(hs.until===t)+'" data-until="'+t+'">'+fmt(t)+'</button>').join('');
+  $('#hsVis').innerHTML=Object.entries(VIS).map(([k,v])=>(k==='women'?'<button type="button" role="radio" aria-checked="false" aria-disabled="true" disabled data-hvis="women" style="opacity:.5"><span class="radio"></span>Women only<small>Hosted by verified women</small></button>':'<button type="button" role="radio" aria-checked="'+(hs.vis===k)+'" data-hvis="'+k+'"><span class="radio"></span>'+v[0]+'<small>'+v[1]+'</small></button>')).join('');
+  $('#hsVisNote').textContent={friends:'Only people you’ve both added will see it.',campus:'Anyone with a verified LUMS email can see it. Women-only hangouts can only be opened by verified women.',verified:'Anyone who has checked their phone number and ID can see it, including people outside LUMS.',women:'Only verified women will see it. For everyone else it doesn’t exist.'}[hs.vis];}
+$('#hangSheet').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.what)hs.what=b.dataset.what;else if(b.dataset.until)hs.until=+b.dataset.until;else if(b.dataset.hvis)hs.vis=b.dataset.hvis;
+  else if(b.id==='hsMinus')hs.seats=Math.max(1,hs.seats-1);else if(b.id==='hsPlus')hs.seats=Math.min(7,hs.seats+1);
+  else if(b.id==='hsOpen'){const v=VENUES[hs.venue],note=$('#hsNote').value.trim();
+    const h={id:'n'+Date.now(),venue:hs.venue,what:hs.what,title:note||({Coffee:'Coffee, company welcome',Study:'Study session, join me',Chat:'Here for a chat',['Board games']:'Board games, need players',Food:'Dinner, pull up a chair',Walk:'Going for a walk'}[hs.what]),note:note?'':'',host:'You',school:'LUMS',seats:hs.seats,joined:0,until:hs.until,vis:hs.vis,state:'mine'};
+    hangouts.push(h);if(!v.me){v.me=true;v.here++;}closeSheets();
+    if(level!==hs.venue)goLevel(hs.venue);else buildStory();
+    toast('Your hangout is live at '+v.name+' until '+fmt(hs.until)+'.');
+    setTimeout(()=>{h.requests=1;if(level===h.venue)buildStory();banner('Sara Malik (LUMS, SDSB) asked to join your hangout at '+v.name+'.');},3500);return;}
+  else return;renderHang();});
+$('#chapters').addEventListener('click',e=>{
+  const go=e.target.closest('[data-goto]');if(go){goLevel(go.dataset.goto);return;}
+  const oh=e.target.closest('[data-openhang]');if(oh){openHang(oh.dataset.openhang);return;}
+  const hr=e.target.closest('[data-here]');if(hr){const v=VENUES[hr.dataset.here];v.me=!v.me;v.here+=v.me?1:-1;buildStory();toast(v.me?'Friends who share with you can see you’re at '+v.name+'. It switches off when you leave or after 2 hours.':'You’re no longer shown at '+v.name+'.');return;}
+  const ask=e.target.closest('[data-ask]');if(ask){const h=hangouts.find(x=>x.id===ask.dataset.ask);h.state='pending';buildStory();
+    setTimeout(()=>{h.state='in';h.joined++;if(level===h.venue)buildStory();banner(cap1(first(h.host))+' said yes. '+VENUES[h.venue].name+', the table by the window.');},2400);return;}
+  const acc=e.target.closest('[data-accept]');if(acc){const h=hangouts.find(x=>x.id===acc.dataset.accept);h.requests=0;h.joined++;buildStory();toast('Sara is joining you. Your chat with her is open until '+fmt(h.until)+'.');return;}
+  if(e.target.closest('[data-hchat]')){toast('The hangout chat opens here and closes when the hangout ends.');return;}
+  const card=e.target.closest('.gcard');if(!card)return;
+  if(card.dataset.kind==='game'){const g=games.find(x=>x.id===card.dataset.id);if(!g)return;
+    if(e.target.closest('[data-join]')){const prev=spotsLeft(g);g.me=true;g.meAt=g.players.length;updateLabel(g);buildStory();
+      const n=$('#chapters .gcard[data-id="'+g.id+'"] [data-num]');if(n&&!reduce)n.classList.add('roll');
+      toast('You’re in. '+(prev-1>0?(prev-1)+' spots left.':'That was the last spot.')+' We’ll remind you 30 minutes before.');return;}
+    openGame(g.id);}
+  else if(card.dataset.kind==='place'&&card.dataset.goto)goLevel(card.dataset.goto);});
+$('#endChap').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.openhang)openHang(b.dataset.openhang);else if(b.dataset.goto)goLevel(b.dataset.goto);else if('suggest' in b.dataset)toast('Thanks. Suggested places get added once a few people ask for them.');
+  else if(b.dataset.go)go(b.dataset.go);});
+$('#chapters').addEventListener('keydown',e=>{if(e.key!=='Enter'||!e.target.classList.contains('gcard'))return;
+  if(e.target.dataset.kind==='game')openGame(e.target.dataset.id);else if(e.target.dataset.goto)goLevel(e.target.dataset.goto);});
 
 /* ---------- v4: scroll motion inside the game sheet ---------- */
 const gb=$('#gameBody');
@@ -1769,12 +1998,13 @@ setTilt=function(x,y){tiltX=x;tiltY=y;pc.style.transform='rotateY('+(flip*180+x*
 function cardFlip(){const st=$('#tabMe').scrollTop;flip=reduce?(st>160?1:0):easeIO(clamp((st-20)/260,0,1));setTilt(tiltX,tiltY);
   $('#flipHint').textContent=flip>.5?'Keep scrolling for your settings.':'Scroll to turn the card over.';$('#pbPts').textContent=$('#pcPts').textContent;}
 
+$$('[data-v5]').forEach(b=>b.addEventListener('click',()=>{go('map');const v=b.dataset.v5;goLevel(v==='area'?'area':'cbtl');if(v==='hang')setTimeout(()=>openHang('cbtl'),700);}));
 /* ---------- boot ---------- */
 if(renderer){
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  build();games.forEach(makePin);Object.values(pins).forEach(p=>p.scale=1);
+  build();buildArea();games.forEach(makePin);Object.values(pins).forEach(p=>p.scale=1);
   resize();new ResizeObserver(resize).observe(screenEl);
-  onRange();layoutStory();new ResizeObserver(layoutStory).observe($('#story'));storyFrame();Object.assign(cam,goal);applyCam();requestAnimationFrame(frame);
+  renderCrumbs();onRange();layoutStory();requestAnimationFrame(venueLoop);if(document.fonts)document.fonts.ready.then(()=>{fitHero();layoutStory();});new ResizeObserver(layoutStory).observe($('#story'));storyFrame();Object.assign(cam,goal);applyCam();requestAnimationFrame(frame);
 }else{
   canvas.replaceWith(Object.assign(document.createElement('div'),{style:'position:absolute;inset:0;display:grid;place-items:center;color:#fff;padding:40px;text-align:center',textContent:'The 3D map needs WebGL, which this browser has turned off. The sheets and screens still work.'}));
   onRange();
