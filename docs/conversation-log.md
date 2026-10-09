@@ -145,3 +145,12 @@ A written record of the design sessions: what was asked, what was built, the dec
   - The giant title was measured mid-animation, and the space in "PHASE 5" collapsed.
   - The centre title collided with the longer breadcrumb, so it was removed.
   - Labels slid under the header.
+
+## Session 7: saving for the account switch (9 Oct)
+
+**Ask:** Save the entire progress before changing Claude accounts.
+
+**What happened:**
+- Rewrote `HANDOFF.md` as one current guide: what's in the folder, where the prototype is (v6), key decisions and why, roadmap through Phase 4, RN stack, open items and the prompt for the new account.
+- Exported the full chat again and redacted the Google API key from it (12 occurrences). It's saved as `docs/chat-transcript.zip` and replaces the older export.
+- Committed locally and pushed the `design/` folder to `abdurrehman-haroon/join_me` on branch `design/floodlight-prototype` (PR #1).
