@@ -63,3 +63,94 @@ A written record of the design sessions: what was asked, what was built, the dec
 2. Set up the Expo project (dev build), commit and extend `openapi.yaml`, and build v1 screens against a mock server (week 1 of the plan).
 3. Confirm the real LUMS hostel names and ground names. The prototype uses placeholders (M-1…M-6, F-1…F-3, "Sports Complex turf", etc.).
 4. Check with SLUMS about a pilot partnership and the campus-lead role.
+
+## Session 4: scroll-driven motion (7 Oct)
+
+**Ask:** Inside LUMS, the app should move as you scroll up and down, not by zooming in and out on a screen that stays put. Add motion to screens and layouts as you move. Use web research and all installed skills and plugins, and produce an updated sample.
+
+**What happened:**
+- A research agent covered scrollytelling maps, native iOS scroll motion, React Native implementation and comfort → `research/03-scroll-driven-motion.md`. The apple-skills `design` skill was loaded for motion guidance; it targets SwiftUI, so only its principles apply.
+- Built **v4** (artifact version 4):
+  - **Home is now "Tonight at LUMS".** The 3D campus stays pinned in the background while you scroll a feed of tonight's games over it.
+    - Scroll position drives the camera through keyframes: an overview, then each ground in kick-off order, then a pull-back at the end.
+    - The camera dwells briefly at each ground and makes a small hop between grounds.
+    - The sky and lighting follow kick-off time, and the clock in the top bar updates as you scroll.
+    - Cards rise and stand up (rotateX from the bottom edge) as they reach the focus line, and cards above it fade out.
+    - The hero title collapses into a compact "Tonight" bar.
+    - The time slider was removed. Scrolling is now the timeline.
+    - "Explore map" switches to free orbit and zoom. You can join a game straight from its card, and the count rolls.
+  - **Game sheet:** the big count shrinks into a sticky mini header with Join, roster rows fade in, and the formation tilts up as it enters.
+  - **Hostel Cup:** the podium is pinned and its camera orbits with scroll while the content slides over it. Standings bars fill as they enter.
+  - **Player card:** pinned, and it flips over as you scroll to a back face with season stats.
+  - **All tabs:** large titles collapse into a compact bar, and pages ease in on tab change.
+  - **Calm motion** switch under You, alongside the iOS Reduce Motion setting.
+- Changes made after the research:
+  - Cut the camera's turn between grounds from about 85° to about 20° and halved the hop, to avoid combined turn, zoom and tilt.
+  - The notes say that in the app the camera should glide per chapter (`easeTo`), because per-frame MapLibre camera driving is unproven.
+- Bugs fixed:
+  - the conditions strip was duplicated and its card was missing;
+  - fog washed out the overview, so it now scales with camera distance;
+  - cards that had scrolled past stayed half-visible behind the header.
+
+## Session 5: beyond campus, hangouts, Google Maps (7 Oct)
+
+**Ask:**
+1. The "Tonight at LUMS" title sat mid-screen. Make it one giant word at the top.
+2. Don't stop at the university. LUMS is in DHA, which is in Lahore, so build upward. Let people check in at places like CBTL, open an "active session" others can join, and see how many people are there.
+3. Later, try the Google Maps demo key (Dynamic Maps, Photorealistic 3D, Places UI Kit, Weather).
+
+**What happened:**
+- Research → `research/04-places-and-hangouts.md` and `research/05-google-maps-platform.md`.
+- Built **v5** (artifact version 5):
+  - The title is one giant word (LUMS / DHA / CBTL) fitted to the screen width, with letters that lift away on scroll.
+  - A breadcrumb (Lahore › DHA › LUMS) replaces the campus chip.
+  - The 3D world now extends beyond campus: roads, houses, a campus wall, and CBTL (café with a floating coffee cup), a futsal turf and a park, each with live count labels.
+  - Scrolling past the last campus game rises out to DHA. The DHA view lists places, and tapping one flies there.
+  - At a venue:
+    - A count of people who tapped "I'm here", with names only for friends who chose to share.
+    - Hangouts with host, seats and end time ("Catan, need two more, 8 to 10:30 pm").
+    - Ask to join, then the host approves.
+    - Your own hangout: plan, note, seats, until, visibility. A join request arrives.
+  - Women-only hangouts can only be hosted by verified women. The option is locked for this demo account.
+- Bugs fixed:
+  - the giant title measured its box instead of its text;
+  - the café label covered the title;
+  - a text patch partly failed and was re-applied.
+- Google test page (`labs/google-3d/`, local only, key in a git-ignored file):
+  - Places found LUMS and 3 CBTL branches in DHA (Phase 3, 5, 6).
+  - Weather works (27°C, clear, feels 30°C).
+  - The 3D map loads but **Lahore has no photorealistic 3D buildings**, only flat satellite imagery.
+  - Decision: keep MapLibre, use Places for verification and Weather/AQ server-side.
+- The user pasted the demo key in chat. It was kept out of the artifact and git. Advised restricting or rotating it, and not pushing newer chat exports.
+
+## Session 6: DHA blocks, scroll across, zoom down (7 Oct)
+
+**Ask:** In DHA, swipe through DHA's blocks the way LUMS lets you swipe through games. To get more granular, zoom in, then swipe through what's inside.
+
+**What happened (artifact version 6):**
+- **One navigation rule at every level:**
+  - Scrolling moves across a level.
+  - Zooming moves down or up.
+  - Pinch out (touch), trackpad pinch or the + button dives into the card in front of you. Pinch in or − pulls back.
+  - A zoom control on the right shows three dots for depth.
+  - The page scales in or out to match the camera dive.
+- **Levels:** DHA › block › place.
+  - Blocks: Sector U (LUMS, park), Phase 3 (CBTL Z Block, futsal turf), Phase 5 (CBTL A Block), Phase 6 (CBTL Raya).
+  - The three CBTL branches are the real ones found with Google Places. The block layout is schematic.
+- On the 3D map each block gets an outline and fill, red when it's the one in front of you. Block labels show at DHA level, place labels at block level.
+- The breadcrumb is built from the real path (Lahore › DHA › Phase 3 › CBTL, trimmed to the last 3 parts) and every part can be tapped.
+- New hangouts: "Late chai and a chat" (CBTL Z Block) and "Group project, need a fourth" (CBTL Raya).
+- Bugs fixed:
+  - Houses only filled the west edge, because the generator hit its cap early.
+  - The giant title was measured mid-animation, and the space in "PHASE 5" collapsed.
+  - The centre title collided with the longer breadcrumb, so it was removed.
+  - Labels slid under the header.
+
+## Session 7: saving for the account switch (9 Oct)
+
+**Ask:** Save the entire progress before changing Claude accounts.
+
+**What happened:**
+- Rewrote `HANDOFF.md` as one current guide: what's in the folder, where the prototype is (v6), key decisions and why, roadmap through Phase 4, RN stack, open items and the prompt for the new account.
+- Exported the full chat again and redacted the Google API key from it (12 occurrences). It's saved as `docs/chat-transcript.zip` and replaces the older export.
+- Committed locally and pushed the `design/` folder to `abdurrehman-haroon/join_me` on branch `design/floodlight-prototype` (PR #1).
