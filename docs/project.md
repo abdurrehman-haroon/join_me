@@ -14,7 +14,7 @@ Campus verification; create and discover game pins; join and leave a capacity-li
 - `frontend/`: React Native, Expo, and TypeScript. MapLibre with self-hosted map tiles. Calls the API over HTTPS and an authenticated WebSocket for live updates. MapLibre requires an Expo development build.
 - FCM for push notifications; Fly.io for API deployment. The database will be managed separately.
 - `openapi.yaml`: source of truth for HTTP request and response shapes.
-- `backend/migrations/`: database schema changes.
+- `backend/migrations/`: numbered, forward-only database schema changes. Applied versions must be tracked; fixes go in a new migration.
 
 These are target choices. The Go health endpoint, Expo starter, and a MapLibre map spike with sample pins are implemented. The map uses OpenFreeMap's public Liberty style until campus tiles are hosted.
 

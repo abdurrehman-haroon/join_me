@@ -8,6 +8,8 @@ Code quality, always: favor readable, explicit, domain-named code with the main 
 
 Before writing or reviewing code, read all of `docs/code-practice.md` and apply it. Documentation-only tasks can use the summary above.
 
+Database schema changes use numbered, forward-only `*.up.sql` migrations. Apply each migration once and track applied versions; never edit an applied migration or add a down migration. Correct mistakes with a new migration.
+
 Never push to GitHub without asking the user first and receiving explicit approval for that specific push. Do not infer approval from earlier pushes or broad access.
 
 Keep these files short and factual. Never commit secrets or chat transcripts.

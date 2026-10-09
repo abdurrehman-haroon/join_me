@@ -1852,9 +1852,11 @@ Do not create inconsistent copies of important state without a reconciliation st
 Database migrations must be:
 
 - explicit
-- reversible when reasonably possible
+- forward-only, numbered, and applied once
 - safe for production data
 - aware of locking/large tables when relevant
+
+Do not add down migrations or edit a migration that has already been applied. Correct mistakes with a new numbered migration, and track which versions each database has applied.
 
 Do not casually:
 - drop columns
