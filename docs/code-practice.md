@@ -1283,6 +1283,8 @@ But do not create option structs for trivial functions with one obvious paramete
 
 # 47. ENUM-LIKE VALUES SHOULD BE CLEAR
 
+Use PostgreSQL enums for fields with a fixed set of values, including type and status; never model these as text columns (even with CHECK constraints). Generate matching Go types with sqlc.
+
 Do not scatter raw string literals throughout the application.
 
 Prefer named constants where the set of values matters.

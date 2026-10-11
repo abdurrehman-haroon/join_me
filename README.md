@@ -19,14 +19,8 @@ Both developers work on `main`. Pull before starting, coordinate edits to `opena
 
 ## Run the backend
 
-Install Go 1.23+. From `backend/`:
-
-```sh
-go run ./cmd/api
-```
-
-The API listens on `http://localhost:8080`; `GET /healthz` returns JSON. It does not connect to a database yet. When database features are added, install Docker and run `docker compose up -d db` from `backend/`.
+Install Go 1.23+ and PostgreSQL/PostGIS. See [backend setup](backend/README.md) for the database connection and migration instructions. With `DATABASE_URL` set, `make api` starts the API on port 8080. It serves health, area details, and viewport places.
 
 ## Run the mobile app
 
-From `frontend/`, run `pnpm run ios` for a local iOS build and simulator. After that, `pnpm start` starts Metro for JavaScript changes. The native UI currently uses sample data and does not call the API. See `docs/plan.md` for the build sequence.
+From `frontend/`, run `pnpm run ios` for a local iOS build and simulator. After that, `pnpm start` starts Metro for JavaScript changes. The map uses MapLibre/OpenFreeMap and database-backed places; other tabs remain sample-data previews. See `docs/plan.md` for the build sequence.

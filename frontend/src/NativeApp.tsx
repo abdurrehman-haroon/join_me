@@ -1,7 +1,6 @@
 import { useFonts } from "expo-font";
 import { useState } from "react";
 import {
-  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -11,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import CampusScene from "./CampusScene";
+import MapScreen from "./MapScreen";
 
 type Tab = "map" | "games" | "cup" | "you";
 type Panel = "game" | "create" | "chat" | "gameDay" | "campuses" | null;
@@ -155,7 +154,6 @@ function GameCard({ game, onPress }: { game: Game; onPress: () => void }) {
 }
 
 export default function NativeApp() {
-  const [storyOffset] = useState(() => new Animated.Value(0));
   const [loaded] = useFonts({
     BigShoulders: require("../assets/BigShouldersDisplayBlack.ttf"),
   });
@@ -163,8 +161,6 @@ export default function NativeApp() {
   const [panel, setPanel] = useState<Panel>(null);
   const [games, setGames] = useState(fixtures);
   const [selectedId, setSelectedId] = useState(fixtures[0].id);
-  const [sport, setSport] = useState("All");
-  const [level, setLevel] = useState("LUMS");
   const [createSport, setCreateSport] = useState<"Football" | "Tape-ball">(
     "Football",
   );
@@ -188,8 +184,6 @@ export default function NativeApp() {
 
   if (!loaded) return null;
   const selected = games.find((game) => game.id === selectedId) ?? games[0];
-  const shown = games.filter((game) => sport === "All" || game.sport === sport);
-  const players = games.reduce((sum, game) => sum + game.players, 0);
 
   function openGame(game: Game) {
     setSelectedId(game.id);
@@ -229,140 +223,11 @@ export default function NativeApp() {
 
   return (
     <View style={styles.root}>
-      {tab === "map" && (
-        <View style={styles.map}>
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                transform: [
-                  {
-                    translateY: storyOffset.interpolate({
-                      inputRange: [0, 1400],
-                      outputRange: [0, -190],
-                      extrapolate: "clamp",
-                    }),
-                  },
-                  {
-                    scale: storyOffset.interpolate({
-                      inputRange: [0, 1400],
-                      outputRange: [1, 1.32],
-                      extrapolate: "clamp",
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <CampusScene />
-          </Animated.View>
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                backgroundColor: "#1A2540",
-                opacity: storyOffset.interpolate({
-                  inputRange: [0, 1400],
-                  outputRange: [0, 0.38],
-                  extrapolate: "clamp",
-                }),
-              },
-            ]}
-          />
-          <Animated.ScrollView
-            contentContainerStyle={styles.story}
-            showsVerticalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: storyOffset } } }],
-              { useNativeDriver: true },
-            )}
-            scrollEventThrottle={16}
-          >
-            <View style={styles.hero}>
-              <Label style={styles.heroKicker}>Tonight in</Label>
-              <Text numberOfLines={1} style={styles.heroTitle}>
-                {level}
-              </Text>
-              <Label style={styles.heroDescription}>
-                {games.length} games and {players} players. Scroll to walk the
-                campus, game by game.
-              </Label>
-              <View style={styles.chips}>
-                <View style={styles.condition}>
-                  <Label>☾ Isha 7:21 pm</Label>
-                </View>
-                <View style={styles.condition}>
-                  <Label>● AQI 168</Label>
-                </View>
-                <View style={styles.condition}>
-                  <Label>31°C</Label>
-                </View>
-              </View>
-              <Label style={styles.scrollHint}>⌄ Scroll</Label>
-            </View>
-            <View style={[styles.chips, styles.filter]}>
-              {["All", "Football", "Tape-ball"].map((name) => (
-                <Pill
-                  key={name}
-                  text={name}
-                  active={sport === name}
-                  onPress={() => setSport(name)}
-                />
-              ))}
-            </View>
-            <View style={styles.actions}>
-              <Button
-                light
-                text="◇  Explore map"
-                onPress={() => setLevel("DHA")}
-              />
-              <Button
-                text="＋  Start a game"
-                onPress={() => setPanel("create")}
-              />
-            </View>
-            {shown.map((game) => (
-              <View key={game.id} style={styles.chapter}>
-                <GameCard game={game} onPress={() => openGame(game)} />
-              </View>
-            ))}
-          </Animated.ScrollView>
-          <View style={styles.mapTop}>
-            <Pressable
-              onPress={() =>
-                setLevel(
-                  level === "LUMS"
-                    ? "Sector U"
-                    : level === "Sector U"
-                      ? "DHA"
-                      : "LUMS",
-                )
-              }
-              style={styles.crumb}
-            >
-              <Label style={{ fontWeight: "800" }}>
-                DHA › Sector U › {level} ✓
-              </Label>
-            </Pressable>
-            <Pressable onPress={() => setTab("you")} style={styles.avatar}>
-              <Label style={{ color: "#fff", fontWeight: "800" }}>AA</Label>
-            </Pressable>
-          </View>
-          <View style={styles.rail}>
-            <Pressable onPress={() => setLevel("LUMS")}>
-              <Label style={styles.railButton}>＋</Label>
-            </Pressable>
-            <Label style={styles.railDots}>
-              •{"\n"}•{"\n"}●
-            </Label>
-            <Pressable
-              onPress={() => setLevel(level === "LUMS" ? "Sector U" : "DHA")}
-            >
-              <Label style={styles.railButton}>−</Label>
-            </Pressable>
-          </View>
-        </View>
+      {tab === "map" && <MapScreen />}
+      {tab !== "map" && (
+        <Label style={{ textAlign: "center", marginTop: 60 }}>
+          Prototype preview · sample data
+        </Label>
       )}
 
       {tab === "games" && (
