@@ -13,7 +13,7 @@ This is the durable checklist for feature discussions, implementation, and compa
 - Track frontend and backend separately: unassessed, missing, partial/fixture, implemented, verified, or not applicable. A simulated success or fixture screen is not a connected feature.
 - Completion requires agreed behavior, frontend verification, and backend/access checks where applicable. Link evidence when marking verified.
 
-Baseline status: rows were initially **unassessed individually**. Current map progress is recorded below; the other native screens remain partial fixture previews, with full prototype parity deferred. See [handoff.md](handoff.md) for the current aggregate implementation state. The table records prototype behavior, not a claim that it ships today.
+Baseline status: rows were initially **unassessed individually**. Current map progress is recorded below; the app now shows only connected map/events/chat/basic profile screens, with full prototype parity deferred. See [handoff.md](handoff.md) for the current aggregate implementation state. The table records prototype behavior, not a claim that it ships today.
 
 ## Feature baseline
 
@@ -104,3 +104,18 @@ For each feature discussion, record: ID, agreed user flow, business/access rules
 - 2026-10-11: Implemented connected Your events (hosted/joined, Upcoming/Past, pagination) and host cancellation with confirmation using existing status/event tables; no schema change. Notifications remain deferred.
 
 - 2026-10-12: F15 participant messaging implemented for the slim event flow: participant-only HTTP history/send, 50-message cursor pages, foreground polling, UUID retry and read-only cancelled/completed history. Expiry/moderation and push remain deferred; leaving removes access but retains messages.
+
+- 2026-10-12: F17 reporting explicitly skipped for now; migration 000009 removes the legacy reports table and its moderation-log reference. Revisit schema and frontend together if reporting returns.
+
+## Connected app scope (2026-10-12)
+
+Only these screens/actions are exposed in the app; the baseline above remains a reference for later prototypes.
+
+| Screen | Integrated actions |
+| --- | --- |
+| Map | Real tiles, viewport places/events, sport filters, selection/details, recentring, create event |
+| Your events | Upcoming/Past, pagination, event details, join/leave and host cancellation |
+| Event chat | Participant-only history/send, older pages, foreground polling and UUID retry |
+| You | Load demo profile, edit/save display name through GET/PATCH /me |
+
+Hostel Cup, sample events/action sheets, fake player stats, campus verification, notification switches, calm-motion setting and blocked-people placeholder are removed from runtime UI. The unused illustrated CampusScene component is removed; design/prototype references are preserved. Reporting, notifications, sign-in and full end-to-end test work are deferred by user direction. Basic profile uses existing schema with automatic timestamps; no migration added.

@@ -222,7 +222,6 @@ type Message struct {
 
 type ModerationLog struct {
 	ID        pgtype.UUID
-	ReportID  pgtype.UUID
 	EventType string
 	Details   []byte
 	CreatedAt pgtype.Timestamptz
@@ -238,17 +237,6 @@ type Place struct {
 	Boundary  interface{}
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
-}
-
-type Report struct {
-	ID          pgtype.UUID
-	ReporterID  pgtype.UUID
-	SubjectType string
-	SubjectID   pgtype.UUID
-	Reason      string
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
 }
 
 type Status struct {

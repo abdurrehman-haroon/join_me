@@ -92,3 +92,9 @@ Your events uses `GET /me/events?section=upcoming|past&offset=0` (50 events/page
 Migration 000008 consolidates message timestamps into automatic created_at/updated_at, preserves legacy send times and adds the event/time/UUID index plus a trimmed body constraint. Invalid legacy bodies stop migration for explicit cleanup rather than silently dropping content.
 
 GET /events/{id}/messages returns the latest 50 messages oldest first, has_more, can_send and viewer_id. Pass before=<first cursor> for older history or after=<last cursor> to catch up; continue after pages while has_more. POST accepts {id,body}, where id is a client UUID reused on retries and body trims to 1–2000 Unicode characters. Identical accepted retries return 204; changed content with the same ID returns 409. Both endpoints require current demo membership; leaving returns 403 without deleting history. Cancelled/completed chats are read-only; scheduled chat allows messages after kickoff. Chat access and writes share the participation/cancellation event lock. See openapi.yaml for the full contract.
+
+Reporting is deferred. Migration 000009 drops the unused reports table and removes moderation_log.report_id, retaining the moderation log itself. Earlier migration files are unchanged.
+
+## Basic profile
+
+GET /me returns the configured demo user's id, display_name, created_at and updated_at. PATCH /me accepts only {display_name}, trims surrounding whitespace and allows 1–100 Unicode characters on one line. Invalid/unknown fields or bodies over 4 KiB return 400; a missing/unconfigured demo user returns 503. Successful updates return the saved profile with database-managed timestamps. The caller cannot select a user ID. No schema migration or sign-in is added.

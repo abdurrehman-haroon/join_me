@@ -53,8 +53,16 @@ func TestPostGISMapFlow(t *testing.T) {
 		t.Fatalf("second migration run: %v", err)
 	}
 	var versions int
-	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 8 {
+	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 9 {
 		t.Fatalf("migration count %d: %v", versions, err)
+	}
+
+	var reportsRemoved bool
+	if err = pool.QueryRow(ctx, `SELECT to_regclass(format('%I.reports', current_schema())) IS NULL AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'moderation_log' AND column_name = 'report_id'
+    )`).Scan(&reportsRemoved); err != nil || !reportsRemoved {
+		t.Fatalf("legacy reporting schema remains: %v", err)
 	}
 
 	t.Run("events and repeatable demo data", func(t *testing.T) {

@@ -174,6 +174,40 @@ paths:
             text/plain:
               schema: { type: string }
         '500': { $ref: '#/components/responses/ServerError' }
+  /me:
+    get:
+      summary: Load the configured demo user's basic profile
+      description: Uses the same server-owned DEMO_USER_ID as events and chat. No sign-in or user selection yet.
+      responses:
+        '200':
+          description: Saved profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '503': { description: Demo user not configured or missing from database }
+        '500': { $ref: '#/components/responses/ServerError' }
+    patch:
+      summary: Update the configured demo user's display name
+      description: Trims surrounding whitespace; accepts 1–100 Unicode characters on one line. Cannot change ID or timestamps. Database preserves created_at and automatically refreshes updated_at. Repeating the same name is safe. Body limit 4 KiB.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [display_name]
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '200':
+          description: Saved profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { description: Demo user not configured or missing from database }
+        '500': { $ref: '#/components/responses/ServerError' }
   /me/events:
     get:
       summary: List events hosted or joined by the configured demo user
@@ -317,6 +351,14 @@ components:
         text/plain:
           schema: { type: string }
   schemas:
+    Profile:
+      type: object
+      required: [id, display_name, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        display_name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     Message:
       type: object
       required: [id, event_id, user_id, body, display_name, created_at, updated_at, cursor]

@@ -13,6 +13,7 @@ import (
 	"joinme/backend/internal/database"
 	"joinme/backend/internal/events"
 	"joinme/backend/internal/geography"
+	"joinme/backend/internal/users"
 	"joinme/backend/migrations"
 )
 
@@ -46,7 +47,10 @@ func main() {
 	}
 	eventHandler := events.Handler{Queries: database.New(pool), DemoUserID: demoUserID, Pool: pool}
 
+	userHandler := users.Handler{Queries: database.New(pool), DemoUserID: demoUserID}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /me", userHandler.Me)
+	mux.HandleFunc("PATCH /me", userHandler.Me)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
