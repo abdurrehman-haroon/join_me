@@ -1,5 +1,7 @@
 # V6 design fidelity plan
 
+Superseded as the immediate milestone on 2026-10-11: the user approved a slim LUMS pickup flow and a real MapLibre/OpenFreeMap map. Follow `plan.md` for current work; preserve this full-fidelity plan for later.
+
 Decision: build **all screens and interactions shown inside the phone in `design/prototype/index.html`** as the current UI milestone. The v6 prototype is the acceptance reference for layout, copy, colors, typography, transitions, gestures, and navigation. Do not replace a designed screen with a generic native screen or the current MapLibre sample map. The existing roadmap remains the order for real backend rollout until it is explicitly changed; fixture-driven UI must be labeled as such during development.
 
 ## Coverage

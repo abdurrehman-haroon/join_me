@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@maplibre/maplibre-react-native": "^11.5.0",
     "expo": "~57.0.27",
     "expo-build-properties": "~57.0.22",
     "expo-dev-client": "~57.0.19",
@@ -18,7 +19,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "node api.js && expo start",
     "ios": "expo run:ios",
     "lint": "expo lint"
   },
