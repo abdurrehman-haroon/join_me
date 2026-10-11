@@ -33,7 +33,7 @@ The API connects to PostGIS and serves health, area details, and bounded viewpor
 
 ## Next decisions
 
-Merge recovery restored the verified event implementation; repairs are uncommitted for review. Messaging schema and frontend flow are approved, with implementation paused during recovery (see handoff.md).
+Merge recovery restored the verified event implementation; repairs were committed in 143210e. Remote history reconciliation preserves the repaired files. Messaging schema and frontend flow are approved, with implementation paused during recovery (see handoff.md).
 
 Review map behavior and confirm campus names/locations. Next discuss participant chat or reports; event browsing, Your events and host cancellation are implemented. Confirm pilot access before a student rollout. Deployment accounts/domains and future verified-access rules remain undecided.
 

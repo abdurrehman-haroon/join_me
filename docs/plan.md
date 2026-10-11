@@ -11,7 +11,7 @@ LUMS first, expanding outwards. No sign-in or campus verification for now; keep 
 
 All tables require database-managed `created_at` and `updated_at`. New migrations are numbered, forward-only and tracked; applied files are immutable. Fixed-value fields require PostgreSQL enums, never text. The approved geography uses `type`, not `kind`, optional area parent/boundaries, required place points, and event references to places.
 
-Messaging schema/frontend flow are approved; implementation is paused while the user reviews the uncommitted merge repairs. Preserve the current events milestone for this review.
+Messaging schema/frontend flow are approved; implementation remains paused after merge recovery. Preserve the current events milestone until messaging resumes.
 
 ## Deferred
 

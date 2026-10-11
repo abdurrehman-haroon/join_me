@@ -38,8 +38,8 @@ LUMS first, no sign-in, basic profile, slim pickup flow. Guest sessions deferred
 
 ## Next
 
-Review the merge repairs before committing/pushing. Messaging is paused at the user’s request during recovery. Approved messaging design: existing messages table with client UUID/event_id/user_id/body/automatic timestamps, remove sent_at, 1–2,000 characters, participant-only access, cancelled/completed history read-only, paginated history and foreground polling with idempotent retry. No message migration was applied to the application database.
+Repairs were committed in 143210e. The user authorized reconciliation and push to origin/main: the rewritten remote de1febd differs from the previously merged a538073 only in two removed obfuscated payload lines. A merge preserving the repaired local tree reconciles ancestry without force-pushing. Messaging is paused at the user’s request during recovery. Approved messaging design: existing messages table with client UUID/event_id/user_id/body/automatic timestamps, remove sent_at, 1–2,000 characters, participant-only access, cancelled/completed history read-only, paginated history and foreground polling with idempotent retry. No message migration was applied to the application database.
 
 Review the map, confirm ground names/outlines with LUMS, then discuss participant chat or reports; Your events and host cancellation are implemented. Reuse the minimal users table; sign-in comes later. After agreement, discuss frontend mechanics and implement. Current geo endpoints are public read-only; do not invent guest sessions or mutating ownership rules.
 
-All changes remain uncommitted and unpushed for user review.
+History reconciliation and its documentation are authorized for commit and push; future feature work remains uncommitted for review.
