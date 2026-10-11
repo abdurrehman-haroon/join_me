@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import MapScreen from "./MapScreen";
+import YourEvents from "./YourEvents";
 
 type Tab = "map" | "games" | "cup" | "you";
 type Panel = "game" | "create" | "chat" | "gameDay" | "campuses" | null;
@@ -129,30 +130,6 @@ function Button({
   );
 }
 
-function GameCard({ game, onPress }: { game: Game; onPress: () => void }) {
-  const free = game.capacity - game.players;
-  return (
-    <Pressable onPress={onPress} style={styles.gameCard}>
-      <View style={styles.row}>
-        <Label style={styles.eyebrow}>{game.ground.toUpperCase()}</Label>
-        <Label>{game.time}</Label>
-      </View>
-      <Text style={styles.cardTitle}>{game.title}</Text>
-      <Label style={styles.muted}>Hosted by {game.host}</Label>
-      <View style={[styles.row, { marginTop: 22 }]}>
-        <Label>
-          {game.players} of {game.capacity} players
-        </Label>
-        <View style={styles.spots}>
-          <Label style={{ fontWeight: "800" }}>
-            {free ? `${free} spots left` : "Full"}
-          </Label>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
 export default function NativeApp() {
   const [loaded] = useFonts({
     BigShoulders: require("../assets/BigShouldersDisplayBlack.ttf"),
@@ -169,9 +146,6 @@ export default function NativeApp() {
   const [capacity, setCapacity] = useState(14);
   const [visibility, setVisibility] = useState("Everyone at LUMS");
   const [weekly, setWeekly] = useState(false);
-  const [available, setAvailable] = useState(true);
-  const [positions, setPositions] = useState(["Midfield", "Off-spin"]);
-  const [freeDays, setFreeDays] = useState(["Tue evening", "Thu evening"]);
   const [calm, setCalm] = useState(false);
   const [checkedIn, setCheckedIn] = useState(false);
   const [gameDayStep, setGameDayStep] = useState("Check-in");
@@ -224,83 +198,13 @@ export default function NativeApp() {
   return (
     <View style={styles.root}>
       {tab === "map" && <MapScreen />}
-      {tab !== "map" && (
+      {tab !== "map" && tab !== "games" && (
         <Label style={{ textAlign: "center", marginTop: 60 }}>
           Prototype preview · sample data
         </Label>
       )}
 
-      {tab === "games" && (
-        <ScrollView
-          style={styles.page}
-          contentContainerStyle={styles.pageContent}
-        >
-          <Text style={styles.pageTitle}>Your games</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Label style={styles.heading}>I’m free to play</Label>
-              <Switch
-                value={available}
-                onValueChange={setAvailable}
-                trackColor={{ true: "#398652" }}
-              />
-            </View>
-            <Label style={styles.muted}>
-              When a game that fits you is one or two players short, you get one
-              ping. Never more than one a day.
-            </Label>
-            <View style={styles.chips}>
-              {["Midfield", "Defence", "Off-spin"].map((name) => (
-                <Pill
-                  key={name}
-                  text={name}
-                  active={positions.includes(name)}
-                  onPress={() =>
-                    setPositions((current) =>
-                      current.includes(name)
-                        ? current.filter((position) => position !== name)
-                        : [...current, name],
-                    )
-                  }
-                />
-              ))}
-            </View>
-            <View style={styles.chips}>
-              {["Tue evening", "Thu evening", "Weekend"].map((name) => (
-                <Pill
-                  key={name}
-                  text={name}
-                  active={freeDays.includes(name)}
-                  onPress={() =>
-                    setFreeDays((current) =>
-                      current.includes(name)
-                        ? current.filter((day) => day !== name)
-                        : [...current, name],
-                    )
-                  }
-                />
-              ))}
-            </View>
-          </View>
-          <Label style={styles.listTitle}>Coming up</Label>
-          {games
-            .filter((game) => game.joined)
-            .map((game) => (
-              <GameCard
-                key={game.id}
-                game={game}
-                onPress={() => openGame(game)}
-              />
-            ))}
-          <Label style={styles.listTitle}>Regulars</Label>
-          <View style={styles.card}>
-            <Label style={styles.heading}>The Thursday tape-ball crew</Label>
-            <Label style={styles.muted}>
-              Main cricket ground · Thursdays at 7:15 pm
-            </Label>
-          </View>
-        </ScrollView>
-      )}
+      {tab === "games" && <YourEvents />}
 
       {tab === "cup" && (
         <ScrollView
@@ -438,7 +342,7 @@ export default function NativeApp() {
         {(
           [
             ["map", "◇", "Map"],
-            ["games", "▣", "Your games"],
+            ["games", "▣", "Your events"],
             ["cup", "♜", "Hostel Cup"],
             ["you", "♙", "You"],
           ] as const

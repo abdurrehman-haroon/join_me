@@ -54,6 +54,48 @@ func (ns NullAreaType) Value() (driver.Value, error) {
 	return string(ns.AreaType), nil
 }
 
+type EventType string
+
+const (
+	EventTypeFootball EventType = "football"
+	EventTypeCricket  EventType = "cricket"
+)
+
+func (e *EventType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = EventType(s)
+	case string:
+		*e = EventType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for EventType: %T", src)
+	}
+	return nil
+}
+
+type NullEventType struct {
+	EventType EventType
+	Valid     bool // Valid is true if EventType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullEventType) Scan(value interface{}) error {
+	if value == nil {
+		ns.EventType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.EventType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullEventType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.EventType), nil
+}
+
 type PlaceType string
 
 const (
@@ -98,6 +140,47 @@ func (ns NullPlaceType) Value() (driver.Value, error) {
 	return string(ns.PlaceType), nil
 }
 
+type StatusableType string
+
+const (
+	StatusableTypeEvent StatusableType = "event"
+)
+
+func (e *StatusableType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StatusableType(s)
+	case string:
+		*e = StatusableType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StatusableType: %T", src)
+	}
+	return nil
+}
+
+type NullStatusableType struct {
+	StatusableType StatusableType
+	Valid          bool // Valid is true if StatusableType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStatusableType) Scan(value interface{}) error {
+	if value == nil {
+		ns.StatusableType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StatusableType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStatusableType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StatusableType), nil
+}
+
 type Area struct {
 	ID        pgtype.UUID
 	ParentID  pgtype.UUID
@@ -108,9 +191,29 @@ type Area struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type Event struct {
+	ID        pgtype.UUID
+	HostID    pgtype.UUID
+	Type      EventType
+	StartsAt  pgtype.Timestamptz
+	Capacity  int32
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Title     string
+	PlaceID   pgtype.UUID
+	StatusID  pgtype.UUID
+}
+
+type EventParticipant struct {
+	EventID   pgtype.UUID
+	UserID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Message struct {
 	ID        pgtype.UUID
-	PinID     pgtype.UUID
+	EventID   pgtype.UUID
 	UserID    pgtype.UUID
 	Body      string
 	SentAt    pgtype.Timestamptz
@@ -123,29 +226,6 @@ type ModerationLog struct {
 	ReportID  pgtype.UUID
 	EventType string
 	Details   []byte
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-}
-
-type Pin struct {
-	ID         pgtype.UUID
-	HostID     pgtype.UUID
-	CampusID   string
-	Sport      string
-	GroundName string
-	Location   interface{}
-	KickoffAt  pgtype.Timestamptz
-	ExpiresAt  pgtype.Timestamptz
-	Capacity   int32
-	Visibility string
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
-}
-
-type PinMember struct {
-	PinID     pgtype.UUID
-	UserID    pgtype.UUID
-	JoinedAt  pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 }
@@ -172,11 +252,18 @@ type Report struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type Status struct {
+	ID             pgtype.UUID
+	StatusableType StatusableType
+	Name           string
+	Slug           string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type User struct {
-	ID         pgtype.UUID
-	CampusID   string
-	Email      string
-	VerifiedAt pgtype.Timestamptz
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
+	ID          pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	DisplayName string
 }

@@ -92,3 +92,13 @@ For each feature discussion, record: ID, agreed user flow, business/access rules
 ## Implementation progress
 
 2026-10-11: OpenFreeMap approved. F02/F07 have an initial real native MapLibre map with free pan/zoom and campus recentre (illustrated 3D parity deferred). F08/F39 have areas/places persistence, public viewport queries, six community-mapped LUMS sports places, clustering, campus outlines and place selection/details; broader area navigation is pending. All application tables have automatic timestamps. iOS simulator build and screenshot verified; real-device gesture review remains. F10 onward game services are not connected; do not mark prototype features complete based on this map foundation.
+
+2026-10-11: generalise games to events. Minimal users plus events, event_participants and a single shared status table are implemented at database level. Event/status model categories use PostgreSQL enums; statuses are shared through events.status_id, with no statusable_id. Optional demo data covers open/full/cancelled/completed events. Event APIs/UI and sign-in remain deferred; no additional prototype feature is complete yet.
+
+2026-10-11: initial connected event browsing supports F04 type filtering and the browse/detail portions of F01/F08/F10: viewport upcoming-event API, exact per-place counts, place lists, event details and participant/capacity displays. This is the slim real-map flow; broader prototype feed choreography, joining and mutations remain pending.
+
+2026-10-11: event creation is connected from the selected map place, with title/type/local start time/capacity, server-owned Scheduled status/demo host and atomic host participation. This implements the slim creation flow; prototype recurrence, visibility, join/leave and authenticated ownership remain deferred.
+
+2026-10-11: connected event Join/Leave uses the demo user, serializes capacity changes with event-row locks, prevents duplicate membership/overbooking, protects host participation and refreshes roster/counts after requests. New joins require upcoming Scheduled state; non-host leaves are allowed regardless of status/time. Host cancellation, Your events, push/live synchronization and sign-in remain pending.
+
+- 2026-10-11: Implemented connected Your events (hosted/joined, Upcoming/Past, pagination) and host cancellation with confirmation using existing status/event tables; no schema change. Notifications remain deferred.

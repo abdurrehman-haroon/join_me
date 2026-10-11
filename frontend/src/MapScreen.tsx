@@ -11,10 +11,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import EventDetails, { type EventSummary } from "./EventDetails";
+import CreateEventForm from "./CreateEventForm";
 
 type Area = {
   id: string;
@@ -38,6 +41,11 @@ type Place = GeoJSON.Feature<GeoJSON.Point, PlaceProperties>;
 type Places = GeoJSON.FeatureCollection<GeoJSON.Point, PlaceProperties> & {
   truncated: boolean;
 };
+type EventList = {
+  events: EventSummary[];
+  place_counts: Record<string, number>;
+  truncated: boolean;
+};
 
 const apiURL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 const initialAreaID =
@@ -58,6 +66,19 @@ export default function MapScreen() {
   const [area, setArea] = useState<Area | null>(null);
   const [bounds, setBounds] = useState<LngLatBounds | null>(null);
   const [places, setPlaces] = useState<Places>(emptyPlaces);
+  const [events, setEvents] = useState<EventList>({
+    events: [],
+    place_counts: {},
+    truncated: false,
+  });
+  const [eventType, setEventType] = useState<"" | "football" | "cricket">("");
+  const [eventID, setEventID] = useState<string | null>(null);
+  const [creationPlace, setCreationPlace] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [eventRefresh, setEventRefresh] = useState(0);
+  const [createdAtPlace, setCreatedAtPlace] = useState<string | null>(null);
   const [selected, setSelected] = useState<Place | null>(null);
   const [areaError, setAreaError] = useState("");
   const [placesError, setPlacesError] = useState("");
@@ -66,6 +87,19 @@ export default function MapScreen() {
   const [mapError, setMapError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [mapVersion, setMapVersion] = useState(0);
+  const mapPlaces = {
+    ...places,
+    features: places.features.map((place) => ({
+      ...place,
+      properties: {
+        ...place.properties,
+        event_count: events.place_counts[place.properties.id] ?? 0,
+      },
+    })),
+  };
+  const placeEvents = events.events.filter(
+    (event) => event.place.id === selected?.properties.id,
+  );
 
   useEffect(() => {
     let active = true;
@@ -113,17 +147,24 @@ export default function MapScreen() {
     // Query after the camera settles; cancel superseded requests to avoid stale pins.
     const debounce = setTimeout(async () => {
       setLoadingPlaces(true);
+      setEvents({ events: [], place_counts: {}, truncated: false });
       setPlacesError("");
       try {
-        const response = await fetch(
-          `${apiURL}/places?bbox=${bounds.join(",")}`,
-          { signal: controller.signal },
-        );
-        if (!response.ok)
-          throw new Error(`Places request failed (${response.status})`);
-        const loadedPlaces: Places = await response.json();
+        const [placesResponse, eventsResponse] = await Promise.all([
+          fetch(`${apiURL}/places?bbox=${bounds.join(",")}`, {
+            signal: controller.signal,
+          }),
+          fetch(`${apiURL}/events?bbox=${bounds.join(",")}&type=${eventType}`, {
+            signal: controller.signal,
+          }),
+        ]);
+        if (!placesResponse.ok || !eventsResponse.ok)
+          throw new Error("Could not load this view");
+        const [loadedPlaces, loadedEvents]: [Places, EventList] =
+          await Promise.all([placesResponse.json(), eventsResponse.json()]);
         if (active) {
           setPlaces(loadedPlaces);
+          setEvents(loadedEvents);
           setSelected((current) =>
             current
               ? (loadedPlaces.features.find(
@@ -133,7 +174,8 @@ export default function MapScreen() {
           );
         }
       } catch {
-        if (active) setPlacesError("Could not refresh places. Try again.");
+        if (active)
+          setPlacesError("Could not refresh places and events. Try again.");
       } finally {
         clearTimeout(timeout);
         if (active) setLoadingPlaces(false);
@@ -145,7 +187,7 @@ export default function MapScreen() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [bounds, retry]);
+  }, [bounds, retry, eventType, eventRefresh]);
 
   useEffect(() => {
     if (!area || mapLoaded || mapError) return;
@@ -242,7 +284,7 @@ export default function MapScreen() {
           <GeoJSONSource
             ref={placeSource}
             id="places"
-            data={places}
+            data={mapPlaces}
             cluster
             clusterRadius={42}
             clusterMaxZoom={15}
@@ -276,7 +318,7 @@ export default function MapScreen() {
               type="circle"
               filter={["has", "point_count"]}
               paint={{
-                "circle-radius": 20,
+                "circle-radius": 24,
                 "circle-color": "#1D5B3A",
                 "circle-stroke-color": "#F4F5F0",
                 "circle-stroke-width": 3,
@@ -287,9 +329,13 @@ export default function MapScreen() {
               type="symbol"
               filter={["has", "point_count"]}
               layout={{
-                "text-field": ["get", "point_count_abbreviated"],
+                "text-field": [
+                  "concat",
+                  ["to-string", ["get", "point_count_abbreviated"]],
+                  "\nplaces",
+                ],
                 "text-font": ["Noto Sans Regular"],
-                "text-size": 13,
+                "text-size": 11,
               }}
               paint={{ "text-color": "#FFFFFF" }}
             />
@@ -301,8 +347,8 @@ export default function MapScreen() {
                 "circle-radius": [
                   "case",
                   ["==", ["get", "id"], selected?.properties.id ?? ""],
-                  12,
-                  9,
+                  16,
+                  13,
                 ],
                 "circle-color": [
                   "case",
@@ -313,6 +359,20 @@ export default function MapScreen() {
                 "circle-stroke-color": "#FFFFFF",
                 "circle-stroke-width": 3,
               }}
+            />
+            <Layer
+              id="event-counts"
+              type="symbol"
+              filter={["!", ["has", "point_count"]]}
+              layout={{
+                "text-field":
+                  loadingPlaces || placesError
+                    ? "…"
+                    : ["to-string", ["get", "event_count"]],
+                "text-font": ["Noto Sans Regular"],
+                "text-size": 12,
+              }}
+              paint={{ "text-color": "#FFFFFF" }}
             />
             <Layer
               id="ground-labels"
@@ -339,7 +399,29 @@ export default function MapScreen() {
       <View style={styles.header}>
         <Text style={styles.kicker}>CAMPUS PICKUP</Text>
         <Text style={styles.title}>{area?.name ?? "LUMS"}</Text>
-        <Text style={styles.subtitle}>Find your ground. Bring your game.</Text>
+        <Text style={styles.subtitle}>Find a place. See what’s happening.</Text>
+        <View style={styles.filters}>
+          {(["", "football", "cricket"] as const).map((type) => (
+            <Pressable
+              key={type}
+              accessibilityRole="button"
+              accessibilityState={{ selected: eventType === type }}
+              onPress={() => {
+                setEventType(type);
+              }}
+              style={[styles.filter, eventType === type && styles.activeFilter]}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  eventType === type && styles.activeFilterText,
+                ]}
+              >
+                {type ? type[0].toUpperCase() + type.slice(1) : "All"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
       <Pressable
         accessibilityRole="button"
@@ -381,7 +463,7 @@ export default function MapScreen() {
               ? "Loading campus…"
               : !mapLoaded
                 ? "Loading map…"
-                : "Loading places…"}
+                : "Loading places and events…"}
           </Text>
         </View>
       ) : null}
@@ -401,9 +483,77 @@ export default function MapScreen() {
             </Pressable>
           </View>
           <Text style={styles.placeName}>{selected.properties.name}</Text>
-          <Text style={styles.body}>
-            Ground details are ready. Games are coming next.
-          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setCreatedAtPlace(null);
+              setCreationPlace({
+                id: selected.properties.id,
+                name: selected.properties.name,
+              });
+            }}
+            style={styles.createButton}
+          >
+            <Text style={styles.createText}>+ Create event here</Text>
+          </Pressable>
+          {createdAtPlace === selected.properties.id && (
+            <Text style={styles.body}>
+              Event created. You’re on the participant list.
+            </Text>
+          )}
+          <ScrollView style={styles.eventList}>
+            {loadingPlaces ? (
+              <Text style={styles.body}>Loading upcoming events…</Text>
+            ) : placesError ? (
+              <Text style={styles.body}>
+                Events unavailable. Use Try again above.
+              </Text>
+            ) : (
+              <>
+                <Text style={styles.body}>
+                  {events.place_counts[selected.properties.id] ?? 0} upcoming
+                  events
+                </Text>
+                {placeEvents.map((event) => (
+                  <Pressable
+                    key={event.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${event.title}`}
+                    onPress={() => setEventID(event.id)}
+                    style={styles.eventCard}
+                  >
+                    <Text style={styles.eventTitle}>{event.title}</Text>
+                    <Text style={styles.body}>
+                      {new Date(event.starts_at).toLocaleString([], {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                    <Text style={styles.source}>
+                      {event.type.toUpperCase()} · {event.participant_count}/
+                      {event.capacity} going ·{" "}
+                      {event.is_full
+                        ? "Full"
+                        : `${event.available_spots} spots left`}
+                    </Text>
+                  </Pressable>
+                ))}
+                {!placeEvents.length && !events.truncated && (
+                  <Text style={styles.body}>
+                    No upcoming {eventType || ""} events here yet.
+                  </Text>
+                )}
+                {events.truncated && (
+                  <Text style={styles.body}>
+                    Zoom in to load all events at this place.
+                  </Text>
+                )}
+              </>
+            )}
+          </ScrollView>
           <Text style={styles.source}>
             Community-mapped location · OpenStreetMap
           </Text>
@@ -416,20 +566,54 @@ export default function MapScreen() {
         !mapError ? (
         <View style={styles.hint}>
           <Text style={styles.body}>
-            {places.truncated
-              ? "Zoom in to see all places."
+            {places.truncated || events.truncated
+              ? "Zoom in to see all places and events."
               : places.features.length
-                ? "Tap a ground or court to explore."
+                ? events.events.length
+                  ? "Zoom into clusters. Place markers show event counts."
+                  : "No upcoming events in this view. Tap a place to explore."
                 : "No places mapped in this view yet."}
           </Text>
         </View>
       ) : null}
+      {eventID && (
+        <EventDetails
+          key={eventID}
+          id={eventID}
+          apiURL={apiURL}
+          onClose={() => setEventID(null)}
+          onEventChanged={() => setEventRefresh((value) => value + 1)}
+        />
+      )}
+      {creationPlace && (
+        <CreateEventForm
+          place={creationPlace}
+          apiURL={apiURL}
+          onClose={() => {
+            setCreationPlace(null);
+            setEventRefresh((value) => value + 1);
+          }}
+          onCreated={() => {
+            setCreatedAtPlace(creationPlace.id);
+            setCreationPlace(null);
+            setEventType("");
+            setEventRefresh((value) => value + 1);
+          }}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#F4F5F0" },
+  createButton: {
+    backgroundColor: "#1D5B3A",
+    borderRadius: 18,
+    padding: 14,
+    alignItems: "center",
+  },
+  createText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
   header: {
     position: "absolute",
     top: 62,
@@ -452,10 +636,28 @@ const styles = StyleSheet.create({
     color: "#15201B",
   },
   subtitle: { fontSize: 13, color: "#6C786E" },
+  filters: { flexDirection: "row", gap: 6, marginTop: 12 },
+  filter: {
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 18,
+    backgroundColor: "#E5E9DF",
+  },
+  activeFilter: { backgroundColor: "#1D5B3A" },
+  filterText: { color: "#1D5B3A", fontWeight: "700", fontSize: 12 },
+  activeFilterText: { color: "#FFFFFF" },
+  eventList: { maxHeight: 240 },
+  eventCard: {
+    paddingVertical: 14,
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#DEE3D8",
+  },
+  eventTitle: { fontSize: 18, color: "#15201B", fontWeight: "700" },
   recentre: {
     position: "absolute",
     right: 16,
-    top: 210,
+    top: 245,
     backgroundColor: "#F4F5F0",
     padding: 14,
     borderRadius: 24,
@@ -463,7 +665,7 @@ const styles = StyleSheet.create({
   buttonText: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
   loading: {
     position: "absolute",
-    top: 270,
+    top: 310,
     alignSelf: "center",
     flexDirection: "row",
     gap: 10,
@@ -473,7 +675,7 @@ const styles = StyleSheet.create({
   },
   status: {
     position: "absolute",
-    top: 270,
+    top: 310,
     left: 16,
     right: 16,
     padding: 18,

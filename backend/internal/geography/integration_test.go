@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"joinme/backend/internal/database"
 	"joinme/backend/migrations"
@@ -52,8 +53,90 @@ func TestPostGISMapFlow(t *testing.T) {
 		t.Fatalf("second migration run: %v", err)
 	}
 	var versions int
-	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 5 {
+	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 7 {
 		t.Fatalf("migration count %d: %v", versions, err)
+	}
+
+	t.Run("events and repeatable demo data", func(t *testing.T) {
+		seed, err := os.ReadFile("../../seeds/demo.sql")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for range 2 {
+			if _, err = pool.Exec(ctx, string(seed)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var users, events, participants, statuses int
+		err = pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM users), (SELECT count(*) FROM events),
+            (SELECT count(*) FROM event_participants), (SELECT count(*) FROM status)`).Scan(&users, &events, &participants, &statuses)
+		if err != nil || users != 6 || events != 5 || participants != 11 || statuses != 3 {
+			t.Fatalf("demo counts: users=%d events=%d participants=%d statuses=%d: %v", users, events, participants, statuses, err)
+		}
+		var full bool
+		err = pool.QueryRow(ctx, `SELECT count(*)=events.capacity FROM event_participants
+            JOIN events ON events.id=event_id WHERE events.id='30000000-0000-4000-8000-000000000002'
+            GROUP BY events.capacity`).Scan(&full)
+		if err != nil || !full {
+			t.Fatalf("full demo event: %v", err)
+		}
+		var hostID, placeID, statusID pgtype.UUID
+		err = pool.QueryRow(ctx, `SELECT host_id,place_id,status_id FROM events
+            WHERE id='30000000-0000-4000-8000-000000000001'`).Scan(&hostID, &placeID, &statusID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		params := database.CreateEventParams{
+			HostID: hostID, PlaceID: placeID, StatusID: statusID, Title: "Test event",
+			Type: database.EventTypeFootball, StartsAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true}, Capacity: 1,
+		}
+		event, err := database.New(pool).CreateEvent(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var hostJoined bool
+		err = pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM event_participants WHERE event_id=$1 AND user_id=$2)`, event.ID, hostID).Scan(&hostJoined)
+		if err != nil || !hostJoined || !event.CreatedAt.Time.Equal(event.UpdatedAt.Time) {
+			t.Fatalf("atomic event and host creation: %v", err)
+		}
+		for _, check := range []struct{ statement, code string }{
+			{`INSERT INTO event_participants(event_id,user_id) SELECT event_id,user_id FROM event_participants LIMIT 1`, "23505"},
+			{`INSERT INTO status(statusable_type,name,slug) VALUES ('event','Duplicate','scheduled')`, "23505"},
+			{`UPDATE events SET capacity=0`, "23514"},
+			{`UPDATE events SET title=' '`, "23514"},
+			{`UPDATE events SET type='unknown'`, "22P02"},
+			{`UPDATE status SET statusable_type='unknown'`, "22P02"},
+			{`UPDATE events SET status_id='ffffffff-ffff-4fff-8fff-ffffffffffff'`, "23503"},
+		} {
+			_, err = pool.Exec(ctx, check.statement)
+			var postgresError *pgconn.PgError
+			if !errors.As(err, &postgresError) || postgresError.Code != check.code {
+				t.Fatalf("expected %s for %s: %v", check.code, check.statement, err)
+			}
+		}
+	})
+
+	// Users need only a name; UUIDs and timestamps are database-owned defaults.
+	var userID string
+	var userCreated, userUpdated time.Time
+	err = pool.QueryRow(ctx, `INSERT INTO users(display_name,created_at,updated_at)
+        VALUES ('Ali','2000-01-01','2000-01-01') RETURNING id,created_at,updated_at`).Scan(&userID, &userCreated, &userUpdated)
+	if err != nil || userID == "" || userCreated.Year() == 2000 || !userCreated.Equal(userUpdated) {
+		t.Fatalf("minimal user insert: %v", err)
+	}
+	var userCreatedAfter, userUpdatedAfter time.Time
+	err = pool.QueryRow(ctx, `UPDATE users SET display_name='Ahmed',created_at='2000-01-01',updated_at='2000-01-01'
+        WHERE id=$1 RETURNING created_at,updated_at`, userID).Scan(&userCreatedAfter, &userUpdatedAfter)
+	if err != nil || !userCreatedAfter.Equal(userCreated) || !userUpdatedAfter.After(userUpdated) {
+		t.Fatalf("user timestamp ownership: %v", err)
+	}
+	for _, statement := range []string{
+		`INSERT INTO users(display_name) VALUES ('   ')`,
+		`INSERT INTO users DEFAULT VALUES`,
+	} {
+		if _, err = pool.Exec(ctx, statement); err == nil {
+			t.Fatal("user without a nonblank name was accepted")
+		}
 	}
 
 	// Invalid categories must fail as PostgreSQL enum input, not a text CHECK.
