@@ -1,0 +1,4 @@
+# local secrets: never commit API keys
+labs/**/config.local.js
+.env
+.env.*
