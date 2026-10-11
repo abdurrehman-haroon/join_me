@@ -13,7 +13,7 @@ This is the durable checklist for feature discussions, implementation, and compa
 - Track frontend and backend separately: unassessed, missing, partial/fixture, implemented, verified, or not applicable. A simulated success or fixture screen is not a connected feature.
 - Completion requires agreed behavior, frontend verification, and backend/access checks where applicable. Link evidence when marking verified.
 
-Initial status: all rows are **unassessed individually**. The native app has partial fixture screens; visual parity is incomplete. The backend exposes only a health endpoint, with no connected product services. See [handoff.md](handoff.md) for the current aggregate implementation state. The table records prototype behavior, not a claim that it ships today.
+Baseline status: rows were initially **unassessed individually**. Current map progress is recorded below; the other native screens remain partial fixture previews, with full prototype parity deferred. See [handoff.md](handoff.md) for the current aggregate implementation state. The table records prototype behavior, not a claim that it ships today.
 
 ## Feature baseline
 
@@ -81,8 +81,14 @@ For each feature discussion, record: ID, agreed user flow, business/access rules
 
 ## Prototype comparison log
 
+2026-10-11 geographic schema approved: areas/places use `type`, not `kind`; optional boundaries, required place point, optional area parent, and automatic timestamps. Games reference places. Frontend mechanics pending.
+
 2026-10-11 map decision (F02/F08/F09/F39): use a real geographic map with MapLibre for the starting slice. Illustrated 3D parity is deferred. Areas/places schema and frontend mechanics remain proposals; tile provider is not yet approved.
 
 | Date | Reference | Result |
 | --- | --- | --- |
 | 2026-10-11 | v6, hash above | Initial 45-feature baseline; no newer prototype compared yet. |
+
+## Implementation progress
+
+2026-10-11: OpenFreeMap approved. F02/F07 have an initial real native MapLibre map with free pan/zoom and campus recentre (illustrated 3D parity deferred). F08/F39 have areas/places persistence, public viewport queries, six community-mapped LUMS sports places, clustering, campus outlines and place selection/details; broader area navigation is pending. All application tables have automatic timestamps. iOS simulator build and screenshot verified; real-device gesture review remains. F10 onward game services are not connected; do not mark prototype features complete based on this map foundation.

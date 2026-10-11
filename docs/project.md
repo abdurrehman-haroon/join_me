@@ -1,42 +1,33 @@
 # Campus Pickup: shared context
 
-## Goal
+## Goal and starting scope
 
-Help students at LUMS organise pickup football and tape-ball cricket games. The first question is whether games organised in the app actually get played. Expand to other campuses only after the first campus works.
+Help students at LUMS organise pickup football and tape-ball cricket games, then expand outwards. Start without sign-in or campus verification, with a basic profile and the slim pickup flow in `plan.md`. Guest sessions are deferred; ownership for future game mutations remains undecided.
 
-## First release
+For each feature, discuss schema with the user, then frontend mechanics, then implement. Work on `main`, uncommitted and unpushed.
 
-Current starting scope: LUMS only, basic profile, and no sign-in for now. Build the pickup flow first; see `docs/plan.md` for the updated scope. Discuss schema, then frontend mechanics with the user before implementation. Earlier verification and all-v6 fidelity goals below are deferred for this starting slice.
+## Agreed map direction
 
-Campus verification; create and discover game pins; join and leave a capacity-limited roster; live roster and pin chat; reports; three useful notifications. Pins represent grounds, never live user locations.
+Use a real geographic map with MapLibre and OpenFreeMap tiles. This supersedes the immediate illustrated-v6 fidelity milestone. Preserve Floodlight colors/type and keep sample-data previews distinct from connected features. Full prototype coverage remains in `feature-inventory.md`; fidelity references remain in `v6-fidelity-plan.md`.
 
-## Target stack
+The map opens at LUMS, pans/zooms freely, loads viewport places after movement settles, clusters nearby points, opens a place-details sheet and outline on selection, and recentres on the initial campus. Empty/loading/error/retry states are required. Games follow separately.
 
-- `backend/`: Go with chi for HTTP and gorilla/websocket for live updates; pgx/sqlc with PostgreSQL and PostGIS for durable and geographic data; Redis for presence and rate limits when those features arrive.
-- `frontend/`: Expo, React Native and TypeScript. Native screens and an SVG campus illustration are being built against the v6 HTML prototype reference. MapLibre is planned for the eventual geographic layer and will be installed when that work starts. The app will call the API over HTTPS and an authenticated WebSocket for live updates.
-- FCM for push notifications; Fly.io for API deployment. The database will be managed separately.
-- `openapi.yaml`: source of truth for HTTP request and response shapes.
-- `backend/migrations/`: numbered, forward-only database schema changes. Applied versions must be tracked; fixes go in a new migration.
+## Stack and data rules
 
-These are target choices. The Go health endpoint and native Expo UI exist. An earlier MapLibre sample map was removed because it did not match the v6 design. The current native UI uses sample data and is not connected to the backend.
-
-## Design
-
-Reproduce the phone UI in `design/prototype/index.html` screen by screen, including Floodlight visuals, gestures, movement, and visible interactions. `docs/v6-fidelity-plan.md` defines the parity process. `docs/plan.md` controls the staged release of real services.
+- Go HTTP API, pgx/sqlc, PostgreSQL/PostGIS. Existing `net/http` routing is retained for this small read-only slice; chi/WebSocket, Redis and FCM remain target choices when needed.
+- Expo SDK 57, React Native, TypeScript, native MapLibre. OpenFreeMap serves background tiles directly; our API serves our places.
+- `openapi.yaml` defines the HTTP contract.
+- Numbered forward-only migrations run once, with checksums and applied-version tracking. Never modify applied files.
+- Every application table has database-owned `created_at` and `updated_at`. Inserts set both; updates preserve creation time and refresh update time. PostGIS extension metadata is excluded.
+- `areas`: optional parent, name, `type` as the PostgreSQL `area_type` enum (city/district/campus), optional boundary.
+- `places`: area, name, `type` as the PostgreSQL `place_type` enum (ground/court/cafe/park), required WGS84 point, optional boundary. Games will reference places when their schema is agreed.
 
 ## Current state
 
-The Go API serves `GET /healthz`. Expo now opens React Native tabs, game cards, create/details sheets, chat, Game Day, and a profile. The SVG campus scene and several interactions are still approximations of v6, so 1:1 parity is not achieved. All game data is local fixture state. Ground outlines, verified venue coordinates, and hosted tiles are pending. Database tables exist as a migration, but the API does not connect to PostgreSQL yet. No auth, real games, or server chat is implemented.
+The API connects to PostGIS and serves health, area details, and bounded viewport places. New migrations add geography and timestamp management to existing tables, plus community-mapped LUMS data from OpenStreetMap. Native MapLibre loads OpenFreeMap Liberty tiles and displays the campus and sports places. Initial data is not campus-verified. Other tabs remain fixture previews; no real games, auth, profiles, chat, reports or push is implemented.
 
-## Open decisions
+## Next decisions
 
-- User approved a real geographic map rendered with MapLibre for the starting slice, replacing illustrated-campus parity as the immediate map goal. OpenFreeMap is proposed as the initial tile provider, not explicitly approved. Geographic schema is the next discussion before frontend mechanics and implementation. Guest sessions are deferred; identity ownership remains unresolved.
-- Every table must have database-managed `created_at` and `updated_at` timestamps. Set both on insert; automatically update `updated_at` on row updates while preserving `created_at`. Exact migration implementation is pending schema discussion.
+Review map behavior and confirm campus names/locations. Discuss the games/profile ownership schema, then frontend mechanics. Confirm pilot access before a student rollout. Deployment accounts/domains and future verified-access rules remain undecided.
 
-- Confirm the approved LUMS email domain and pilot access.
-- Exact visibility rules for the first release.
-- Deployment accounts and domains.
-
-Use `docs/plan.md` for sequence and `docs/handoff.md` for the latest handoff.
-
-`docs/feature-inventory.md` records the 45-feature v6 baseline with stable IDs for feature discussions and future prototype comparisons.
+See `plan.md` for scope, `handoff.md` for verification and runtime details, and `feature-inventory.md` for the stable 45-feature v6 baseline.

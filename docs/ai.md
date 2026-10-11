@@ -7,11 +7,13 @@
 
 Code quality, always: favor readable, explicit, domain-named code with the main flow visible. Avoid needless layers, helpers, hooks, interfaces, and unrelated refactors. Keep validation, authorization, errors, concurrency, SQL, and coordinates easy to trace; test behavior and review the diff for readability.
 
-For UI work, treat `design/prototype/index.html` v6 as the acceptance reference for all phone screens, interactions, and movement. Follow `docs/v6-fidelity-plan.md`; do not substitute an approximate MapLibre or generic React Native screen. Keep simulated prototype behavior distinct from connected production behavior.
+Current user-approved starting scope in `docs/plan.md` supersedes the earlier all-v6 fidelity milestone: use a real MapLibre map with OpenFreeMap tiles and build the slim LUMS pickup flow first. Preserve Floodlight styling; keep simulated prototype behavior distinct from connected production behavior. Discuss schema with the user, then frontend mechanics, before implementing each feature. `design/prototype/index.html` and `docs/v6-fidelity-plan.md` remain references for deferred features.
 
 Before writing or reviewing code, read all of `docs/code-practice.md` and apply it. Documentation-only tasks can use the summary above.
 
-Database schema changes use numbered, forward-only `*.up.sql` migrations. Apply each migration once and track applied versions; never edit an applied migration or add a down migration. Correct mistakes with a new migration.
+Database schema changes use numbered, forward-only `*.up.sql` migrations. Apply each migration once and track applied versions; never edit an applied migration or add a down migration. Correct mistakes with a new migration. Every application table must have database-managed `created_at` and `updated_at`: set both on insertion, preserve `created_at` on updates, and refresh `updated_at` automatically.
+
+Use PostgreSQL enums for fields with a fixed set of values, including type and status; never model these as text columns (even with CHECK constraints). Generate matching Go types with sqlc.
 
 Never commit or push automatically. Leave all work uncommitted and unpushed for user review. Only commit or push when the user explicitly requests that specific action after reviewing; do not infer approval from earlier actions or broad access.
 

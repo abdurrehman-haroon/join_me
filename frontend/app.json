@@ -17,7 +17,8 @@
             "enableSceneSupport": true
           }
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ]
   }
 }

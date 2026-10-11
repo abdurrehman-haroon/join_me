@@ -20,3 +20,127 @@ paths:
                   status:
                     type: string
                     enum: [ok]
+  /areas/{id}:
+    get:
+      summary: Load an area and its optional map boundary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Area; bbox is west,south,east,north derived from its outline or directly attached places, or null when neither exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Area' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: Area not found
+          content:
+            text/plain:
+              schema: { type: string }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /places:
+    get:
+      summary: Load mapped places in the visible viewport
+      description: Public read-only endpoint. Returns at most 1000 places ordered by ID. If truncated is true, zoom in. Antimeridian-crossing bounds are not supported in this first slice.
+      parameters:
+        - name: bbox
+          in: query
+          required: true
+          description: Four finite numbers in west,south,east,north order. Longitude within -180..180, latitude within -90..90; west must be less than east and south less than north.
+          schema: { type: string, example: '74.40,31.46,74.42,31.48' }
+      responses:
+        '200':
+          description: GeoJSON points with place metadata and optional outlines
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Places' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+components:
+  responses:
+    BadRequest:
+      description: Invalid ID or bounds
+      content:
+        text/plain:
+          schema: { type: string }
+    ServerError:
+      description: Database request failed
+      content:
+        text/plain:
+          schema: { type: string }
+  schemas:
+    Boundary:
+      type: object
+      nullable: true
+      description: GeoJSON MultiPolygon in WGS84; positions use longitude,latitude order.
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [MultiPolygon] }
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number }
+    Area:
+      type: object
+      required: [id, parent_id, name, type, boundary, bbox, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        parent_id: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        type: { type: string, enum: [city, district, campus] }
+        boundary: { $ref: '#/components/schemas/Boundary' }
+        bbox:
+          type: array
+          nullable: true
+          minItems: 4
+          maxItems: 4
+          items: { type: number }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }
+    Place:
+      type: object
+      required: [type, id, geometry, properties]
+      properties:
+        type: { type: string, enum: [Feature] }
+        id: { type: string, format: uuid }
+        geometry:
+          type: object
+          required: [type, coordinates]
+          properties:
+            type: { type: string, enum: [Point] }
+            coordinates:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items: { type: number }
+        properties:
+          type: object
+          required: [id, area_id, name, type, boundary, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            area_id: { type: string, format: uuid }
+            name: { type: string }
+            type: { type: string, enum: [ground, court, cafe, park] }
+            boundary: { $ref: '#/components/schemas/Boundary' }
+            created_at: { type: string, format: date-time, readOnly: true }
+            updated_at: { type: string, format: date-time, readOnly: true }
+    Places:
+      type: object
+      required: [type, features, truncated]
+      properties:
+        type: { type: string, enum: [FeatureCollection] }
+        truncated: { type: boolean }
+        features:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/Place' }

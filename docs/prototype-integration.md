@@ -1,5 +1,7 @@
 # Floodlight v6: integration plan
 
+Historical rollout reference: the 2026-10-11 slim scope in `plan.md` now takes priority, with no sign-in and a real MapLibre/OpenFreeMap map first. The full feature inventory remains in `feature-inventory.md`.
+
 Reference: `design/README.md`, `design/docs/conversation-log.md`, `design/docs/build-plan-v1.md`, `design/research/`, and `design/prototype/index.html`. The prototype is a standalone HTML/Three.js demonstration with local sample data. `docs/v6-fidelity-plan.md` now controls the UI milestone: all v6 phone screens and interactions must match the prototype. The release column below describes when real backend behavior ships, not when a screen is built. `docs/plan.md` controls release scope.
 
 ## What v6 demonstrates
