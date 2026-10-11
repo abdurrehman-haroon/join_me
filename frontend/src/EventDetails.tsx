@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 
+import EventChat from "./EventChat";
+
 type Person = { id: string; display_name: string };
 export type EventSummary = {
   id: string;
@@ -44,6 +46,7 @@ export default function EventDetails({
   closeLabel?: string;
   onEventChanged: () => void;
 }) {
+  const [chatOpen, setChatOpen] = useState(false);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -134,7 +137,10 @@ export default function EventDetails({
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={() => {
-        if (!pending.current) onClose();
+        if (!pending.current) {
+          setChatOpen(false);
+          onClose();
+        }
       }}
     >
       <View style={styles.root}>
@@ -142,7 +148,10 @@ export default function EventDetails({
           <Text style={styles.kicker}>EVENT DETAILS</Text>
           <Pressable
             accessibilityRole="button"
-            onPress={onClose}
+            onPress={() => {
+              setChatOpen(false);
+              onClose();
+            }}
             disabled={mutating}
             style={styles.button}
           >
@@ -280,6 +289,15 @@ export default function EventDetails({
                 )}
               </Pressable>
             )}
+            {event.viewer.is_participant && (
+              <Pressable
+                accessibilityRole="button"
+                style={styles.participation}
+                onPress={() => setChatOpen(true)}
+              >
+                <Text style={styles.participationText}>Open event chat</Text>
+              </Pressable>
+            )}
             <Text style={styles.kicker}>PARTICIPANTS · INCLUDING HOST</Text>
             {event.participants.length ? (
               event.participants.map((person) => (
@@ -297,6 +315,16 @@ export default function EventDetails({
             <ActivityIndicator color="#1D5B3A" />
             <Text style={styles.body}>Loading event…</Text>
           </View>
+        )}
+        {event?.id === id && event.viewer.is_participant && (
+          <EventChat
+            key={event.id}
+            eventID={event.id}
+            title={event.title}
+            apiURL={apiURL}
+            visible={chatOpen}
+            onClose={() => setChatOpen(false)}
+          />
         )}
       </View>
     </Modal>

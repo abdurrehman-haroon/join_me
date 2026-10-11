@@ -1,0 +1,416 @@
+import { uuid } from "expo-modules-core";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  AppState,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+type Message = {
+  id: string;
+  user_id: string;
+  body: string;
+  display_name: string;
+  created_at: string;
+  cursor: string;
+};
+type Page = {
+  messages: Message[];
+  has_more: boolean;
+  can_send: boolean;
+  viewer_id: string;
+};
+type PendingMessage = { id: string; body: string; state: "sending" | "failed" };
+
+export default function EventChat({
+  eventID,
+  title,
+  apiURL,
+  visible,
+  onClose,
+}: {
+  eventID: string;
+  title: string;
+  apiURL: string;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [pending, setPending] = useState<PendingMessage[]>([]);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [canSend, setCanSend] = useState(false);
+  const [viewer, setViewer] = useState("");
+  const [denied, setDenied] = useState(false);
+  const [newMessages, setNewMessages] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const newest = useRef("");
+  const oldest = useRef("");
+  const nearBottom = useRef(true);
+  const list = useRef<FlatList<Message | PendingMessage>>(null);
+  const sending = useRef(new Set<string>());
+  const loadOlder = useRef<(() => Promise<void>) | null>(null);
+  const sendControllers = useRef(new Set<AbortController>());
+  useEffect(
+    () => () =>
+      sendControllers.current.forEach((controller) => controller.abort()),
+    [],
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    let fetching = false;
+    let controller: AbortController | null = null;
+    async function load(older = false) {
+      if (fetching || AppState.currentState !== "active") return;
+      fetching = true;
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller?.abort(), 12000);
+      try {
+        const cursor = older ? oldest.current : newest.current;
+        const query = cursor
+          ? `?${older ? "before" : "after"}=${encodeURIComponent(cursor)}`
+          : "";
+        const response = await fetch(
+          `${apiURL}/events/${eventID}/messages${query}`,
+          { signal: controller.signal },
+        );
+        if (!active) return;
+        if (response.status === 403 || response.status === 404) {
+          setMessages([]);
+          setCanSend(false);
+          setDenied(true);
+          newest.current = "";
+          oldest.current = "";
+          setHasOlder(false);
+          setError("You no longer have access to this chat.");
+          return;
+        }
+        if (!response.ok) throw new Error("Could not load messages");
+        const page: Page = await response.json();
+        if (!active) return;
+        setDenied(false);
+        setCanSend(page.can_send);
+        setViewer(page.viewer_id);
+        setError("");
+        setMessages((current) => {
+          const incomingIDs = new Set(
+            page.messages.map((message) => message.id),
+          );
+          const retained = current.filter(
+            (message) => !incomingIDs.has(message.id),
+          );
+          const incoming = page.messages.slice().reverse();
+          return older
+            ? [...retained, ...incoming]
+            : [...incoming, ...retained];
+        });
+        setPending((current) =>
+          current.filter(
+            (message) =>
+              !page.messages.some((saved) => saved.id === message.id),
+          ),
+        );
+        if (older || !cursor) {
+          setHasOlder(page.has_more);
+          if (page.messages.length) oldest.current = page.messages[0].cursor;
+        }
+        if (!older && page.messages.length) {
+          newest.current = page.messages[page.messages.length - 1].cursor;
+          if (!nearBottom.current) setNewMessages(true);
+        }
+        // Catch up all pages after a long background period before normal polling.
+        if (!older && cursor && page.has_more)
+          setTimeout(() => {
+            if (active) void load();
+          }, 0);
+      } catch {
+        if (active)
+          setError("Could not refresh chat. Check your connection and retry.");
+      } finally {
+        clearTimeout(timeout);
+        fetching = false;
+        if (active) setLoading(false);
+      }
+    }
+    loadOlder.current = () => load(true);
+    void load();
+    const timer = setInterval(() => void load(), 4000);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void load();
+      else controller?.abort();
+    });
+    return () => {
+      active = false;
+      clearInterval(timer);
+      subscription.remove();
+      controller?.abort();
+      loadOlder.current = null;
+    };
+  }, [eventID, apiURL, visible, retry]);
+
+  async function send(message: PendingMessage) {
+    if (sending.current.has(message.id) || !canSend || denied) return;
+    sending.current.add(message.id);
+    setPending((current) => [
+      ...current.filter((item) => item.id !== message.id),
+      { ...message, state: "sending" },
+    ]);
+    const controller = new AbortController();
+    sendControllers.current.add(controller);
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(`${apiURL}/events/${eventID}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: message.id, body: message.body }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        if (response.status === 403) {
+          setDenied(true);
+          setMessages([]);
+          setCanSend(false);
+          newest.current = "";
+          oldest.current = "";
+          setHasOlder(false);
+        }
+        if (response.status === 409) setRetry((value) => value + 1);
+        throw new Error((await response.text()).trim());
+      }
+      setRetry((value) => value + 1);
+    } catch (failure) {
+      setPending((current) =>
+        current.map((item) =>
+          item.id === message.id ? { ...item, state: "failed" } : item,
+        ),
+      );
+      setError(
+        failure instanceof Error && failure.message !== "Aborted"
+          ? failure.message
+          : "Could not confirm sending. Tap Retry on the message.",
+      );
+    } finally {
+      clearTimeout(timeout);
+      sendControllers.current.delete(controller);
+      sending.current.delete(message.id);
+    }
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.kicker}>EVENT CHAT</Text>
+            <Text numberOfLines={1} style={styles.title}>
+              {title}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClose}
+            style={styles.button}
+          >
+            <Text style={styles.action}>Back</Text>
+          </Pressable>
+        </View>
+        {!!error && (
+          <View style={styles.notice}>
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
+            </Text>
+            {!denied && (
+              <Pressable
+                onPress={() => setRetry((value) => value + 1)}
+                style={styles.button}
+              >
+                <Text style={styles.action}>Retry refresh</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+        {loading ? (
+          <ActivityIndicator style={{ flex: 1 }} color="#1D5B3A" />
+        ) : (
+          <FlatList<Message | PendingMessage>
+            ref={list}
+            inverted
+            data={[...pending.slice().reverse(), ...messages]}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 20, flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 80,
+            }}
+            onScroll={(event) => {
+              nearBottom.current = event.nativeEvent.contentOffset.y < 80;
+              if (nearBottom.current) setNewMessages(false);
+            }}
+            scrollEventThrottle={100}
+            ListHeaderComponent={null}
+            ListEmptyComponent={
+              <Text style={styles.notice}>
+                No messages yet. Say hello to your group.
+              </Text>
+            }
+            ListFooterComponent={
+              hasOlder ? (
+                <Pressable
+                  style={styles.button}
+                  onPress={() => void loadOlder.current?.()}
+                >
+                  <Text style={styles.action}>Load older messages</Text>
+                </Pressable>
+              ) : null
+            }
+            renderItem={({ item }) => {
+              const saved = "created_at" in item;
+              const own = !saved || item.user_id === viewer;
+              return (
+                <View style={[styles.bubble, own && styles.own]}>
+                  <Text style={styles.meta}>
+                    {own ? "You" : item.display_name}
+                  </Text>
+                  <Text style={styles.body}>{item.body}</Text>
+                  {saved ? (
+                    <Text style={styles.meta}>
+                      {new Date(item.created_at).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  ) : item.state === "sending" ? (
+                    <Text style={styles.meta}>Sending…</Text>
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => void send(item)}
+                    >
+                      <Text style={styles.error}>Failed · Retry</Text>
+                    </Pressable>
+                  )}
+                </View>
+              );
+            }}
+          />
+        )}
+        {!canSend && !loading && (viewer !== "" || denied) && (
+          <Text style={styles.notice}>
+            {denied
+              ? "Join the event to access chat."
+              : "This event’s chat is read-only."}
+          </Text>
+        )}
+        {newMessages && (
+          <Pressable
+            style={styles.button}
+            onPress={() => {
+              list.current?.scrollToOffset({ offset: 0, animated: true });
+              setNewMessages(false);
+            }}
+          >
+            <Text style={styles.action}>New messages ↓</Text>
+          </Pressable>
+        )}
+        {canSend && !denied && (
+          <View style={styles.composer}>
+            <TextInput
+              accessibilityLabel="Message"
+              placeholder="Message your group…"
+              multiline
+              maxLength={2000}
+              value={draft}
+              onChangeText={setDraft}
+              style={styles.input}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={!draft.trim()}
+              style={styles.button}
+              onPress={() => {
+                const body = draft.trim();
+                if (!body) return;
+                setDraft("");
+                void send({ id: uuid.v4(), body, state: "sending" });
+              }}
+            >
+              <Text style={styles.action}>Send</Text>
+            </Pressable>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#F4F5F0", paddingTop: 24 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 22,
+    gap: 16,
+  },
+  kicker: {
+    color: "#1D5B3A",
+    fontWeight: "800",
+    fontSize: 11,
+    letterSpacing: 1.3,
+  },
+  title: { fontFamily: "BigShoulders", fontSize: 30, color: "#15201B" },
+  button: { padding: 14 },
+  action: { color: "#1D5B3A", fontWeight: "700" },
+  notice: { paddingHorizontal: 22, paddingVertical: 10, color: "#6C786E" },
+  error: { color: "#B51E2C" },
+  bubble: {
+    backgroundColor: "#E5E9DF",
+    borderRadius: 18,
+    padding: 14,
+    marginVertical: 5,
+    maxWidth: "85%",
+    alignSelf: "flex-start",
+    gap: 5,
+  },
+  own: { backgroundColor: "#D2E7D4", alignSelf: "flex-end" },
+  body: { color: "#15201B", fontSize: 16, lineHeight: 22 },
+  meta: { color: "#536658", fontSize: 11 },
+  composer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    padding: 16,
+    paddingBottom: 30,
+    borderTopWidth: 1,
+    borderColor: "#DEE3D8",
+  },
+  input: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 18,
+    padding: 14,
+    maxHeight: 140,
+    color: "#15201B",
+    fontSize: 16,
+  },
+});

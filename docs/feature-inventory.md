@@ -102,3 +102,5 @@ For each feature discussion, record: ID, agreed user flow, business/access rules
 2026-10-11: connected event Join/Leave uses the demo user, serializes capacity changes with event-row locks, prevents duplicate membership/overbooking, protects host participation and refreshes roster/counts after requests. New joins require upcoming Scheduled state; non-host leaves are allowed regardless of status/time. Host cancellation, Your events, push/live synchronization and sign-in remain pending.
 
 - 2026-10-11: Implemented connected Your events (hosted/joined, Upcoming/Past, pagination) and host cancellation with confirmation using existing status/event tables; no schema change. Notifications remain deferred.
+
+- 2026-10-12: F15 participant messaging implemented for the slim event flow: participant-only HTTP history/send, 50-message cursor pages, foreground polling, UUID retry and read-only cancelled/completed history. Expiry/moderation and push remain deferred; leaving removes access but retains messages.

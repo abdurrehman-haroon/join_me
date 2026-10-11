@@ -216,7 +216,6 @@ type Message struct {
 	EventID   pgtype.UUID
 	UserID    pgtype.UUID
 	Body      string
-	SentAt    pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 }

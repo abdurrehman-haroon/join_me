@@ -58,6 +58,8 @@ func main() {
 	mux.HandleFunc("PUT /events/{id}/cancellation", eventHandler.CancelEvent)
 	mux.HandleFunc("POST /events", eventHandler.CreateEvent)
 	mux.HandleFunc("GET /events/{id}", eventHandler.GetEvent)
+	mux.HandleFunc("GET /events/{id}/messages", eventHandler.Messages)
+	mux.HandleFunc("POST /events/{id}/messages", eventHandler.Messages)
 	mux.HandleFunc("PUT /events/{id}/participation", eventHandler.ChangeParticipation)
 	mux.HandleFunc("DELETE /events/{id}/participation", eventHandler.ChangeParticipation)
 

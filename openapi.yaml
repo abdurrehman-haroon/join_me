@@ -245,6 +245,65 @@ paths:
         '409': { description: Host cannot leave their event }
         '503': { description: Demo user unavailable }
         '500': { $ref: '#/components/responses/ServerError' }
+  /events/{id}/messages:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Read participant chat as the configured demo user
+      description: Current participants only, including host. Cancelled/completed history stays readable. Latest 50 by default; before reads older pages, after reads catch-up pages. All pages return oldest first. Use one cursor only. For after, advance using the last message until has_more is false. Leaving removes access but retains history.
+      parameters:
+        - name: before
+          in: query
+          schema: { type: string }
+        - name: after
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Message page and current permission
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messages, has_more, can_send, viewer_id]
+                properties:
+                  messages:
+                    type: array
+                    maxItems: 50
+                    items: { $ref: '#/components/schemas/Message' }
+                  has_more: { type: boolean }
+                  can_send: { type: boolean }
+                  viewer_id: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: Not a current participant }
+        '404': { description: Event not found }
+        '503': { description: Demo identity unavailable }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      summary: Send a message with an idempotent client UUID
+      description: Trimmed 1–2000 Unicode characters. Scheduled events allow sending including after kickoff; cancelled/completed are read-only. Retry the same UUID/body after uncertainty. An identical accepted message succeeds even after cancellation. Changed content/event/author with the same UUID returns 409. Sender/timestamps are server-owned. Shares the event lock with leaving and cancellation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id, body]
+              properties:
+                id: { type: string, format: uuid }
+                body: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '204': { description: Saved or identical retry already saved }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: Not a current participant }
+        '404': { description: Event not found }
+        '409': { description: Chat read-only or UUID already used }
+        '503': { description: Demo identity unavailable }
+        '500': { $ref: '#/components/responses/ServerError' }
 components:
   responses:
     BadRequest:
@@ -258,6 +317,18 @@ components:
         text/plain:
           schema: { type: string }
   schemas:
+    Message:
+      type: object
+      required: [id, event_id, user_id, body, display_name, created_at, updated_at, cursor]
+      properties:
+        id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        body: { type: string }
+        display_name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        cursor: { type: string }
     Boundary:
       type: object
       nullable: true

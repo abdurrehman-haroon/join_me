@@ -1,12 +1,14 @@
 # Handoff
 
-Updated: 2026-10-11
+Updated: 2026-10-12
 
 ## Current direction
 
 LUMS first, no sign-in, basic profile, slim pickup flow. Guest sessions deferred. Required order: schema discussion → frontend mechanics → implementation. User approved areas/places with `type`, automatic timestamps on every application table, a real MapLibre map, and OpenFreeMap tiles. Full illustrated-v6 fidelity is deferred; keep the 45-feature inventory for later.
 
 ## Implemented
+
+- Participant messaging: migration 000008 removes sent_at in favor of created_at while retaining historical send times, adds trimmed 1–2000-character body constraint and event/created_at/id index. Existing timestamp trigger remains in place. GET/POST /events/{id}/messages uses current demo membership and the same event lock as leave/cancel. Latest/older/after pages contain at most 50 messages, timestamps/UUID cursors and can_send. Same UUID/body retries return 204; different content conflicts. Cancelled/completed history is read-only; scheduled chat remains writable after kickoff. Leaving removes access without deleting history. Native event details open chat with own/other bubbles, sender/date/time, keyboard-aware composer, retained in-memory drafts across chat close, sending/failed retry, older pages, foreground 4-second polling/catch-up and new-message jump while reading history. No sign-in, sockets or push added.
 
 - Your events: GET /me/events?section=upcoming|past&offset=0 lists hosted or joined events independently of geography, 50 per page with next_offset. Upcoming scheduled/future ascending; Past cancelled/completed/elapsed descending. Native Your events tab replaces its fixture preview with loading/error/retry/refresh/load-more sections and shared event detail. Refresh on tab entry, app foreground and mutations. PUT /events/{id}/cancellation verifies demo host, locks the participation event row, allows upcoming scheduled events, and changes to existing cancelled status. Idempotent for already cancelled events; preserves roster and timestamps via existing trigger. Host confirmation in details, loading/tap protection and reconciliation; no notifications yet. No migrations.
 
@@ -23,7 +25,7 @@ LUMS first, no sign-in, basic profile, slim pickup flow. Guest sessions deferred
 - Go API connected to PostgreSQL/PostGIS, with health, area detail and viewport-place endpoints defined in `openapi.yaml`. pgx/sqlc queries keep geographic filtering in SQL. No sessions or authentication; creation and participation use the configured demo identity.
 - Embedded forward-only migration runner with advisory locking, version/checksum ledger and modified-file rejection. Existing initial migration is unchanged. Migration 000002 adds areas/places and database-owned timestamps across application tables and ledger; 000003 seeds LUMS and six sports places from OpenStreetMap, with source links and ODbL attribution. Migration 000004 explicitly declares the legacy timestamp columns for sqlc model generation without changing applied migrations. Migration 000005 converts areas.type and places.type to PostgreSQL area_type/place_type enums while preserving existing data; sqlc generates typed Go enums. Fixed-value fields must use database enums going forward.
 - Native MapLibre/OpenFreeMap map replaces the SVG illustration in the map tab. Campus outline, clustered place markers, optional selected-place outline/details, pan/zoom, campus recentre, and loading/empty/error/retry states. Initial campus/API/style are configurable.
-- Other tabs remain labelled sample-data previews. `CampusScene.tsx` is retained but unused by the map tab. Event persistence and demo data exist; event browsing is connected; profile/chat/report/scoring/push remain pending.
+- Other tabs remain labelled sample-data previews. `CampusScene.tsx` is retained but unused by the map tab. Event persistence and demo data exist; event browsing is connected; profile/report/scoring/push remain pending.
 
 ## Verification and runtime
 
@@ -38,8 +40,8 @@ LUMS first, no sign-in, basic profile, slim pickup flow. Guest sessions deferred
 
 ## Next
 
-Repairs were committed in 143210e. The user authorized reconciliation and push to origin/main: the rewritten remote de1febd differs from the previously merged a538073 only in two removed obfuscated payload lines. A merge preserving the repaired local tree reconciles ancestry without force-pushing. Messaging is paused at the user’s request during recovery. Approved messaging design: existing messages table with client UUID/event_id/user_id/body/automatic timestamps, remove sent_at, 1–2,000 characters, participant-only access, cancelled/completed history read-only, paginated history and foreground polling with idempotent retry. No message migration was applied to the application database.
+Repairs and history reconciliation were pushed in e1b0222. Messaging resumed and is now uncommitted for review. Migration 000008 is applied to the local application database. Database-backed make check and event race tests pass, including pagination/tied timestamps, concurrent UUID retries, access loss after leaving, retained history, closed-event sending and automatic timestamps. Live send/retry passed; iOS preview confirmed own/other messages and composer. Temporary preview navigation and two smoke messages were removed; user messages were preserved. Full keyboard/scroll/network-loss interaction still needs device testing. API runs on 8080 and Metro on 8081; reload the development client using the instructions in frontend/README.md. expo-modules-core is now a direct SDK-compatible dependency for its existing native UUID generator; no new native module is required.
 
-Review the map, confirm ground names/outlines with LUMS, then discuss participant chat or reports; Your events and host cancellation are implemented. Reuse the minimal users table; sign-in comes later. After agreement, discuss frontend mechanics and implement. Current geo endpoints are public read-only; do not invent guest sessions or mutating ownership rules.
+Review the map, confirm ground names/outlines with LUMS, then discuss reports; Your events and host cancellation are implemented. Reuse the minimal users table; sign-in comes later. After agreement, discuss frontend mechanics and implement. Current geo endpoints are public read-only; do not invent guest sessions or mutating ownership rules.
 
-History reconciliation and its documentation are authorized for commit and push; future feature work remains uncommitted for review.
+Messaging changes remain uncommitted and unpushed for review.
