@@ -1,24 +1,19 @@
-# MapLibre spike
+# Campus Pickup mobile app
 
-This screen uses sample game pins near LUMS. The public OpenFreeMap style is temporary; set `EXPO_PUBLIC_MAP_STYLE_URL` to use a self-hosted style later.
+Expo SDK 57 runs a React Native app. `index.ts` registers `src/NativeApp.tsx`; the map illustration is drawn by `src/CampusScene.tsx` with `react-native-svg`. The v6 HTML in `design/prototype/index.html` is a visual reference, not an app screen. The current native screens contain fixture data and are not connected to the Go API.
 
-MapLibre needs an Expo development build. It will not run in Expo Go.
+The four native tabs, game details, create form, chat, Game Day and campus page are implemented as an initial pass. The campus scene, scroll motion, zoom transitions, Hostel Cup podium, player-card motion, and several flows still need visual and behavioral parity work before this is a 1:1 copy.
 
-On the current Mac, build the iOS app in Expo's cloud. From `frontend/`:
-
-```bash
-npx eas-cli@latest login
-npx eas-cli@latest build --platform ios --profile ios-simulator
-```
-
-The first build may ask for an iOS bundle identifier and to create/link an Expo project. When the build finishes, accept the prompt to install it in the simulator. Then run:
+With Xcode and the iOS simulator installed, run from `frontend/`:
 
 ```bash
-pnpm exec expo start --dev-client
+pnpm run ios
 ```
 
-Press `i` to open the installed development app. Expo Go cannot run MapLibre. If a compatible Xcode is installed later, a local build is also possible:
+For later JavaScript-only changes:
 
 ```bash
-pnpm exec expo run:ios
+pnpm start
 ```
+
+Press `i` to open the development app in the iOS simulator. The app is native React Native; the SVG campus scene is a temporary illustration while the v6 scene is rebuilt.

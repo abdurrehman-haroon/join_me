@@ -1,6 +1,6 @@
 # Conversation log: Campus Pickup UI design (30 Sep – 7 Oct 2026)
 
-A written record of the design sessions: what was asked, what was built, the decisions and why. The full raw transcript is in `chat-transcript-2026-10-07.zip` next to this file.
+A written record of the design sessions: what was asked, what was built, the decisions and why. Raw chat exports are no longer kept in this repo.
 
 ## Session 1: first UI design (30 Sep)
 
@@ -116,7 +116,7 @@ A written record of the design sessions: what was asked, what was built, the dec
   - the giant title measured its box instead of its text;
   - the café label covered the title;
   - a text patch partly failed and was re-applied.
-- Google test page (`labs/google-3d/`, local only, key in a git-ignored file):
+- Google test page (a retired local experiment, with its key kept out of git):
   - Places found LUMS and 3 CBTL branches in DHA (Phase 3, 5, 6).
   - Weather works (27°C, clear, feels 30°C).
   - The 3D map loads but **Lahore has no photorealistic 3D buildings**, only flat satellite imagery.
@@ -152,5 +152,5 @@ A written record of the design sessions: what was asked, what was built, the dec
 
 **What happened:**
 - Rewrote `HANDOFF.md` as one current guide: what's in the folder, where the prototype is (v6), key decisions and why, roadmap through Phase 4, RN stack, open items and the prompt for the new account.
-- Exported the full chat again and redacted the Google API key from it (12 occurrences). It's saved as `docs/chat-transcript.zip` and replaces the older export.
+- Exported the full chat again and redacted the Google API key from it (12 occurrences). Those raw exports were later removed from the repo; this log preserves the decisions.
 - Committed locally and pushed the `design/` folder to `abdurrehman-haroon/join_me` on branch `design/floodlight-prototype` (PR #1).

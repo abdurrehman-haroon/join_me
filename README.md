@@ -15,7 +15,7 @@ One repository for the mobile app and its API.
 
 From the repo root: `make context` prints the shared context, `make check` runs backend and frontend checks, `make api` starts the API, and `make app` starts Expo. Run `make api` and `make app` in separate terminals.
 
-Each developer works on a short feature branch, pulls `main` before starting, and opens a pull request. Agree on `openapi.yaml` changes before implementing both sides. Update the handoff file in the pull request so the next person has the current state.
+Both developers work on `main`. Pull before starting, coordinate edits to `openapi.yaml`, and update `docs/handoff.md` with implementation changes. Leave changes uncommitted for review; never push without explicit approval.
 
 ## Run the backend
 
@@ -29,4 +29,4 @@ The API listens on `http://localhost:8080`; `GET /healthz` returns JSON. It does
 
 ## Run the mobile app
 
-From `frontend/`, run `pnpm start`. The default API URL is `http://localhost:8080`. For a physical phone, copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to your computer's LAN address. The starter screen checks the API connection. See `docs/plan.md` for the build sequence.
+From `frontend/`, run `pnpm run ios` for a local iOS build and simulator. After that, `pnpm start` starts Metro for JavaScript changes. The native UI currently uses sample data and does not call the API. See `docs/plan.md` for the build sequence.

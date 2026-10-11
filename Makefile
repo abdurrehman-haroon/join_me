@@ -5,7 +5,7 @@ context:
 
 check:
 	cd backend && go test ./...
-	cd frontend && pnpm exec expo lint App.tsx src && pnpm exec tsc --noEmit
+	cd frontend && pnpm exec expo lint index.ts src && pnpm exec tsc --noEmit
 
 api:
 	cd backend && go run ./cmd/api

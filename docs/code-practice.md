@@ -1,5 +1,7 @@
 You are working in a production application with this stack:
 
+Repository workflow: leave every change uncommitted and unpushed for user review. Only commit or push when the user explicitly requests that specific action after reviewing.
+
 Backend:
 - Go
 - chi router

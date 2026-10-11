@@ -7,31 +7,17 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.abdrhsteam.campuspickup",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "bundleIdentifier": "com.abdrhsteam.campuspickup"
     },
     "plugins": [
-      "@maplibre/maplibre-react-native"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "02627573-9eae-4af4-a4fe-b8106f7851ae"
-      }
-    }
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ]
+    ]
   }
 }

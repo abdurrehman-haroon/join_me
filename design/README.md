@@ -2,7 +2,7 @@
 
 Current engineering decisions, v1 scope, and implementation status live in `../docs/project.md`, `../docs/plan.md`, and `../docs/handoff.md`. This folder preserves the design exploration; its prototype includes features beyond the current v1 scope.
 
-Everything from the design sessions of 30 Sep – 9 Oct 2026, saved so a new Claude account (or a person) can pick up exactly where we stopped.
+Design decisions from the sessions of 30 Sep – 9 Oct 2026 are preserved here for both developers.
 
 **Start here:** read this file, then `docs/conversation-log.md`, which has every request, decision and bug fix session by session. Open `prototype/index.html` in a browser to see the latest design (v6).
 
@@ -10,18 +10,15 @@ Everything from the design sessions of 30 Sep – 9 Oct 2026, saved so a new Cla
 | Path | What it is |
 |---|---|
 | `prototype/index.html` | **The interactive prototype, v6.** Open in a browser. Needs internet (three.js from cdnjs, the Big Shoulders font from Google Fonts). |
-| `prototype/campus-pickup-ui.source.html` | The same page without the `<html>/<head>/<body>` wrapper, the format the Claude Artifact tool publishes. Republish it from the new account to get a shareable link. |
 | `docs/build-plan-v1.md` | The original build plan: seven weeks, one campus, go/no-go targets. Still the source of truth for v1 scope. |
 | `docs/conversation-log.md` | Session-by-session record (sessions 1–6) of what was asked, built and decided, including the bugs fixed. |
-| `docs/chat-transcript.zip` | Full export of the original chat, including the research agents' transcripts. The Google API key that was pasted in chat has been redacted. |
 | `research/01-ui-tools-and-references.md` | The four sites from the first brief, the React Native 3D and motion toolkit, reference apps, how to avoid the AI-generated look. |
 | `research/02-us-universities-and-growth.md` | Yale, Princeton, Duke and Harvard house sport, IMLeagues, pickup apps, Facebook/Fizz/Yik Yak campus rollouts, Pakistan specifics. |
 | `research/03-scroll-driven-motion.md` | Scrollytelling maps, scroll-linked motion on iOS, how to build it in React Native, comfort and Reduce Motion. |
 | `research/04-places-and-hangouts.md` | Venue presence and "come join me" hangouts: prior art, safety in Pakistan, cold start, sequencing beyond campus. |
 | `research/05-google-maps-platform.md` | Google Maps Platform fit, cost and terms, plus our test results. |
-| `labs/google-3d/` | Local Google Maps test page. The key goes in a git-ignored `config.local.js` (see its README). |
 
-The old artifact link (claude.ai/artifact/AX6p7DahvZqeopRb1RSS6c) belongs to the old Claude account and stops working when that account goes. Everything it showed is in `prototype/`.
+The old Claude artifact is preserved as `prototype/index.html`. The written session record is in `docs/conversation-log.md`; raw chat exports are not kept in the repo.
 
 ## The product
 - **Started as** a live map of pickup football and tape-ball cricket on one Pakistani campus (LUMS). Two engineers, seven weeks. Go + Postgres/PostGIS backend, React Native + Expo iOS client, MapLibre with self-hosted tiles. The question v1 answers: do games organised in the app actually get played?
@@ -109,16 +106,7 @@ Built from what's on a LUMS ground at 7pm: mown turf, chalk lines, a tennis ball
 Reanimated 4 (`useScrollOffset` + `interpolate` for scroll-linked UI) · Gesture Handler (pinch to change level) · `@gorhom/bottom-sheet` · FlashList v2 · `@shopify/react-native-skia` · `react-native-filament` for real 3D moments · Rive for icons · Moti · `expo-haptics` · MapLibre RN v11 (camera `easeTo`/`flyTo`, `fill-extrusion` buildings, day/night styles) · native tab and nav bars for iOS 26 scroll-edge effects. Avoid react-three-fiber/native and Spline for now.
 
 ## Open items
-- **Google key (security):** the user's Google Maps demo key was pasted in chat on 7 Oct. Restrict it to localhost and the needed APIs, or rotate it. It's redacted in the saved transcript and kept out of git.
+- **Google key (security):** the user's Google Maps demo key was pasted in chat on 7 Oct. Restrict it to localhost and the needed APIs, or rotate it. It is kept out of git.
 - **Real names:** confirm LUMS hostel names and ground names. The prototype uses placeholders: M-1…M-6, F-1…F-3, "Sports Complex turf".
 - **SLUMS:** talk to SLUMS about a pilot partnership and campus leads.
 - **CBTL:** decide whether to approach one CBTL branch about a free venue signal.
-
-## Next steps (where we stopped)
-1. Review v6 and pick which screens to refine.
-2. Engineering has started on `main`: an Expo starter, a Go health endpoint, and a MapLibre campus spike. Follow `../docs/handoff.md` for what's done and what's next. Use this folder for design direction.
-
-## Prompt to paste into the new account
-> I'm continuing a project called Campus Pickup. In the `join_me` repo, read `docs/project.md`, `docs/plan.md` and `docs/handoff.md` for the current engineering state. Then read `design/README.md`, `design/docs/conversation-log.md`, `design/docs/build-plan-v1.md` and the five files in `design/research/`. The latest prototype is `design/prototype/index.html` (v6). Keep the "Floodlight" design direction, the "scroll across a level, zoom between levels" navigation and the roadmap phasing. Next step: [what you want].
-
-If the folder isn't on the new machine, clone `https://github.com/abdurrehman-haroon/join_me` and use the `design/` folder on `main` instead of `~/dev/campus-pickup`.
