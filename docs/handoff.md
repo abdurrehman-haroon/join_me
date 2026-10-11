@@ -1,6 +1,6 @@
 # Handoff
 
-Updated: 2026-10-09
+Updated: 2026-10-11
 
 ## Done
 
@@ -11,6 +11,7 @@ Updated: 2026-10-09
 - The Floodlight prototype and its research are in `design/`. LUMS is the pilot campus in the design.
 - MapLibre is configured in Expo with a public temporary style and two sample LUMS pins. TypeScript, lint, and iOS JavaScript bundling pass; native simulator behavior is untested.
 - Database migrations are forward-only. The initial migration exists; no migration runner or applied-version tracking is implemented yet.
+- Floodlight v6 design is under `design/`; v1 scope remains in `docs/plan.md`. Work continues directly on `main`.
 
 ## Next
 

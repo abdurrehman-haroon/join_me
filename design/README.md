@@ -121,4 +121,4 @@ Reanimated 4 (`useScrollOffset` + `interpolate` for scroll-linked UI) · Gesture
 ## Prompt to paste into the new account
 > I'm continuing a project called Campus Pickup. In the `join_me` repo, read `docs/project.md`, `docs/plan.md` and `docs/handoff.md` for the current engineering state. Then read `design/README.md`, `design/docs/conversation-log.md`, `design/docs/build-plan-v1.md` and the five files in `design/research/`. The latest prototype is `design/prototype/index.html` (v6). Keep the "Floodlight" design direction, the "scroll across a level, zoom between levels" navigation and the roadmap phasing. Next step: [what you want].
 
-If the folder isn't on the new machine, clone `https://github.com/abdurrehman-haroon/join_me`, check out the branch `design/floodlight-prototype` (or `main` once PR #1 is merged), and use the `design/` folder instead of `~/dev/campus-pickup`.
+If the folder isn't on the new machine, clone `https://github.com/abdurrehman-haroon/join_me` and use the `design/` folder on `main` instead of `~/dev/campus-pickup`.
