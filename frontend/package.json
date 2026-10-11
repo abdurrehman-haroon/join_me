@@ -1,0 +1,27 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@maplibre/maplibre-react-native": "^11.5.0",
+    "expo": "~57.0.27",
+    "expo-build-properties": "~57.0.22",
+    "expo-dev-client": "~57.0.19",
+    "expo-font": "~57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-svg": "15.15.4"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~57.0.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios",
+    "lint": "expo lint"
+  },
+  "private": true
+}
