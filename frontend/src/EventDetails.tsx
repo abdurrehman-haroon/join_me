@@ -330,7 +330,7 @@ export default function EventDetails({
         )}
         {editing && event?.id === id && event.viewer.is_host && (
           <EventForm
-            key={event.id}
+            key={`edit-${event.id}`}
             event={event}
             place={event.place}
             apiURL={apiURL}
@@ -350,7 +350,7 @@ export default function EventDetails({
         )}
         {event?.id === id && event.viewer.is_participant && (
           <EventChat
-            key={event.id}
+            key={`chat-${event.id}`}
             eventID={event.id}
             title={event.title}
             apiURL={apiURL}
