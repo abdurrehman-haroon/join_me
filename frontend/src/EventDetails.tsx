@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import EventForm from "./EventForm";
 import EventChat from "./EventChat";
 
 type Person = { id: string; display_name: string };
@@ -46,6 +47,7 @@ export default function EventDetails({
   closeLabel?: string;
   onEventChanged: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [error, setError] = useState("");
@@ -223,6 +225,16 @@ export default function EventDetails({
                   <Pressable
                     accessibilityRole="button"
                     disabled={mutating}
+                    style={styles.participation}
+                    onPress={() => setEditing(true)}
+                  >
+                    <Text style={styles.participationText}>Edit event</Text>
+                  </Pressable>
+                )}
+                {event.status.slug === "scheduled" && !hasStarted && (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={mutating}
                     style={[
                       styles.participation,
                       { backgroundColor: "#913A32" },
@@ -315,6 +327,26 @@ export default function EventDetails({
             <ActivityIndicator color="#1D5B3A" />
             <Text style={styles.body}>Loading event…</Text>
           </View>
+        )}
+        {editing && event?.id === id && event.viewer.is_host && (
+          <EventForm
+            key={event.id}
+            event={event}
+            place={event.place}
+            apiURL={apiURL}
+            onClose={() => {
+              setEditing(false);
+              setEvent(null);
+              setRetry((value) => value + 1);
+              onEventChanged();
+            }}
+            onSaved={() => {
+              setEditing(false);
+              setEvent(null);
+              setRetry((value) => value + 1);
+              onEventChanged();
+            }}
+          />
         )}
         {event?.id === id && event.viewer.is_participant && (
           <EventChat

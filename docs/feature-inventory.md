@@ -119,3 +119,5 @@ Only these screens/actions are exposed in the app; the baseline above remains a 
 | You | Load demo profile, edit/save display name through GET/PATCH /me |
 
 Hostel Cup, sample events/action sheets, fake player stats, campus verification, notification switches, calm-motion setting and blocked-people placeholder are removed from runtime UI. The unused illustrated CampusScene component is removed; design/prototype references are preserved. Reporting, notifications, sign-in and full end-to-end test work are deferred by user direction. Basic profile uses existing schema with automatic timestamps; no migration added.
+
+- 2026-10-12: Host editing added to the slim event flow: title/start/capacity, upcoming scheduled host-only, locked roster capacity floor, fixed place/type. Connected form and API; no schema migration. Hosting remains deferred.

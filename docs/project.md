@@ -38,3 +38,7 @@ Merge recovery restored the verified event implementation; repairs were committe
 Review map behavior and confirm campus names/locations. Reporting and notifications are skipped for now; event browsing, Your events and host cancellation are implemented. Confirm pilot access before a student rollout. Deployment accounts/domains and future verified-access rules remain undecided.
 
 See `plan.md` for scope, `handoff.md` for verification and runtime details, and `feature-inventory.md` for the stable 45-feature v6 baseline.
+
+Local macOS startup: double-click startup.command (runs startup.sh) to start PostgreSQL if needed, backend, Metro and the iOS development app. Ctrl+C stops launcher-owned servers; existing servers and PostgreSQL stay running. See README.md.
+
+Host event editing implemented: PATCH /events/{id} accepts title/start/capacity together for the configured demo host, only while scheduled and upcoming. Place/type stay fixed; shared event locking prevents capacity reductions below concurrent membership. Existing DB timestamps remain automatic; no migration. Shared EventForm supports creation/editing with prefilled local time, Save/Cancel, draft retention and request guard. Success refreshes details/map/Your events; closing refreshes uncertain results. Hosting/deployment stays deferred.

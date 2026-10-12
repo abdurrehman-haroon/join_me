@@ -137,6 +137,34 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/ServerError' }
   /events/{id}:
+    patch:
+      summary: Edit an upcoming scheduled event as its host
+      description: Updates title, start and capacity together. Place/type stay fixed. Uses DEMO_USER_ID and the shared event row lock; capacity cannot fall below the locked participant count. Automatic timestamps are database-owned. Body limit 16 KiB.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [title, starts_at, capacity]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                starts_at: { type: string, format: date-time }
+                capacity: { type: integer, minimum: 1, maximum: 2147483647 }
+      responses:
+        '204': { description: Event updated; refresh details and lists }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: Only the host can edit }
+        '404': { description: Event not found }
+        '409': { description: Event closed/started or capacity below participant count }
+        '503': { description: Demo user unavailable }
+        '500': { $ref: '#/components/responses/ServerError' }
     get:
       summary: Get an event including its participants
       description: Scheduled, cancelled, completed and elapsed events remain accessible by ID.

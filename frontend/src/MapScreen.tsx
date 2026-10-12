@@ -17,7 +17,7 @@ import {
   View,
 } from "react-native";
 import EventDetails, { type EventSummary } from "./EventDetails";
-import CreateEventForm from "./CreateEventForm";
+import EventForm from "./EventForm";
 
 type Area = {
   id: string;
@@ -586,14 +586,14 @@ export default function MapScreen() {
         />
       )}
       {creationPlace && (
-        <CreateEventForm
+        <EventForm
           place={creationPlace}
           apiURL={apiURL}
           onClose={() => {
             setCreationPlace(null);
             setEventRefresh((value) => value + 1);
           }}
-          onCreated={() => {
+          onSaved={() => {
             setCreatedAtPlace(creationPlace.id);
             setCreationPlace(null);
             setEventType("");

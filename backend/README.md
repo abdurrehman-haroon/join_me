@@ -98,3 +98,7 @@ Reporting is deferred. Migration 000009 drops the unused reports table and remov
 ## Basic profile
 
 GET /me returns the configured demo user's id, display_name, created_at and updated_at. PATCH /me accepts only {display_name}, trims surrounding whitespace and allows 1–100 Unicode characters on one line. Invalid/unknown fields or bodies over 4 KiB return 400; a missing/unconfigured demo user returns 503. Successful updates return the saved profile with database-managed timestamps. The caller cannot select a user ID. No schema migration or sign-in is added.
+
+## Host editing
+
+PATCH /events/{id} accepts title, starts_at and capacity together (same validation as creation; 16 KiB strict JSON). Only the configured demo host may edit scheduled future events. Place/type remain fixed. The shared event lock serializes edits with join/leave/cancel, and capacity cannot be below current membership. Returns 204; invalid input 400, non-host 403, missing event 404, closed/started or insufficient capacity 409. Automatic timestamps use the existing database trigger.

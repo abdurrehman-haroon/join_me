@@ -359,3 +359,24 @@ func (q *Queries) LockEventForParticipation(ctx context.Context, id pgtype.UUID)
 	)
 	return i, err
 }
+
+const updateEvent = `-- name: UpdateEvent :exec
+UPDATE events SET title = $2, starts_at = $3, capacity = $4 WHERE id = $1
+`
+
+type UpdateEventParams struct {
+	ID       pgtype.UUID
+	Title    string
+	StartsAt pgtype.Timestamptz
+	Capacity int32
+}
+
+func (q *Queries) UpdateEvent(ctx context.Context, arg UpdateEventParams) error {
+	_, err := q.db.Exec(ctx, updateEvent,
+		arg.ID,
+		arg.Title,
+		arg.StartsAt,
+		arg.Capacity,
+	)
+	return err
+}

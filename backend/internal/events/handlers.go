@@ -300,7 +300,7 @@ func (handler Handler) CancelEvent(w http.ResponseWriter, request *http.Request)
 	}
 	defer transaction.Rollback(request.Context())
 	queries := handler.Queries.WithTx(transaction)
-	// Share the participation lock so joins cannot race the status change.
+	// Share the participation lock so joins cannot race the change.
 	event, err := queries.LockEventForParticipation(request.Context(), eventID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		http.Error(w, "event not found", http.StatusNotFound)
@@ -343,6 +343,114 @@ func (handler Handler) CancelEvent(w http.ResponseWriter, request *http.Request)
 	if err = transaction.Commit(request.Context()); err != nil {
 		log.Printf("commit cancellation: %v", err)
 		http.Error(w, "could not confirm cancellation; refresh the event", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (handler Handler) UpdateEvent(w http.ResponseWriter, request *http.Request) {
+	var eventID pgtype.UUID
+	if err := eventID.Scan(request.PathValue("id")); err != nil || !eventID.Valid {
+		http.Error(w, "invalid event ID", http.StatusBadRequest)
+		return
+	}
+	var input struct {
+		Title    string    `json:"title"`
+		StartsAt time.Time `json:"starts_at"`
+		Capacity int32     `json:"capacity"`
+	}
+	request.Body = http.MaxBytesReader(w, request.Body, 16384)
+	decoder := json.NewDecoder(request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		http.Error(w, "invalid event JSON", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		http.Error(w, "body must contain one event object", http.StatusBadRequest)
+		return
+	}
+	input.Title = strings.TrimSpace(input.Title)
+	if input.Title == "" || utf8.RuneCountInString(input.Title) > 200 {
+		http.Error(w, "title must contain 1 to 200 characters", http.StatusBadRequest)
+		return
+	}
+	if !input.StartsAt.After(time.Now()) {
+		http.Error(w, "start time must be in the future", http.StatusBadRequest)
+		return
+	}
+	if input.Capacity < 1 {
+		http.Error(w, "capacity must be positive and includes the host", http.StatusBadRequest)
+		return
+	}
+	if !handler.DemoUserID.Valid || handler.Pool == nil {
+		http.Error(w, "demo user is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	exists, err := handler.Queries.DemoUserExists(request.Context(), handler.DemoUserID)
+	if err != nil || !exists {
+		if err != nil {
+			log.Printf("get demo user: %v", err)
+		}
+		http.Error(w, "demo user is unavailable; load the demo data", http.StatusServiceUnavailable)
+		return
+	}
+	transaction, err := handler.Pool.BeginTx(request.Context(), pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		log.Printf("begin event edit: %v", err)
+		http.Error(w, "could not update event", http.StatusInternalServerError)
+		return
+	}
+	defer transaction.Rollback(request.Context())
+	queries := handler.Queries.WithTx(transaction)
+	// Share the participation lock so joins cannot race the change.
+	event, err := queries.LockEventForParticipation(request.Context(), eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "event not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("lock event for editing: %v", err)
+		http.Error(w, "could not update event", http.StatusInternalServerError)
+		return
+	}
+	if event.HostID != handler.DemoUserID {
+		http.Error(w, "only the host can edit this event", http.StatusForbidden)
+		return
+	}
+	statusSlug, err := queries.GetEventStatusSlug(request.Context(), event.StatusID)
+	if err != nil {
+		log.Printf("get event edit status: %v", err)
+		http.Error(w, "could not update event", http.StatusInternalServerError)
+		return
+	}
+	if statusSlug != "scheduled" || !event.StartsAt.Time.After(time.Now()) {
+		http.Error(w, "only upcoming scheduled events can be edited", http.StatusConflict)
+		return
+	}
+	// Read membership after the shared row lock so concurrent joins are included.
+	participation, err := queries.GetEventParticipation(request.Context(), database.GetEventParticipationParams{EventID: eventID, UserID: handler.DemoUserID})
+	if err != nil {
+		log.Printf("read edit participation: %v", err)
+		http.Error(w, "could not update event", http.StatusInternalServerError)
+		return
+	}
+	if int64(input.Capacity) < participation.ParticipantCount {
+		http.Error(w, "capacity cannot be below the current participant count", http.StatusConflict)
+		return
+	}
+	if !input.StartsAt.After(time.Now()) {
+		http.Error(w, "start time must be in the future", http.StatusBadRequest)
+		return
+	}
+	if err = queries.UpdateEvent(request.Context(), database.UpdateEventParams{ID: eventID, Title: input.Title, StartsAt: pgtype.Timestamptz{Time: input.StartsAt, Valid: true}, Capacity: input.Capacity}); err != nil {
+		log.Printf("update event: %v", err)
+		http.Error(w, "could not update event", http.StatusInternalServerError)
+		return
+	}
+	if err = transaction.Commit(request.Context()); err != nil {
+		log.Printf("commit event edit: %v", err)
+		http.Error(w, "could not confirm event edit; refresh the event", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

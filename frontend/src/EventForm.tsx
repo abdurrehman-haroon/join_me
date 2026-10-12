@@ -12,31 +12,43 @@ import {
   View,
 } from "react-native";
 
-export default function CreateEventForm({
+export default function EventForm({
   place,
+  event,
   apiURL,
   onClose,
-  onCreated,
+  onSaved,
 }: {
   place: { id: string; name: string };
+  event?: {
+    id: string;
+    title: string;
+    type: "football" | "cricket";
+    starts_at: string;
+    capacity: number;
+    participant_count: number;
+  };
   apiURL: string;
   onClose: () => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
   const [initialStart] = useState(() => {
+    if (event) return new Date(event.starts_at);
     const start = new Date();
     start.setDate(start.getDate() + 1);
     start.setHours(18, 0, 0, 0);
     return start;
   });
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState<"football" | "cricket">("football");
+  const [title, setTitle] = useState(event?.title ?? "");
+  const [type, setType] = useState<"football" | "cricket">(event?.type ?? "football");
   const [date, setDate] = useState(
     () =>
       `${initialStart.getFullYear()}-${String(initialStart.getMonth() + 1).padStart(2, "0")}-${String(initialStart.getDate()).padStart(2, "0")}`,
   );
-  const [time, setTime] = useState("18:00");
-  const [capacity, setCapacity] = useState("10");
+  const [time, setTime] = useState(
+    () => `${String(initialStart.getHours()).padStart(2, "0")}:${String(initialStart.getMinutes()).padStart(2, "0")}`,
+  );
+  const [capacity, setCapacity] = useState(String(event?.capacity ?? 10));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const pending = useRef(false);
@@ -68,6 +80,12 @@ export default function CreateEventForm({
       setError("Enter a valid date as YYYY-MM-DD and time as HH:mm (24-hour).");
       return;
     }
+    // Preserve the original seconds when only title/capacity changed.
+    const originalMinute = new Date(initialStart);
+    originalMinute.setSeconds(0, 0);
+    if (event && startsAt.getTime() === originalMinute.getTime()) {
+      startsAt.setSeconds(initialStart.getSeconds(), initialStart.getMilliseconds());
+    }
     if (startsAt.getTime() <= Date.now()) {
       setError("Choose a start time in the future.");
       return;
@@ -82,33 +100,38 @@ export default function CreateEventForm({
       setError("Capacity must be a positive whole number, including the host.");
       return;
     }
+    if (event && spots < event.participant_count) {
+      setError(`Capacity must be at least ${event.participant_count}, the current participant count.`);
+      return;
+    }
     pending.current = true;
     setSubmitting(true);
     const requestController = new AbortController();
     controller.current = requestController;
     const timeout = setTimeout(() => requestController.abort(), 12000);
     try {
-      const response = await fetch(`${apiURL}/events`, {
-        method: "POST",
+      const response = await fetch(`${apiURL}/events${event ? `/${event.id}` : ""}`, {
+        method: event ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         signal: requestController.signal,
         body: JSON.stringify({
-          place_id: place.id,
+          ...(!event && { place_id: place.id, type }),
           title: title.trim(),
-          type,
           starts_at: startsAt.toISOString(),
           capacity: spots,
         }),
       });
       if (!response.ok) {
         const message = await response.text();
-        setError(message.trim() || "Could not create the event.");
+        setError(message.trim() || "Could not save the event.");
         return;
       }
-      onCreated();
+      onSaved();
     } catch {
       setError(
-        "Could not confirm creation. Close and check this place’s events before trying again.",
+        event
+          ? "Could not confirm the changes. Your draft is kept; retry or close to refresh the event."
+          : "Could not confirm creation. Close and check this place’s events before trying again.",
       );
     } finally {
       clearTimeout(timeout);
@@ -132,7 +155,7 @@ export default function CreateEventForm({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.heading}>
-          <Text style={styles.kicker}>NEW EVENT</Text>
+          <Text style={styles.kicker}>{event ? "EDIT EVENT" : "NEW EVENT"}</Text>
           <Pressable
             accessibilityRole="button"
             disabled={submitting}
@@ -146,10 +169,10 @@ export default function CreateEventForm({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
-          <Text style={styles.title}>Make a plan.</Text>
+          <Text style={styles.title}>{event ? "Update your plan." : "Make a plan."}</Text>
           <Text style={styles.body}>{place.name}</Text>
           <Text style={styles.muted}>
-            Creating as the demo user · no sign-in yet
+            {event ? "Update the details below." : "Choose the details below."}
           </Text>
           <Text style={styles.label}>Title</Text>
           <TextInput
@@ -162,7 +185,7 @@ export default function CreateEventForm({
             style={styles.input}
           />
           <Text style={styles.label}>Event type</Text>
-          <View style={styles.types}>
+          {event ? <Text style={styles.body}>{type === "football" ? "Football" : "Cricket"} · fixed for this event</Text> : <View style={styles.types}>
             {(["football", "cricket"] as const).map((option) => (
               <Pressable
                 key={option}
@@ -177,7 +200,7 @@ export default function CreateEventForm({
                 </Text>
               </Pressable>
             ))}
-          </View>
+          </View>}
           <Text style={styles.label}>Date · YYYY-MM-DD</Text>
           <TextInput
             accessibilityLabel="Event date YYYY-MM-DD"
@@ -222,7 +245,7 @@ export default function CreateEventForm({
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.submitText}>Create event</Text>
+              <Text style={styles.submitText}>{event ? "Save changes" : "Create event"}</Text>
             )}
           </Pressable>
         </ScrollView>

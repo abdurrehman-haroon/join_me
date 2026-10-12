@@ -145,3 +145,6 @@ SELECT id FROM status WHERE statusable_type = 'event' AND slug = 'cancelled';
 
 -- name: CancelEvent :exec
 UPDATE events SET status_id = $2 WHERE id = $1;
+
+-- name: UpdateEvent :exec
+UPDATE events SET title = $2, starts_at = $3, capacity = $4 WHERE id = $1;

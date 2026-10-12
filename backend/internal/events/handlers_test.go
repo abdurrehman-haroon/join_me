@@ -100,6 +100,80 @@ func TestEventBrowsing(t *testing.T) {
 		t.Fatal(err)
 	}
 	handler := Handler{Queries: database.New(pool)}
+	t.Run("host editing", func(t *testing.T) {
+		var host, attendee, place, status pgtype.UUID
+		host.Scan("20000000-0000-4000-8000-000000000001")
+		attendee.Scan("20000000-0000-4000-8000-000000000002")
+		place.Scan("00000000-0000-4000-8000-000000000003")
+		queries := database.New(pool)
+		status, err = queries.GetScheduledEventStatus(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		created, err := queries.CreateEvent(ctx, database.CreateEventParams{HostID: host, PlaceID: place, StatusID: status, Title: "Before editing", Type: database.EventTypeFootball, StartsAt: pgtype.Timestamptz{Time: time.Now().Add(3 * time.Hour), Valid: true}, Capacity: 3})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			pool.Exec(ctx, "DELETE FROM event_participants WHERE event_id=$1", created.ID)
+			pool.Exec(ctx, "DELETE FROM events WHERE id=$1", created.ID)
+		}()
+		call := func(user pgtype.UUID, method, body string) *httptest.ResponseRecorder {
+			handler := Handler{Queries: queries, Pool: pool, DemoUserID: user}
+			mux := http.NewServeMux()
+			mux.HandleFunc("PATCH /events/{id}", handler.UpdateEvent)
+			mux.HandleFunc("PUT /events/{id}/participation", handler.ChangeParticipation)
+			response := httptest.NewRecorder()
+			path := "/events/" + created.ID.String()
+			if method == "PUT" {
+				path += "/participation"
+			}
+			mux.ServeHTTP(response, httptest.NewRequest(method, path, strings.NewReader(body)))
+			return response
+		}
+		future := time.Now().Add(4 * time.Hour).UTC().Format(time.RFC3339)
+		body := fmt.Sprintf(`{"title":" Updated title ","starts_at":%q,"capacity":2}`, future)
+		if response := call(attendee, "PATCH", body); response.Code != 403 {
+			t.Fatalf("non-host: %d %s", response.Code, response.Body.String())
+		}
+		if response := call(host, "PATCH", body); response.Code != 204 {
+			t.Fatalf("host edit: %d %s", response.Code, response.Body.String())
+		}
+		var title string
+		var capacity int32
+		var starts, createdAt, updatedAt time.Time
+		if err := pool.QueryRow(ctx, "SELECT title,capacity,starts_at,created_at,updated_at FROM events WHERE id=$1", created.ID).Scan(&title, &capacity, &starts, &createdAt, &updatedAt); err != nil {
+			t.Fatal(err)
+		}
+		if title != "Updated title" || capacity != 2 || starts.UTC().Format(time.RFC3339) != future || !createdAt.Equal(created.CreatedAt.Time) || !updatedAt.After(created.UpdatedAt.Time) {
+			t.Fatal("edited fields or timestamps incorrect")
+		}
+		for _, invalid := range []string{`null`, `{}`, body + `{}`, strings.Replace(body, `"capacity":2`, `"capacity":0`, 1), strings.Replace(body, `"capacity":2`, `"capacity":2,"type":"cricket"`, 1), strings.Replace(body, future, "2000-01-01T00:00:00Z", 1)} {
+			if response := call(host, "PATCH", invalid); response.Code != 400 {
+				t.Fatalf("invalid edit: %d", response.Code)
+			}
+		}
+		// Either the capacity reduction wins and joining fails, or joining wins and editing fails.
+		results := make(chan int, 2)
+		go func() { results <- call(host, "PATCH", strings.Replace(body, `"capacity":2`, `"capacity":1`, 1)).Code }()
+		go func() { results <- call(attendee, "PUT", "").Code }()
+		first, second := <-results, <-results
+		if !((first == 204 && second == 409) || (first == 409 && second == 204)) {
+			t.Fatalf("edit/join race: %d %d", first, second)
+		}
+		var count int64
+		if err := pool.QueryRow(ctx, "SELECT capacity,(SELECT count(*) FROM event_participants WHERE event_id=events.id) FROM events WHERE id=$1", created.ID).Scan(&capacity, &count); err != nil || count > int64(capacity) {
+			t.Fatalf("overbooking: %d/%d %v", count, capacity, err)
+		}
+		pool.Exec(ctx, "UPDATE events SET starts_at=now()-interval '1 hour' WHERE id=$1", created.ID)
+		if response := call(host, "PATCH", body); response.Code != 409 {
+			t.Fatalf("elapsed edit: %d", response.Code)
+		}
+		pool.Exec(ctx, "UPDATE events SET starts_at=now()+interval '1 hour', status_id=(SELECT id FROM status WHERE slug='cancelled') WHERE id=$1", created.ID)
+		if response := call(host, "PATCH", body); response.Code != 409 {
+			t.Fatalf("cancelled edit: %d", response.Code)
+		}
+	})
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /events", handler.ListEvents)
 	mux.HandleFunc("GET /events/{id}", handler.GetEvent)
