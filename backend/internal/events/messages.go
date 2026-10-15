@@ -19,9 +19,7 @@ import (
 )
 
 type messageCursor struct {
-	Sequence int64       `json:"sequence,omitempty"`
-	Time     time.Time   `json:"time"`
-	ID       pgtype.UUID `json:"id"`
+	Sequence int64 `json:"sequence"`
 }
 
 type chatMessage struct {
@@ -37,7 +35,7 @@ type chatMessage struct {
 }
 
 func describeMessage(message database.Message, displayName string) chatMessage {
-	cursor, _ := json.Marshal(messageCursor{Sequence: message.Sequence, Time: message.CreatedAt.Time, ID: message.ID})
+	cursor, _ := json.Marshal(messageCursor{Sequence: message.Sequence})
 	return chatMessage{ID: message.ID, EventID: message.EventID, UserID: message.UserID, Body: message.Body,
 		CreatedAt: message.CreatedAt.Time, UpdatedAt: message.UpdatedAt.Time, DisplayName: displayName,
 		Sequence: strconv.FormatInt(message.Sequence, 10), Cursor: base64.RawURLEncoding.EncodeToString(cursor)}
@@ -55,7 +53,7 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 		ID   pgtype.UUID `json:"id"`
 		Body string      `json:"body"`
 	}
-	params := database.ListMessagesBySequenceParams{EventID: eventID}
+	params := database.ListMessagesParams{EventID: eventID}
 	if request.Method == http.MethodPost {
 		request.Body = http.MaxBytesReader(w, request.Body, 16384)
 		decoder := json.NewDecoder(request.Body)
@@ -201,7 +199,7 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	rows, err := queries.ListMessagesBySequence(request.Context(), params)
+	rows, err := queries.ListMessages(request.Context(), params)
 	if err != nil {
 		log.Printf("list messages: %v", err)
 		http.Error(w, "could not load messages", 500)

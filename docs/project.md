@@ -37,6 +37,8 @@ The frozen schema is implemented in migration 000010: polymorphic target_type/ta
 
 ## Next decisions
 
+Statistics and user-insight ideas are preserved in [statistics-and-insights.md](statistics-and-insights.md). These are discussion proposals only; no analytics schema, tracking or user-facing statistics are approved for implementation.
+
 Device location support added (2026-10-13): Map has My location, foreground-only permission on tap, a live blue dot/accuracy circle, one-shot camera recentring and settings/retry states. Existing grants resume when the map opens; subscriptions stop on background/unmount. Coordinates stay in memory; no schema/API changes or location-sharing service. Existing viewport queries still follow camera movement.
 
 Merge recovery restored the verified event implementation; repairs were committed in 143210e. Remote history reconciliation preserves the repaired files. Participant messaging is implemented. Basic profile and removal of fixture UI are uncommitted for review (see handoff.md).
