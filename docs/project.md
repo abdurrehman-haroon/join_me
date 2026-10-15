@@ -14,7 +14,7 @@ The map opens at LUMS, pans/zooms freely, loads viewport places after movement s
 
 ## Stack and data rules
 
-- Go HTTP API, pgx/sqlc, PostgreSQL/PostGIS. Existing `net/http` routing is retained for this small read-only slice; chi/WebSocket, Redis and FCM remain target choices when needed.
+- Go HTTP API, pgx/sqlc, PostgreSQL/PostGIS. Existing `net/http` routing is retained; gorilla/websocket supplies realtime transport and PostgreSQL notifications supply fanout. Redis and FCM remain deferred.
 - Expo SDK 57, React Native, TypeScript, native MapLibre. OpenFreeMap serves background tiles directly; our API serves our places.
 - `openapi.yaml` defines the HTTP contract.
 - Numbered forward-only migrations run once, with checksums and applied-version tracking. Never modify applied files.
@@ -29,7 +29,11 @@ The map opens at LUMS, pans/zooms freely, loads viewport places after movement s
 
 ## Current state
 
-The API connects to PostGIS and serves health, area details, and bounded viewport places. New migrations add geography and timestamp management to existing tables, plus community-mapped LUMS data from OpenStreetMap. Native MapLibre loads OpenFreeMap Liberty tiles and displays the campus and sports places. Initial data is not campus-verified. App tabs are Map, Your events and You; Hostel Cup and fixture UI are removed; event browsing is connected through read-only endpoints and map filters/place sheets/details. Event creation is connected from a selected place: POST /events uses the configured demo user, sets Scheduled status and atomically joins the host. No new schema changes. Joining/leaving is connected in event details using the demo user. Event-row locks serialize capacity checks and roster changes; hosts cannot leave. Your events lists hosted/joined events in paginated Upcoming/Past sections. Host cancellation uses the existing cancelled status, keeps the roster and shares the participation lock. Participant chat is connected through paginated HTTP history, foreground polling and UUID retry; cancelled/completed history is read-only. Basic profile viewing/name editing is connected. Auth and push remain deferred. Reporting is deferred; migration 000009 removes the unused reports table and moderation_log.report_id.
+The API connects to PostGIS and serves health, area details, and bounded viewport places. New migrations add geography and timestamp management to existing tables, plus community-mapped LUMS data from OpenStreetMap. Native MapLibre loads OpenFreeMap Liberty tiles and displays the campus and sports places. Initial data is not campus-verified. App tabs are Map, Your events and You; Hostel Cup and fixture UI are removed; event browsing is connected through read-only endpoints and map filters/place sheets/details. Event creation is connected from a selected place: POST /events uses the configured demo user, sets Scheduled status and atomically joins the host. No new schema changes. Joining/leaving is connected in event details using the demo user. Event-row locks serialize capacity checks and roster changes; hosts cannot leave. Your events lists hosted/joined events in paginated Upcoming/Past sections. Host cancellation uses the existing cancelled status, keeps the roster and shares the participation lock. Participant chat is connected through paginated HTTP history, shared WebSocket subscriptions and UUID retry; cancelled/completed history is read-only. Basic profile viewing/name editing is connected. Auth and push remain deferred. Reporting is deferred; migration 000009 removes the unused reports table and moderation_log.report_id.
+
+## Realtime (2026-10-15)
+
+The frozen schema is implemented in migration 000010: polymorphic target_type/target_id streams and outbox, plus messages.sequence. No event revision/counter or payload version columns. One frontend connection serves event details and chat, with transactional updates, sequence recovery, bounded queues, reconnect/foreground recovery and long-poll fallback. PostgreSQL notifications provide cross-instance fanout; Redis is not required for this implementation. See realtime.md for the protocol and deployment limits. Demo identity remains server-configured; production authentication is still deferred.
 
 ## Next decisions
 

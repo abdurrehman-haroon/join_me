@@ -12,7 +12,7 @@ import (
 )
 
 const findMessage = `-- name: FindMessage :one
-SELECT id, event_id, user_id, body, created_at, updated_at FROM messages WHERE id = $1
+SELECT id, event_id, user_id, body, created_at, updated_at, sequence FROM messages WHERE id = $1
 `
 
 func (q *Queries) FindMessage(ctx context.Context, id pgtype.UUID) (Message, error) {
@@ -25,20 +25,47 @@ func (q *Queries) FindMessage(ctx context.Context, id pgtype.UUID) (Message, err
 		&i.Body,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Sequence,
+	)
+	return i, err
+}
+
+const getMessageWithSender = `-- name: GetMessageWithSender :one
+SELECT messages.id, messages.event_id, messages.user_id, messages.body, messages.created_at, messages.updated_at, messages.sequence, users.display_name FROM messages JOIN users ON users.id = messages.user_id WHERE messages.id = $1
+`
+
+type GetMessageWithSenderRow struct {
+	Message     Message
+	DisplayName string
+}
+
+func (q *Queries) GetMessageWithSender(ctx context.Context, id pgtype.UUID) (GetMessageWithSenderRow, error) {
+	row := q.db.QueryRow(ctx, getMessageWithSender, id)
+	var i GetMessageWithSenderRow
+	err := row.Scan(
+		&i.Message.ID,
+		&i.Message.EventID,
+		&i.Message.UserID,
+		&i.Message.Body,
+		&i.Message.CreatedAt,
+		&i.Message.UpdatedAt,
+		&i.Message.Sequence,
+		&i.DisplayName,
 	)
 	return i, err
 }
 
 const insertMessage = `-- name: InsertMessage :one
-INSERT INTO messages(id, event_id, user_id, body) VALUES ($1, $2, $3, $4)
-ON CONFLICT (id) DO NOTHING RETURNING id, event_id, user_id, body, created_at, updated_at
+INSERT INTO messages(id, event_id, user_id, body, sequence) VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (id) DO NOTHING RETURNING id, event_id, user_id, body, created_at, updated_at, sequence
 `
 
 type InsertMessageParams struct {
-	ID      pgtype.UUID
-	EventID pgtype.UUID
-	UserID  pgtype.UUID
-	Body    string
+	ID       pgtype.UUID
+	EventID  pgtype.UUID
+	UserID   pgtype.UUID
+	Body     string
+	Sequence int64
 }
 
 func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error) {
@@ -47,6 +74,7 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		arg.EventID,
 		arg.UserID,
 		arg.Body,
+		arg.Sequence,
 	)
 	var i Message
 	err := row.Scan(
@@ -56,12 +84,13 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		&i.Body,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Sequence,
 	)
 	return i, err
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT messages.id, messages.event_id, messages.user_id, messages.body, messages.created_at, messages.updated_at, users.display_name
+SELECT messages.id, messages.event_id, messages.user_id, messages.body, messages.created_at, messages.updated_at, messages.sequence, users.display_name
 FROM messages JOIN users ON users.id = messages.user_id
 WHERE event_id = $1
     AND ($2::timestamptz IS NULL OR
@@ -90,6 +119,7 @@ type ListMessagesRow struct {
 	Body        string
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+	Sequence    int64
 	DisplayName string
 }
 
@@ -115,6 +145,56 @@ func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]L
 			&i.Body,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Sequence,
+			&i.DisplayName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMessagesBySequence = `-- name: ListMessagesBySequence :many
+SELECT messages.id, messages.event_id, messages.user_id, messages.body, messages.created_at, messages.updated_at, messages.sequence, users.display_name FROM messages JOIN users ON users.id = messages.user_id
+WHERE event_id = $1
+AND ($2::bigint IS NULL OR sequence > $2)
+AND ($3::bigint IS NULL OR sequence < $3)
+ORDER BY CASE WHEN $2::bigint IS NOT NULL THEN sequence END ASC, sequence DESC
+LIMIT 51
+`
+
+type ListMessagesBySequenceParams struct {
+	EventID        pgtype.UUID
+	AfterSequence  pgtype.Int8
+	BeforeSequence pgtype.Int8
+}
+
+type ListMessagesBySequenceRow struct {
+	Message     Message
+	DisplayName string
+}
+
+func (q *Queries) ListMessagesBySequence(ctx context.Context, arg ListMessagesBySequenceParams) ([]ListMessagesBySequenceRow, error) {
+	rows, err := q.db.Query(ctx, listMessagesBySequence, arg.EventID, arg.AfterSequence, arg.BeforeSequence)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMessagesBySequenceRow
+	for rows.Next() {
+		var i ListMessagesBySequenceRow
+		if err := rows.Scan(
+			&i.Message.ID,
+			&i.Message.EventID,
+			&i.Message.UserID,
+			&i.Message.Body,
+			&i.Message.CreatedAt,
+			&i.Message.UpdatedAt,
+			&i.Message.Sequence,
 			&i.DisplayName,
 		); err != nil {
 			return nil, err

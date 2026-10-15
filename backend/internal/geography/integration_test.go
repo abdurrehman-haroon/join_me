@@ -53,7 +53,7 @@ func TestPostGISMapFlow(t *testing.T) {
 		t.Fatalf("second migration run: %v", err)
 	}
 	var versions int
-	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 9 {
+	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 10 {
 		t.Fatalf("migration count %d: %v", versions, err)
 	}
 

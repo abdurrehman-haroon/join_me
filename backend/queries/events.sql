@@ -76,6 +76,7 @@ SELECT jsonb_build_object(
         'is_host', COALESCE(host_id = sqlc.narg(viewer_id)::uuid, false),
         'is_participant', EXISTS(SELECT 1 FROM event_participants WHERE event_id = event_detail.id AND user_id = sqlc.narg(viewer_id)::uuid)),
     'participants', participants, 'participant_count', jsonb_array_length(participants),
+    'sequence', COALESCE((SELECT last_sequence::text FROM realtime_streams WHERE target_type = 'event_details' AND target_id = event_detail.id), '0'),
     'available_spots', GREATEST(capacity - jsonb_array_length(participants), 0),
     'is_full', jsonb_array_length(participants) >= capacity,
     'created_at', created_at, 'updated_at', updated_at
@@ -96,11 +97,11 @@ SELECT count(*) AS participant_count,
     COALESCE(bool_or(user_id = sqlc.arg(user_id)), false)::boolean AS joined
 FROM event_participants WHERE event_id = sqlc.arg(event_id);
 
--- name: JoinEvent :exec
+-- name: JoinEvent :execrows
 INSERT INTO event_participants (event_id, user_id) VALUES ($1, $2)
 ON CONFLICT (event_id, user_id) DO NOTHING;
 
--- name: LeaveEvent :exec
+-- name: LeaveEvent :execrows
 DELETE FROM event_participants WHERE event_id = $1 AND user_id = $2;
 
 -- name: ListUserEvents :one
@@ -146,5 +147,6 @@ SELECT id FROM status WHERE statusable_type = 'event' AND slug = 'cancelled';
 -- name: CancelEvent :exec
 UPDATE events SET status_id = $2 WHERE id = $1;
 
--- name: UpdateEvent :exec
-UPDATE events SET title = $2, starts_at = $3, capacity = $4 WHERE id = $1;
+-- name: UpdateEvent :execrows
+UPDATE events SET title = $2, starts_at = $3, capacity = $4 WHERE id = $1
+AND (title, starts_at, capacity) IS DISTINCT FROM ($2, $3, $4);

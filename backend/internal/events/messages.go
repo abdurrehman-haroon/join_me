@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"joinme/backend/internal/realtime"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -17,11 +19,13 @@ import (
 )
 
 type messageCursor struct {
-	Time time.Time   `json:"time"`
-	ID   pgtype.UUID `json:"id"`
+	Sequence int64       `json:"sequence,omitempty"`
+	Time     time.Time   `json:"time"`
+	ID       pgtype.UUID `json:"id"`
 }
 
 type chatMessage struct {
+	Sequence    string      `json:"sequence"`
 	ID          pgtype.UUID `json:"id"`
 	EventID     pgtype.UUID `json:"event_id"`
 	UserID      pgtype.UUID `json:"user_id"`
@@ -30,6 +34,13 @@ type chatMessage struct {
 	UpdatedAt   time.Time   `json:"updated_at"`
 	DisplayName string      `json:"display_name"`
 	Cursor      string      `json:"cursor"`
+}
+
+func describeMessage(message database.Message, displayName string) chatMessage {
+	cursor, _ := json.Marshal(messageCursor{Sequence: message.Sequence, Time: message.CreatedAt.Time, ID: message.ID})
+	return chatMessage{ID: message.ID, EventID: message.EventID, UserID: message.UserID, Body: message.Body,
+		CreatedAt: message.CreatedAt.Time, UpdatedAt: message.UpdatedAt.Time, DisplayName: displayName,
+		Sequence: strconv.FormatInt(message.Sequence, 10), Cursor: base64.RawURLEncoding.EncodeToString(cursor)}
 }
 
 // Messages shares the event lock with leaving and cancellation so access and writes
@@ -44,7 +55,7 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 		ID   pgtype.UUID `json:"id"`
 		Body string      `json:"body"`
 	}
-	params := database.ListMessagesParams{EventID: eventID}
+	params := database.ListMessagesBySequenceParams{EventID: eventID}
 	if request.Method == http.MethodPost {
 		request.Body = http.MaxBytesReader(w, request.Body, 16384)
 		decoder := json.NewDecoder(request.Body)
@@ -75,19 +86,24 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 		if raw != "" {
 			var cursor messageCursor
 			decoded, err := base64.RawURLEncoding.DecodeString(raw)
-			if err != nil || json.Unmarshal(decoded, &cursor) != nil || !cursor.ID.Valid || cursor.Time.IsZero() {
+			if err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Sequence <= 0 {
 				http.Error(w, "invalid message cursor", 400)
 				return
 			}
-			timestamp := pgtype.Timestamptz{Time: cursor.Time, Valid: true}
 			if before != "" {
-				params.BeforeTime = timestamp
-				params.BeforeID = cursor.ID
+				params.BeforeSequence = pgtype.Int8{Int64: cursor.Sequence, Valid: true}
 			} else {
-				params.AfterTime = timestamp
-				params.AfterID = cursor.ID
+				params.AfterSequence = pgtype.Int8{Int64: cursor.Sequence, Valid: true}
 			}
 		}
+	}
+	if raw := request.URL.Query().Get("after_sequence"); raw != "" {
+		sequence, parseErr := strconv.ParseInt(raw, 10, 64)
+		if parseErr != nil || sequence < 0 || params.BeforeSequence.Valid || params.AfterSequence.Valid || request.Method != http.MethodGet {
+			http.Error(w, "invalid after_sequence", 400)
+			return
+		}
+		params.AfterSequence = pgtype.Int8{Int64: sequence, Valid: true}
 	}
 	if !handler.DemoUserID.Valid || handler.Pool == nil {
 		http.Error(w, "demo user is not configured", 503)
@@ -148,13 +164,32 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 			http.Error(w, "chat is read-only for this event", 409)
 			return
 		}
-		_, err = queries.InsertMessage(request.Context(), database.InsertMessageParams{ID: input.ID, EventID: eventID, UserID: handler.DemoUserID, Body: input.Body})
+		sequence, sequenceErr := queries.AdvanceRealtimeStream(request.Context(), database.AdvanceRealtimeStreamParams{TargetType: database.RealtimeTargetTypeEventMessages, TargetID: eventID})
+		if sequenceErr != nil {
+			log.Printf("allocate message sequence: %v", sequenceErr)
+			http.Error(w, "could not send message", 500)
+			return
+		}
+		_, err = queries.InsertMessage(request.Context(), database.InsertMessageParams{ID: input.ID, EventID: eventID, UserID: handler.DemoUserID, Body: input.Body, Sequence: sequence})
 		if errors.Is(err, pgx.ErrNoRows) {
 			http.Error(w, "message ID already used", 409)
 			return
 		}
 		if err != nil {
 			log.Printf("insert message: %v", err)
+			http.Error(w, "could not send message", 500)
+			return
+		}
+		saved, err := queries.GetMessageWithSender(request.Context(), input.ID)
+		if err == nil {
+			var payload []byte
+			payload, err = json.Marshal(describeMessage(saved.Message, saved.DisplayName))
+			if err == nil {
+				err = realtime.Enqueue(request.Context(), queries, realtime.Target{Type: database.RealtimeTargetTypeEventMessages, ID: eventID}, sequence, payload)
+			}
+		}
+		if err != nil {
+			log.Printf("record message update: %v", err)
 			http.Error(w, "could not send message", 500)
 			return
 		}
@@ -166,7 +201,7 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	rows, err := queries.ListMessages(request.Context(), params)
+	rows, err := queries.ListMessagesBySequence(request.Context(), params)
 	if err != nil {
 		log.Printf("list messages: %v", err)
 		http.Error(w, "could not load messages", 500)
@@ -178,19 +213,24 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 	}
 	messages := make([]chatMessage, 0, len(rows))
 	for _, row := range rows {
-		cursor, _ := json.Marshal(messageCursor{Time: row.CreatedAt.Time, ID: row.ID})
-		messages = append(messages, chatMessage{ID: row.ID, EventID: row.EventID, UserID: row.UserID, Body: row.Body, CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time, DisplayName: row.DisplayName, Cursor: base64.RawURLEncoding.EncodeToString(cursor)})
+		messages = append(messages, describeMessage(row.Message, row.DisplayName))
 	}
-	if !params.AfterTime.Valid {
+	if !params.AfterSequence.Valid {
 		for left, right := 0, len(messages)-1; left < right; left, right = left+1, right-1 {
 			messages[left], messages[right] = messages[right], messages[left]
 		}
 	}
+	sequence, err := queries.GetRealtimeSequence(request.Context(), database.GetRealtimeSequenceParams{TargetType: database.RealtimeTargetTypeEventMessages, TargetID: eventID})
+	if err != nil {
+		http.Error(w, "could not load chat state", 500)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(struct {
+		Sequence string        `json:"sequence"`
 		Messages []chatMessage `json:"messages"`
 		HasMore  bool          `json:"has_more"`
 		CanSend  bool          `json:"can_send"`
 		ViewerID pgtype.UUID   `json:"viewer_id"`
-	}{messages, hasMore, writable, handler.DemoUserID})
+	}{strconv.FormatInt(sequence, 10), messages, hasMore, writable, handler.DemoUserID})
 }

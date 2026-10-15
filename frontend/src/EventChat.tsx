@@ -1,3 +1,5 @@
+import { compareSequence, validSequence } from "./realtime";
+import { useRealtimeTarget, liveStatusText } from "./RealtimeProvider";
 import { uuid } from "expo-modules-core";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -15,6 +17,8 @@ import {
 } from "react-native";
 
 type Message = {
+  event_id: string;
+  sequence: string;
   id: string;
   user_id: string;
   body: string;
@@ -23,6 +27,7 @@ type Message = {
   cursor: string;
 };
 type Page = {
+  sequence: string;
   messages: Message[];
   has_more: boolean;
   can_send: boolean;
@@ -30,17 +35,27 @@ type Page = {
 };
 type PendingMessage = { id: string; body: string; state: "sending" | "failed" };
 
+function mergeMessages(current: Message[], incoming: Message[]): Message[] {
+  const byID = new Map(current.map((message) => [message.id, message]));
+  for (const message of incoming) byID.set(message.id, message);
+  return [...byID.values()].sort((left, right) =>
+    compareSequence(right.sequence, left.sequence),
+  );
+}
+
 export default function EventChat({
   eventID,
   title,
   apiURL,
   visible,
+  eventWritable,
   onClose,
 }: {
   eventID: string;
   title: string;
   apiURL: string;
   visible: boolean;
+  eventWritable: boolean;
   onClose: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -58,6 +73,60 @@ export default function EventChat({
   const oldest = useRef("");
   const nearBottom = useRef(true);
   const list = useRef<FlatList<Message | PendingMessage>>(null);
+  const newestSequence = useRef("0");
+  const initialLoaded = useRef(false);
+  const refresh = useRef<(() => void) | null>(null);
+  const { status: liveStatus, remember } = useRealtimeTarget(
+    "event_messages",
+    visible ? eventID : null,
+    {
+      ready: () => refresh.current?.(),
+      update: (frame) => {
+        if (frame.type !== "update" || !initialLoaded.current) {
+          refresh.current?.();
+          return;
+        }
+        const message = frame.payload as Message;
+        if (
+          message?.event_id !== eventID ||
+          !validSequence(message.sequence) ||
+          message.sequence !== frame.sequence
+        )
+          return;
+        if (compareSequence(message.sequence, newestSequence.current) <= 0)
+          return;
+        if (
+          BigInt(message.sequence) !==
+          BigInt(newestSequence.current) + BigInt(1)
+        ) {
+          refresh.current?.();
+          return;
+        }
+        newestSequence.current = message.sequence;
+        newest.current = message.cursor;
+        remember(message.sequence);
+        setMessages((current) => mergeMessages(current, [message]));
+        setPending((current) =>
+          current.filter((pending) => pending.id !== message.id),
+        );
+        if (!nearBottom.current) setNewMessages(true);
+      },
+      error: (code) => {
+        if (code === "forbidden" || code === "not_found") {
+          setMessages([]);
+          setCanSend(false);
+          setDenied(true);
+          setHasOlder(false);
+          newest.current = "";
+          oldest.current = "";
+          newestSequence.current = "0";
+          initialLoaded.current = false;
+          setError("You no longer have access to this chat.");
+        } else
+          setError("Live chat is reconnecting. Your messages are retained.");
+      },
+    },
+  );
   const sending = useRef(new Set<string>());
   const loadOlder = useRef<(() => Promise<void>) | null>(null);
   const sendControllers = useRef(new Set<AbortController>());
@@ -71,9 +140,14 @@ export default function EventChat({
     if (!visible) return;
     let active = true;
     let fetching = false;
+    let refreshQueued = false;
     let controller: AbortController | null = null;
     async function load(older = false) {
-      if (fetching || AppState.currentState !== "active") return;
+      if (AppState.currentState !== "active") return;
+      if (fetching) {
+        if (!older) refreshQueued = true;
+        return;
+      }
       fetching = true;
       controller = new AbortController();
       const timeout = setTimeout(() => controller?.abort(), 12000);
@@ -93,6 +167,8 @@ export default function EventChat({
           setDenied(true);
           newest.current = "";
           oldest.current = "";
+          newestSequence.current = "0";
+          initialLoaded.current = false;
           setHasOlder(false);
           setError("You no longer have access to this chat.");
           return;
@@ -104,18 +180,7 @@ export default function EventChat({
         setCanSend(page.can_send);
         setViewer(page.viewer_id);
         setError("");
-        setMessages((current) => {
-          const incomingIDs = new Set(
-            page.messages.map((message) => message.id),
-          );
-          const retained = current.filter(
-            (message) => !incomingIDs.has(message.id),
-          );
-          const incoming = page.messages.slice().reverse();
-          return older
-            ? [...retained, ...incoming]
-            : [...incoming, ...retained];
-        });
+        setMessages((current) => mergeMessages(current, page.messages));
         setPending((current) =>
           current.filter(
             (message) =>
@@ -127,10 +192,16 @@ export default function EventChat({
           if (page.messages.length) oldest.current = page.messages[0].cursor;
         }
         if (!older && page.messages.length) {
-          newest.current = page.messages[page.messages.length - 1].cursor;
+          const latest = page.messages[page.messages.length - 1];
+          if (compareSequence(latest.sequence, newestSequence.current) > 0) {
+            newest.current = latest.cursor;
+            newestSequence.current = latest.sequence;
+            remember(latest.sequence);
+          }
           if (!nearBottom.current) setNewMessages(true);
         }
-        // Catch up all pages after a long background period before normal polling.
+        initialLoaded.current = true;
+        // Drain every missed page; socket delivery may race this history request.
         if (!older && cursor && page.has_more)
           setTimeout(() => {
             if (active) void load();
@@ -141,27 +212,35 @@ export default function EventChat({
       } finally {
         clearTimeout(timeout);
         fetching = false;
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          if (refreshQueued) {
+            refreshQueued = false;
+            void load();
+          }
+        }
       }
     }
     loadOlder.current = () => load(true);
+    refresh.current = () => void load();
+    if (newestSequence.current !== "0") remember(newestSequence.current);
     void load();
-    const timer = setInterval(() => void load(), 4000);
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void load();
       else controller?.abort();
     });
     return () => {
       active = false;
-      clearInterval(timer);
+      refresh.current = null;
       subscription.remove();
       controller?.abort();
       loadOlder.current = null;
     };
-  }, [eventID, apiURL, visible, retry]);
+  }, [eventID, apiURL, visible, retry, remember]);
 
   async function send(message: PendingMessage) {
-    if (sending.current.has(message.id) || !canSend || denied) return;
+    if (sending.current.has(message.id) || !canSend || !eventWritable || denied)
+      return;
     sending.current.add(message.id);
     setPending((current) => [
       ...current.filter((item) => item.id !== message.id),
@@ -234,6 +313,9 @@ export default function EventChat({
             <Text style={styles.action}>Back</Text>
           </Pressable>
         </View>
+        <Text accessibilityLiveRegion="polite" style={styles.notice}>
+          {liveStatusText(liveStatus)}
+        </Text>
         {!!error && (
           <View style={styles.notice}>
             <Text accessibilityRole="alert" style={styles.error}>
@@ -317,13 +399,15 @@ export default function EventChat({
             }}
           />
         )}
-        {!canSend && !loading && (viewer !== "" || denied) && (
-          <Text style={styles.notice}>
-            {denied
-              ? "Join the event to access chat."
-              : "This event’s chat is read-only."}
-          </Text>
-        )}
+        {(!canSend || !eventWritable) &&
+          !loading &&
+          (viewer !== "" || denied) && (
+            <Text style={styles.notice}>
+              {denied
+                ? "Join the event to access chat."
+                : "This event’s chat is read-only."}
+            </Text>
+          )}
         {newMessages && (
           <Pressable
             style={styles.button}
@@ -335,7 +419,7 @@ export default function EventChat({
             <Text style={styles.action}>New messages ↓</Text>
           </Pressable>
         )}
-        {canSend && !denied && (
+        {canSend && eventWritable && !denied && (
           <View style={styles.composer}>
             <TextInput
               accessibilityLabel="Message"

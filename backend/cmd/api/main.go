@@ -3,9 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"joinme/backend/internal/realtime"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -47,8 +52,28 @@ func main() {
 	}
 	eventHandler := events.Handler{Queries: database.New(pool), DemoUserID: demoUserID, Pool: pool}
 
+	runtimeContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	live := realtime.NewServer(pool)
+	live.Authorize = eventHandler.RealtimeAccess
+	live.Snapshot = eventHandler.RealtimeSnapshot
+	live.RelatedTargets = eventHandler.RealtimeRelatedTargets
+	live.Viewer = func(ctx context.Context) (pgtype.UUID, error) {
+		exists, err := database.New(pool).DemoUserExists(ctx, demoUserID)
+		if err != nil {
+			return pgtype.UUID{}, err
+		}
+		if !exists {
+			return pgtype.UUID{}, fmt.Errorf("configured demo identity missing")
+		}
+		return demoUserID, nil
+	}
+	liveDone := make(chan struct{})
+	go func() { defer close(liveDone); live.Run(runtimeContext) }()
 	userHandler := users.Handler{Queries: database.New(pool), DemoUserID: demoUserID}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /ws", live.WebSocket)
+	mux.HandleFunc("GET /realtime", live.LongPoll)
 	mux.HandleFunc("GET /me", userHandler.Me)
 	mux.HandleFunc("PATCH /me", userHandler.Me)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -68,7 +93,18 @@ func main() {
 	mux.HandleFunc("PUT /events/{id}/participation", eventHandler.ChangeParticipation)
 	mux.HandleFunc("DELETE /events/{id}/participation", eventHandler.ChangeParticipation)
 
-	server := &http.Server{Addr: ":" + port, Handler: mux, ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 15 * time.Second}
+	server := &http.Server{Addr: ":" + port, Handler: mux, ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	log.Printf("API listening on :%s", port)
-	log.Fatal(server.ListenAndServe())
+	go func() {
+		<-runtimeContext.Done()
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		server.Shutdown(shutdownContext)
+	}()
+	if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Printf("HTTP server: %v", err)
+		stop()
+	}
+	stop()
+	<-liveDone
 }

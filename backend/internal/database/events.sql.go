@@ -133,6 +133,7 @@ SELECT jsonb_build_object(
         'is_host', COALESCE(host_id = $1::uuid, false),
         'is_participant', EXISTS(SELECT 1 FROM event_participants WHERE event_id = event_detail.id AND user_id = $1::uuid)),
     'participants', participants, 'participant_count', jsonb_array_length(participants),
+    'sequence', COALESCE((SELECT last_sequence::text FROM realtime_streams WHERE target_type = 'event_details' AND target_id = event_detail.id), '0'),
     'available_spots', GREATEST(capacity - jsonb_array_length(participants), 0),
     'is_full', jsonb_array_length(participants) >= capacity,
     'created_at', created_at, 'updated_at', updated_at
@@ -196,7 +197,7 @@ func (q *Queries) GetScheduledEventStatus(ctx context.Context) (pgtype.UUID, err
 	return id, err
 }
 
-const joinEvent = `-- name: JoinEvent :exec
+const joinEvent = `-- name: JoinEvent :execrows
 INSERT INTO event_participants (event_id, user_id) VALUES ($1, $2)
 ON CONFLICT (event_id, user_id) DO NOTHING
 `
@@ -206,12 +207,15 @@ type JoinEventParams struct {
 	UserID  pgtype.UUID
 }
 
-func (q *Queries) JoinEvent(ctx context.Context, arg JoinEventParams) error {
-	_, err := q.db.Exec(ctx, joinEvent, arg.EventID, arg.UserID)
-	return err
+func (q *Queries) JoinEvent(ctx context.Context, arg JoinEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, joinEvent, arg.EventID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const leaveEvent = `-- name: LeaveEvent :exec
+const leaveEvent = `-- name: LeaveEvent :execrows
 DELETE FROM event_participants WHERE event_id = $1 AND user_id = $2
 `
 
@@ -220,9 +224,12 @@ type LeaveEventParams struct {
 	UserID  pgtype.UUID
 }
 
-func (q *Queries) LeaveEvent(ctx context.Context, arg LeaveEventParams) error {
-	_, err := q.db.Exec(ctx, leaveEvent, arg.EventID, arg.UserID)
-	return err
+func (q *Queries) LeaveEvent(ctx context.Context, arg LeaveEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, leaveEvent, arg.EventID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const listEventsInBounds = `-- name: ListEventsInBounds :one
@@ -360,8 +367,9 @@ func (q *Queries) LockEventForParticipation(ctx context.Context, id pgtype.UUID)
 	return i, err
 }
 
-const updateEvent = `-- name: UpdateEvent :exec
+const updateEvent = `-- name: UpdateEvent :execrows
 UPDATE events SET title = $2, starts_at = $3, capacity = $4 WHERE id = $1
+AND (title, starts_at, capacity) IS DISTINCT FROM ($2, $3, $4)
 `
 
 type UpdateEventParams struct {
@@ -371,12 +379,15 @@ type UpdateEventParams struct {
 	Capacity int32
 }
 
-func (q *Queries) UpdateEvent(ctx context.Context, arg UpdateEventParams) error {
-	_, err := q.db.Exec(ctx, updateEvent,
+func (q *Queries) UpdateEvent(ctx context.Context, arg UpdateEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateEvent,
 		arg.ID,
 		arg.Title,
 		arg.StartsAt,
 		arg.Capacity,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

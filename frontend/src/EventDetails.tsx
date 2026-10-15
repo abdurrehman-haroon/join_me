@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 
+import { compareSequence, validSequence } from "./realtime";
+import { useRealtimeTarget, liveStatusText } from "./RealtimeProvider";
 import EventForm from "./EventForm";
 import EventChat from "./EventChat";
 
@@ -30,9 +32,23 @@ export type EventSummary = {
   updated_at: string;
 };
 type EventDetail = EventSummary & {
+  sequence: string;
   participants: Person[];
   viewer: { id: string | null; is_host: boolean; is_participant: boolean };
 };
+
+function forViewer(detail: EventDetail, viewerID: string | null): EventDetail {
+  return {
+    ...detail,
+    viewer: {
+      id: viewerID,
+      is_host: detail.host.id === viewerID,
+      is_participant: detail.participants.some(
+        (person) => person.id === viewerID,
+      ),
+    },
+  };
+}
 
 export default function EventDetails({
   id,
@@ -55,6 +71,45 @@ export default function EventDetails({
   const [hasStarted, setHasStarted] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [actionError, setActionError] = useState("");
+  const bufferedDetail = useRef<EventDetail | null>(null);
+  const { status: liveStatus, remember } = useRealtimeTarget(
+    "event_details",
+    id,
+    {
+      ready: () => setRetry((value) => value + 1),
+      update: (frame) => {
+        if (frame.type === "resync") {
+          setRetry((value) => value + 1);
+          return;
+        }
+        const detail = frame.payload as EventDetail;
+        if (detail?.id !== id || !validSequence(frame.sequence)) return;
+        const sequence = frame.sequence;
+        if (
+          bufferedDetail.current?.id !== id ||
+          compareSequence(sequence, bufferedDetail.current.sequence) > 0
+        )
+          bufferedDetail.current = { ...detail, sequence };
+        remember(sequence);
+        setEvent((current) => {
+          if (
+            !current ||
+            current.id !== id ||
+            compareSequence(sequence, current.sequence) <= 0
+          )
+            return current;
+          return forViewer({ ...detail, sequence }, current.viewer.id);
+        });
+        setError("");
+      },
+      error: (code) =>
+        setError(
+          code === "not_found"
+            ? "This event is no longer available."
+            : "Live updates are unavailable. Reconnecting…",
+        ),
+    },
+  );
   const pending = useRef(false);
   const mutationController = useRef<AbortController | null>(null);
   useEffect(() => () => mutationController.current?.abort(), []);
@@ -89,7 +144,6 @@ export default function EventDetails({
       pending.current = false;
       setMutating(false);
       // Always reconcile with the server, including conflicts and uncertain network results.
-      setEvent(null);
       setError("");
       setRetry((value) => value + 1);
       onEventChanged();
@@ -113,8 +167,22 @@ export default function EventDetails({
         if (!response.ok) throw new Error("Could not load event");
         const detail: EventDetail = await response.json();
         if (active) {
-          setEvent(detail);
-          setHasStarted(new Date(detail.starts_at).getTime() <= Date.now());
+          if (!validSequence(detail.sequence))
+            throw new Error("Invalid event sequence");
+          remember(detail.sequence);
+          const buffered = bufferedDetail.current;
+          const snapshot =
+            buffered?.id === id &&
+            compareSequence(buffered.sequence, detail.sequence) > 0
+              ? forViewer(buffered, detail.viewer.id)
+              : detail;
+          setEvent((current) =>
+            current?.id === snapshot.id &&
+            compareSequence(current.sequence, snapshot.sequence) > 0
+              ? current
+              : snapshot,
+          );
+          setError("");
         }
       } catch {
         if (active)
@@ -131,7 +199,21 @@ export default function EventDetails({
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [id, apiURL, retry]);
+  }, [id, apiURL, retry, remember]);
+
+  useEffect(() => {
+    if (!event) return;
+    const remaining = new Date(event.starts_at).getTime() - Date.now();
+    const initial = setTimeout(() => setHasStarted(remaining <= 0), 0);
+    const kickoff =
+      remaining > 0 && remaining <= 2147483647
+        ? setTimeout(() => setHasStarted(true), remaining)
+        : undefined;
+    return () => {
+      clearTimeout(initial);
+      clearTimeout(kickoff);
+    };
+  }, [event]);
 
   return (
     <Modal
@@ -160,13 +242,20 @@ export default function EventDetails({
             <Text style={styles.action}>{closeLabel}</Text>
           </Pressable>
         </View>
-        {error ? (
+        {id && (
+          <Text accessibilityLiveRegion="polite" style={styles.liveStatus}>
+            {liveStatusText(liveStatus)}
+          </Text>
+        )}
+        {error && event?.id === id && (
+          <Text style={styles.liveStatus}>{error}</Text>
+        )}
+        {error && event?.id !== id ? (
           <View style={styles.message}>
             <Text style={styles.body}>{error}</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
-                setEvent(null);
                 setError("");
                 setRetry((value) => value + 1);
               }}
@@ -336,13 +425,11 @@ export default function EventDetails({
             apiURL={apiURL}
             onClose={() => {
               setEditing(false);
-              setEvent(null);
               setRetry((value) => value + 1);
               onEventChanged();
             }}
             onSaved={() => {
               setEditing(false);
-              setEvent(null);
               setRetry((value) => value + 1);
               onEventChanged();
             }}
@@ -355,6 +442,7 @@ export default function EventDetails({
             title={event.title}
             apiURL={apiURL}
             visible={chatOpen}
+            eventWritable={event.status.slug === "scheduled"}
             onClose={() => setChatOpen(false)}
           />
         )}
@@ -379,6 +467,12 @@ const styles = StyleSheet.create({
   },
   button: { paddingVertical: 14, paddingHorizontal: 6 },
   action: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
+  liveStatus: {
+    color: "#6C786E",
+    fontSize: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 6,
+  },
   content: { padding: 24, paddingBottom: 60, gap: 18 },
   title: { fontFamily: "BigShoulders", fontSize: 46, color: "#15201B" },
   body: { color: "#15201B", fontSize: 16, lineHeight: 24 },

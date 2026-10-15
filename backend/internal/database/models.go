@@ -140,6 +140,48 @@ func (ns NullPlaceType) Value() (driver.Value, error) {
 	return string(ns.PlaceType), nil
 }
 
+type RealtimeTargetType string
+
+const (
+	RealtimeTargetTypeEventDetails  RealtimeTargetType = "event_details"
+	RealtimeTargetTypeEventMessages RealtimeTargetType = "event_messages"
+)
+
+func (e *RealtimeTargetType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = RealtimeTargetType(s)
+	case string:
+		*e = RealtimeTargetType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for RealtimeTargetType: %T", src)
+	}
+	return nil
+}
+
+type NullRealtimeTargetType struct {
+	RealtimeTargetType RealtimeTargetType
+	Valid              bool // Valid is true if RealtimeTargetType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullRealtimeTargetType) Scan(value interface{}) error {
+	if value == nil {
+		ns.RealtimeTargetType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.RealtimeTargetType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullRealtimeTargetType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.RealtimeTargetType), nil
+}
+
 type StatusableType string
 
 const (
@@ -218,6 +260,7 @@ type Message struct {
 	Body      string
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+	Sequence  int64
 }
 
 type ModerationLog struct {
@@ -237,6 +280,27 @@ type Place struct {
 	Boundary  interface{}
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type RealtimeOutbox struct {
+	ID            pgtype.UUID
+	TargetType    RealtimeTargetType
+	TargetID      pgtype.UUID
+	Sequence      int64
+	Payload       []byte
+	AttemptCount  int32
+	NextAttemptAt pgtype.Timestamptz
+	PublishedAt   pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type RealtimeStream struct {
+	TargetType   RealtimeTargetType
+	TargetID     pgtype.UUID
+	LastSequence int64
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }
 
 type Status struct {

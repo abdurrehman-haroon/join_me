@@ -5,6 +5,42 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /ws:
+    get:
+      summary: Multiplex realtime subscriptions over WebSocket
+      description: Uses the server-owned demo identity. Supports subscribe/unsubscribe/ping commands and subscribed/update/resync/error/pong replies. One connection can subscribe to 32 targets. Target types are event_details and event_messages; target IDs are event UUIDs. Chat requires current membership, rechecked before sending each update. Details updates omit viewer fields. Sequence numbers are decimal strings. See docs/realtime.md for ordering, recovery, limits and proxy configuration.
+      responses:
+        '101': { description: WebSocket connection established }
+        '400': { description: Invalid WebSocket handshake }
+        '403': { description: Untrusted browser origin }
+        '503': { description: Identity or realtime service unavailable }
+  /realtime:
+    get:
+      summary: Long-poll fallback for environments blocking WebSockets
+      description: Without after, returns an initial snapshot immediately. Otherwise waits up to 20 seconds for a newer snapshot or a permission/status change. Details payloads are current event details; chat payloads contain up to 50 messages after the supplied sequence, has_more, can_send and viewer_id. When has_more is true, the frame sequence is the last message in that page. Reissue with the returned sequence. Authorization is checked on every snapshot. Responses are not cached.
+      parameters:
+        - name: target_type
+          in: query
+          required: true
+          schema: { type: string, enum: [event_details, event_messages] }
+        - name: target_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: after
+          in: query
+          schema: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+      responses:
+        '200':
+          description: Authoritative snapshot or chat catch-up page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RealtimeFrame' }
+        '204': { description: No changes before timeout; reconnect the long poll }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: Subscription access revoked or denied }
+        '404': { description: Target not found }
+        '503': { description: Identity or realtime service unavailable }
   /healthz:
     get:
       summary: Check API availability
@@ -182,8 +218,9 @@ paths:
                 allOf:
                   - $ref: '#/components/schemas/EventSummary'
                   - type: object
-                    required: [participants, viewer]
+                    required: [participants, viewer, sequence]
                     properties:
+                      sequence: { type: string, pattern: '^(0|[1-9][0-9]*)$', description: Consistent event_details stream position }
                       viewer:
                         type: object
                         description: Server-configured demo user; not authentication.
@@ -272,7 +309,7 @@ paths:
         schema: { type: string, format: uuid }
     put:
       summary: Cancel an upcoming event as its host
-      description: No request body. Uses the configured demo user. Locks the same event row as participation, verifies ownership, and changes status to the shared cancelled definition. Keeps the event and roster. Host retries on an already cancelled event succeed without another update. Completed or elapsed scheduled events cannot be cancelled. No notifications in this slice.
+      description: No request body. Uses the configured demo user. Locks the same event row as participation, verifies ownership, and changes status to the shared cancelled definition. Keeps the event and roster. Host retries on an already cancelled event succeed without another update. Completed or elapsed scheduled events cannot be cancelled. Publishes a committed realtime event update; no push notifications.
       responses:
         '204': { description: Cancelled or already cancelled }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -317,6 +354,10 @@ paths:
       summary: Read participant chat as the configured demo user
       description: Current participants only, including host. Cancelled/completed history stays readable. Latest 50 by default; before reads older pages, after reads catch-up pages. All pages return oldest first. Use one cursor only. For after, advance using the last message until has_more is false. Leaving removes access but retains history.
       parameters:
+        - name: after_sequence
+          in: query
+          description: Nonnegative decimal sequence for ordered recovery. Cannot combine with before or after.
+          schema: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
         - name: before
           in: query
           schema: { type: string }
@@ -330,7 +371,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [messages, has_more, can_send, viewer_id]
+                required: [messages, has_more, can_send, viewer_id, sequence]
                 properties:
                   messages:
                     type: array
@@ -339,6 +380,7 @@ paths:
                   has_more: { type: boolean }
                   can_send: { type: boolean }
                   viewer_id: { type: string, format: uuid }
+                  sequence: { type: string, description: Current chat stream position; advance catch-up using individual message sequences }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { description: Not a current participant }
         '404': { description: Event not found }
@@ -379,6 +421,18 @@ components:
         text/plain:
           schema: { type: string }
   schemas:
+    RealtimeFrame:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [subscribed, unsubscribed, update, snapshot, resync, error, pong] }
+        id: { type: string, format: uuid, nullable: true, description: Outbox update ID when present }
+        request_id: { type: string }
+        target_type: { type: string, enum: [event_details, event_messages] }
+        target_id: { type: string, format: uuid, nullable: true }
+        sequence: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+        payload: { type: object, description: Event snapshot, individual chat message, or fallback chat page }
+        code: { type: string, description: Structured error category }
     Profile:
       type: object
       required: [id, display_name, created_at, updated_at]
@@ -389,7 +443,7 @@ components:
         updated_at: { type: string, format: date-time }
     Message:
       type: object
-      required: [id, event_id, user_id, body, display_name, created_at, updated_at, cursor]
+      required: [id, event_id, user_id, body, display_name, created_at, updated_at, cursor, sequence]
       properties:
         id: { type: string, format: uuid }
         event_id: { type: string, format: uuid }
@@ -399,6 +453,7 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         cursor: { type: string }
+        sequence: { type: string, pattern: '^[1-9][0-9]*$' }
     Boundary:
       type: object
       nullable: true

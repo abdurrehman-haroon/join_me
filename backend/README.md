@@ -102,3 +102,7 @@ GET /me returns the configured demo user's id, display_name, created_at and upda
 ## Host editing
 
 PATCH /events/{id} accepts title, starts_at and capacity together (same validation as creation; 16 KiB strict JSON). Only the configured demo host may edit scheduled future events. Place/type remain fixed. The shared event lock serializes edits with join/leave/cancel, and capacity cannot be below current membership. Returns 204; invalid input 400, non-host 403, missing event 404, closed/started or insufficient capacity 409. Automatic timestamps use the existing database trigger.
+
+## Shared realtime transport
+
+Migration 000010 adds the frozen streams/outbox schema and ordered message positions. GET /ws multiplexes event_details and event_messages; GET /realtime provides the long-poll fallback. GET event detail and message pages include decimal-string sequence fields; chat recovery supports after_sequence=N, mutually exclusive with before/after. Message cursor values now include their sequence. Event writes and chat sends publish through the outbox in their existing transactions; no-op retries create no extra update. The API runs its own dispatcher and PostgreSQL notification listener, supplying cross-instance fanout without another service. Demo identity remains configured server-side. See ../docs/realtime.md for protocol, proxy settings, limits and recovery. Published outbox retention is not yet enabled.

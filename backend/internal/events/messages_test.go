@@ -93,8 +93,11 @@ func TestParticipantMessages(t *testing.T) {
 	call("GET", path+"?before=invalid", "", 400)
 	call("GET", path+"?before="+firstCursor+"&after="+firstCursor, "", 400)
 	// Equal timestamps exercise the UUID tie-breaker across page boundaries.
-	_, err = pool.Exec(ctx, `INSERT INTO messages(id,event_id,user_id,body) SELECT ('50000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,$1,$2,'Message ' || n FROM generate_series(1,60) AS n`, event, user)
+	_, err = pool.Exec(ctx, `INSERT INTO messages(id,event_id,user_id,body,sequence) SELECT ('50000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,$1,$2,'Message ' || n,n+1 FROM generate_series(1,60) AS n`, event, user)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = pool.Exec(ctx, `UPDATE realtime_streams SET last_sequence=61 WHERE target_type='event_messages' AND target_id=$1`, event); err != nil {
 		t.Fatal(err)
 	}
 	response = call("GET", path, "", 200)

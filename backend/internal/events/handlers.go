@@ -77,7 +77,18 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "event creation is unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	event, err := handler.Queries.CreateEvent(request.Context(), database.CreateEventParams{
+	if handler.Pool == nil {
+		http.Error(w, "event creation unavailable", 503)
+		return
+	}
+	transaction, err := handler.Pool.Begin(request.Context())
+	if err != nil {
+		http.Error(w, "could not create event", 500)
+		return
+	}
+	defer transaction.Rollback(request.Context())
+	queries := handler.Queries.WithTx(transaction)
+	event, err := queries.CreateEvent(request.Context(), database.CreateEventParams{
 		HostID: handler.DemoUserID, PlaceID: placeID, StatusID: statusID, Title: input.Title,
 		Type: input.Type, StartsAt: pgtype.Timestamptz{Time: input.StartsAt, Valid: true}, Capacity: input.Capacity,
 	})
@@ -96,6 +107,14 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		}
 		log.Printf("create event: %v", err)
 		http.Error(w, "could not create event", http.StatusInternalServerError)
+		return
+	}
+	if err = recordEventUpdate(request.Context(), queries, event.ID); err == nil {
+		err = transaction.Commit(request.Context())
+	}
+	if err != nil {
+		log.Printf("commit event creation: %v", err)
+		http.Error(w, "could not create event", 500)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -193,12 +212,13 @@ func (handler Handler) ChangeParticipation(w http.ResponseWriter, request *http.
 		http.Error(w, "could not update participation", http.StatusInternalServerError)
 		return
 	}
+	var changed int64
 	if request.Method == http.MethodDelete {
 		if event.HostID == handler.DemoUserID {
 			http.Error(w, "the host cannot leave their event", http.StatusConflict)
 			return
 		}
-		err = queries.LeaveEvent(request.Context(), database.LeaveEventParams{EventID: eventID, UserID: handler.DemoUserID})
+		changed, err = queries.LeaveEvent(request.Context(), database.LeaveEventParams{EventID: eventID, UserID: handler.DemoUserID})
 	} else {
 		// This query runs AFTER acquiring the lock, with a fresh READ COMMITTED snapshot.
 		participation, readErr := queries.GetEventParticipation(request.Context(), database.GetEventParticipationParams{EventID: eventID, UserID: handler.DemoUserID})
@@ -216,13 +236,20 @@ func (handler Handler) ChangeParticipation(w http.ResponseWriter, request *http.
 				http.Error(w, "this event is full", http.StatusConflict)
 				return
 			}
-			err = queries.JoinEvent(request.Context(), database.JoinEventParams{EventID: eventID, UserID: handler.DemoUserID})
+			changed, err = queries.JoinEvent(request.Context(), database.JoinEventParams{EventID: eventID, UserID: handler.DemoUserID})
 		}
 	}
 	if err != nil {
 		log.Printf("change participation: %v", err)
 		http.Error(w, "could not update participation", http.StatusInternalServerError)
 		return
+	}
+	if changed > 0 {
+		if err = recordEventUpdate(request.Context(), queries, eventID); err != nil {
+			log.Printf("record participation: %v", err)
+			http.Error(w, "could not update participation", 500)
+			return
+		}
 	}
 	if err = transaction.Commit(request.Context()); err != nil {
 		log.Printf("commit participation: %v", err)
@@ -340,6 +367,11 @@ func (handler Handler) CancelEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "could not cancel event", http.StatusInternalServerError)
 		return
 	}
+	if err = recordEventUpdate(request.Context(), queries, eventID); err != nil {
+		log.Printf("record cancellation: %v", err)
+		http.Error(w, "could not cancel event", 500)
+		return
+	}
 	if err = transaction.Commit(request.Context()); err != nil {
 		log.Printf("commit cancellation: %v", err)
 		http.Error(w, "could not confirm cancellation; refresh the event", http.StatusInternalServerError)
@@ -443,10 +475,18 @@ func (handler Handler) UpdateEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "start time must be in the future", http.StatusBadRequest)
 		return
 	}
-	if err = queries.UpdateEvent(request.Context(), database.UpdateEventParams{ID: eventID, Title: input.Title, StartsAt: pgtype.Timestamptz{Time: input.StartsAt, Valid: true}, Capacity: input.Capacity}); err != nil {
+	changed, err := queries.UpdateEvent(request.Context(), database.UpdateEventParams{ID: eventID, Title: input.Title, StartsAt: pgtype.Timestamptz{Time: input.StartsAt, Valid: true}, Capacity: input.Capacity})
+	if err != nil {
 		log.Printf("update event: %v", err)
 		http.Error(w, "could not update event", http.StatusInternalServerError)
 		return
+	}
+	if changed > 0 {
+		if err = recordEventUpdate(request.Context(), queries, eventID); err != nil {
+			log.Printf("record edit: %v", err)
+			http.Error(w, "could not update event", 500)
+			return
+		}
 	}
 	if err = transaction.Commit(request.Context()); err != nil {
 		log.Printf("commit event edit: %v", err)

@@ -416,7 +416,7 @@ func TestEventBrowsing(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = queries.JoinEvent(ctx, database.JoinEventParams{EventID: created.ID, UserID: attendeeID}); err != nil {
+		if _, err = queries.JoinEvent(ctx, database.JoinEventParams{EventID: created.ID, UserID: attendeeID}); err != nil {
 			t.Fatal(err)
 		}
 		call := func(user pgtype.UUID, method, path string) *httptest.ResponseRecorder {
@@ -539,7 +539,7 @@ func TestEventBrowsing(t *testing.T) {
 		if err := demoID.Scan("20000000-0000-4000-8000-000000000001"); err != nil {
 			t.Fatal(err)
 		}
-		creator := Handler{Queries: database.New(pool), DemoUserID: demoID}
+		creator := Handler{Queries: database.New(pool), Pool: pool, DemoUserID: demoID}
 		body := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000003","title":"  Test creation  ","type":"cricket","starts_at":%q,"capacity":1}`, time.Now().Add(2*time.Hour).Format(time.RFC3339))
 		response := httptest.NewRecorder()
 		creator.CreateEvent(response, httptest.NewRequest("POST", "/events", strings.NewReader(body)))
