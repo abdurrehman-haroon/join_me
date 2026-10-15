@@ -90,75 +90,6 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT messages.id, messages.event_id, messages.user_id, messages.body, messages.created_at, messages.updated_at, messages.sequence, users.display_name
-FROM messages JOIN users ON users.id = messages.user_id
-WHERE event_id = $1
-    AND ($2::timestamptz IS NULL OR
-        (messages.created_at, messages.id) < ($2::timestamptz, $3::uuid))
-    AND ($4::timestamptz IS NULL OR
-        (messages.created_at, messages.id) > ($4::timestamptz, $5::uuid))
-ORDER BY
-    CASE WHEN $4::timestamptz IS NOT NULL THEN messages.created_at END ASC,
-    CASE WHEN $4::timestamptz IS NOT NULL THEN messages.id END ASC,
-    messages.created_at DESC, messages.id DESC
-LIMIT 51
-`
-
-type ListMessagesParams struct {
-	EventID    pgtype.UUID
-	BeforeTime pgtype.Timestamptz
-	BeforeID   pgtype.UUID
-	AfterTime  pgtype.Timestamptz
-	AfterID    pgtype.UUID
-}
-
-type ListMessagesRow struct {
-	ID          pgtype.UUID
-	EventID     pgtype.UUID
-	UserID      pgtype.UUID
-	Body        string
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	Sequence    int64
-	DisplayName string
-}
-
-func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]ListMessagesRow, error) {
-	rows, err := q.db.Query(ctx, listMessages,
-		arg.EventID,
-		arg.BeforeTime,
-		arg.BeforeID,
-		arg.AfterTime,
-		arg.AfterID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListMessagesRow
-	for rows.Next() {
-		var i ListMessagesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.EventID,
-			&i.UserID,
-			&i.Body,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Sequence,
-			&i.DisplayName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listMessagesBySequence = `-- name: ListMessagesBySequence :many
 SELECT messages.id, messages.event_id, messages.user_id, messages.body, messages.created_at, messages.updated_at, messages.sequence, users.display_name FROM messages JOIN users ON users.id = messages.user_id
 WHERE event_id = $1
 AND ($2::bigint IS NULL OR sequence > $2)
@@ -167,26 +98,26 @@ ORDER BY CASE WHEN $2::bigint IS NOT NULL THEN sequence END ASC, sequence DESC
 LIMIT 51
 `
 
-type ListMessagesBySequenceParams struct {
+type ListMessagesParams struct {
 	EventID        pgtype.UUID
 	AfterSequence  pgtype.Int8
 	BeforeSequence pgtype.Int8
 }
 
-type ListMessagesBySequenceRow struct {
+type ListMessagesRow struct {
 	Message     Message
 	DisplayName string
 }
 
-func (q *Queries) ListMessagesBySequence(ctx context.Context, arg ListMessagesBySequenceParams) ([]ListMessagesBySequenceRow, error) {
-	rows, err := q.db.Query(ctx, listMessagesBySequence, arg.EventID, arg.AfterSequence, arg.BeforeSequence)
+func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]ListMessagesRow, error) {
+	rows, err := q.db.Query(ctx, listMessages, arg.EventID, arg.AfterSequence, arg.BeforeSequence)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListMessagesBySequenceRow
+	var items []ListMessagesRow
 	for rows.Next() {
-		var i ListMessagesBySequenceRow
+		var i ListMessagesRow
 		if err := rows.Scan(
 			&i.Message.ID,
 			&i.Message.EventID,

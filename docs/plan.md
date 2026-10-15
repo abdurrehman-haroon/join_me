@@ -21,6 +21,8 @@ Implemented the user-frozen streams/outbox/message-sequence schema, transactiona
 
 ## Deferred
 
+Statistics/user-insight proposals are recorded in [statistics-and-insights.md](statistics-and-insights.md), including priorities, definitions and data boundaries. Implementation scope remains undecided; discuss schema and frontend mechanics before building.
+
 Notifications, end-to-end test work (skipped at user request), reporting (legacy table removed), full illustrated-v6 parity, 3D camera choreography, beyond-campus social features, restricted visibility, verification, Regulars, availability/matching, scoring, Hostel Cup, and campus expansion services. The geographic model supports more campuses/places without a LUMS-specific query. Expansion UI and services remain separate milestones.
 
 `feature-inventory.md` preserves all 45 v6 features and dated scope decisions for future prototype comparisons. `v6-fidelity-plan.md` and `prototype-integration.md` preserve earlier design/rollout references; this current scope takes precedence.

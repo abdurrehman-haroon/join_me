@@ -21,7 +21,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "node api.js && expo start",
     "ios": "expo run:ios",
     "lint": "expo lint",
     "test:realtime": "node --test tests/realtime.test.cjs"

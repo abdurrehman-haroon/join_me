@@ -91,7 +91,7 @@ func (handler Handler) RealtimeSnapshot(ctx context.Context, target realtime.Tar
 	if err != nil {
 		return realtime.Frame{}, err
 	}
-	rows, err := queries.ListMessagesBySequence(ctx, database.ListMessagesBySequenceParams{EventID: target.ID, AfterSequence: pgtype.Int8{Int64: after, Valid: true}})
+	rows, err := queries.ListMessages(ctx, database.ListMessagesParams{EventID: target.ID, AfterSequence: pgtype.Int8{Int64: after, Valid: true}})
 	if err != nil {
 		return realtime.Frame{}, err
 	}
