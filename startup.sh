@@ -128,14 +128,40 @@ else
   curl -fsS --max-time 3 http://127.0.0.1:8081/status >/dev/null
 fi
 
+# Metro's status endpoint can respond before the project can actually load.
+# Fetch the iOS manifest and compile its bundle before opening the native client.
+echo "Preparing the iOS project (the first bundle may take a minute)…"
+curl -fsS --max-time 30 -H 'Expo-Platform: ios' \
+  http://127.0.0.1:8081/ -o "$RUNTIME_DIR/metro-manifest.json"
+bundle_url="$(python3 -c '
+import json, sys
+from urllib.parse import urlsplit
+manifest = json.load(open(sys.argv[1]))
+url = manifest["launchAsset"]["url"]
+parts = urlsplit(url)
+if parts.scheme != "http" or parts.hostname not in ("localhost", "127.0.0.1") or parts.port != 8081:
+    sys.exit("Metro returned a non-local bundle URL. Stop it and restart this launcher.")
+print(url)
+' "$RUNTIME_DIR/metro-manifest.json")"
+curl -fsS --max-time 180 "$bundle_url" -o /dev/null
+
 if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.campuspickup app >/dev/null 2>&1; then
   echo "Installing the iOS development build (first run may take a few minutes)…"
   pnpm exec expo run:ios --no-bundler --device "$simulator_id" --port 8081
 fi
-xcrun simctl openurl "$simulator_id" 'exp+campus-pickup://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081'
+xcrun simctl openurl "$simulator_id" 'exp+campus-pickup://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
 echo "Backend: http://localhost:8080 | Metro: http://localhost:8081"
 echo "Keep this window open. Press Ctrl+C to stop servers started here. PostgreSQL stays running."
 touch "$RUNTIME_DIR/backend.log" "$RUNTIME_DIR/frontend.log"
 tail -n 5 -f "$RUNTIME_DIR/backend.log" "$RUNTIME_DIR/frontend.log" &
 log_pid=$!
+while kill -0 "$log_pid" 2>/dev/null; do
+  for server_pid in "$api_pid" "$metro_pid"; do
+    if [[ -n "$server_pid" ]] && ! kill -0 "$server_pid" 2>/dev/null; then
+      echo "A development server stopped. Check the logs above and run startup.command again."
+      exit 1
+    fi
+  done
+  sleep 2
+done
 wait "$log_pid"

@@ -8,6 +8,7 @@
     "expo-build-properties": "~57.0.22",
     "expo-dev-client": "~57.0.19",
     "expo-font": "~57.0.4",
+    "expo-location": "~57.0.21",
     "expo-modules-core": "~57.0.21",
     "react": "19.2.3",
     "react-native": "0.86.3",

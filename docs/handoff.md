@@ -1,12 +1,14 @@
 # Handoff
 
-Updated: 2026-10-12
+Updated: 2026-10-15
 
 ## Current direction
 
 LUMS first, no sign-in, basic profile, slim pickup flow. Guest sessions deferred. Required order: schema discussion → frontend mechanics → implementation. User approved areas/places with `type`, automatic timestamps on every application table, a real MapLibre map, and OpenFreeMap tiles. Full illustrated-v6 fidelity is deferred; keep the 45-feature inventory for later.
 
 ## Implemented
+
+- Device location: Expo Location SDK 57 dependency/config plugin and map-only foreground subscription. My location requests permission on tap and centres once on a fresh valid fix; existing grants resume on map entry/foreground without a prompt or camera jump. Blue dot and zoom-scaled GPS accuracy circle; Campus button retained. Handles blocked permission, disabled services, initial-fix timeout and provider failure with retry/settings actions. Removes subscriptions on background/unmount and after late native startup, clears old positions and rejects invalid/older-than-60-second fixes. GPS coordinates are in-memory only; existing map viewport queries still run when the camera moves. No backend/schema changes. Verification: `make check` and a temporary location lifecycle smoke harness pass (on-tap permission, blocked access, services off, invalid/stale fixes, timeout, background/resume, late subscription cleanup). iOS development rebuild succeeds with the correct usage description; simulator screenshots verify the live dot, changed coordinates, one-shot recentring and denied-permission recovery. Temporary automatic location action restored. Full touch/native prompt flow, GPS accuracy and Android still require real-device verification. API/Metro run on 8080/8081; reload via the development menu → Reload, or reopen using startup.command. Changes uncommitted/unpushed.
 
 - Basic profile: GET/PATCH /me uses the existing configured demo user and users table. Name trims to 1–100 Unicode characters on one line; client cannot choose ID/timestamps. Existing DB trigger manages timestamps. You tab shows saved name and Edit/Save/Cancel with error/retry/draft retention. No migration/sign-in. Database-backed make check passes, including name validation, persistence and automatic timestamp preservation/refresh. Live GET /me and iOS profile/three-tab layout verified; temporary preview selection restored. Runtime now exposes only Map, Your events and You. Removed Hostel Cup, fake profile stats/settings, sample event/create/chat/Game Day/campus sheets and unused CampusScene illustration; design references remain in design/. Notifications and full end-to-end test work are deferred at user request.
 
@@ -32,6 +34,8 @@ LUMS first, no sign-in, basic profile, slim pickup flow. Guest sessions deferred
 - Runtime tabs contain connected map/events/profile only. Reporting, scoring, notifications and sign-in are deferred; fixture UI and unused CampusScene were removed.
 
 ## Verification and runtime
+
+- Startup connection failure (2026-10-15): simulator logs show connection refused (-1004) for localhost:8081 while Metro was unavailable; a fresh launcher run loaded successfully. Launcher now fetches the iOS manifest and compiles its launch bundle before opening the client at explicit 127.0.0.1, and exits with a visible error if an owned API/Metro process stops. Shell syntax and make check pass; a clean startup displayed the live LUMS map, and terminating launcher-owned Metro triggered the expected error and cleanup. Keep the launcher's Terminal window open; closing it stops owned servers. Existing unrelated changes remain uncommitted/unpushed.
 
 - Merge recovery (2026-10-11): restored 12 emptied files byte-for-byte from verified events commit e2c9d4e; removed incoming obfuscated api.js/lint code, editor auto-execution configuration and unused font payload directory. Restored .gitignore (including .env) and the matching package lock. Known suspicious execution patterns, conflict markers and empty tracked files are absent from the working tree. Database-backed make check and event race checks pass. Reloaded simulator confirms the restored LUMS map, event filters and Your events tab. API/Metro remain on 8080/8081. Repairs are uncommitted; HEAD 7e3d8dc still contains the broken merge until reviewed repairs are committed. No history rewrite or push performed. Recovery copies and paused message migration/query/generated file are outside the repo at /Users/abdurrehman/.codex/recovery/join_me-20261011-235031.
 

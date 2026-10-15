@@ -65,6 +65,12 @@ Baseline status: rows were initially **unassessed individually**. Current map pr
 | F44 | Temporary hangout chat | Approval promises chat until the hangout ends. No complete hangout-chat screen/service is demonstrated; define expiry and moderation retention. | approval toast, prototype notes |
 | F45 | Campus expansion | Directory by city, live/waitlist/soon states, progress, waitlist sharing, and lead interest. Intended unlock: 10% of students plus two leads running games for two weeks. Counts/actions are examples; actual signup needs definition. | `#campuses`, `renderCampuses`, `CAMPUSES` |
 
+## Features beyond the v6 baseline
+
+| ID | Feature | Agreed behavior | Status |
+| --- | --- | --- | --- |
+| F46 | My location | On-tap foreground permission; live on-device location dot/accuracy circle; centre once, allow free pan, retain Campus button; settings/retry states; stop updates off-map/background. | Implemented 2026-10-13; no schema/API changes. Verification in handoff.md. |
+
 ## Shared acceptance requirements
 
 Preserve the Floodlight palette, typography, number-led hierarchy, four-tab navigation, sheets, transitions, and action feedback. Check full/empty rosters, empty lists, locked visibility, sheet dismissal, and reduced motion. Add connected-service loading, offline, validation, permission-denied, stale-data, and retry states using the same visual language; these are implementation requirements rather than complete prototype flows.

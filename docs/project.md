@@ -33,6 +33,8 @@ The API connects to PostGIS and serves health, area details, and bounded viewpor
 
 ## Next decisions
 
+Device location support added (2026-10-13): Map has My location, foreground-only permission on tap, a live blue dot/accuracy circle, one-shot camera recentring and settings/retry states. Existing grants resume when the map opens; subscriptions stop on background/unmount. Coordinates stay in memory; no schema/API changes or location-sharing service. Existing viewport queries still follow camera movement.
+
 Merge recovery restored the verified event implementation; repairs were committed in 143210e. Remote history reconciliation preserves the repaired files. Participant messaging is implemented. Basic profile and removal of fixture UI are uncommitted for review (see handoff.md).
 
 Review map behavior and confirm campus names/locations. Reporting and notifications are skipped for now; event browsing, Your events and host cancellation are implemented. Confirm pilot access before a student rollout. Deployment accounts/domains and future verified-access rules remain undecided.

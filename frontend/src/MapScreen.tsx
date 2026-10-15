@@ -10,6 +10,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +20,7 @@ import {
 } from "react-native";
 import EventDetails, { type EventSummary } from "./EventDetails";
 import EventForm from "./EventForm";
+import useDeviceLocation from "./useDeviceLocation";
 
 type Area = {
   id: string;
@@ -62,6 +65,8 @@ const emptyPlaces: Places = {
 
 export default function MapScreen() {
   const camera = useRef<CameraRef>(null);
+  const deviceLocation = useDeviceLocation();
+  const centreOnNextLocation = useRef(false);
   const placeSource = useRef<GeoJSONSourceRef>(null);
   const [area, setArea] = useState<Area | null>(null);
   const [bounds, setBounds] = useState<LngLatBounds | null>(null);
@@ -100,6 +105,35 @@ export default function MapScreen() {
   const placeEvents = events.events.filter(
     (event) => event.place.id === selected?.properties.id,
   );
+  const coordinates = deviceLocation.position?.coords;
+  // MapLibre uses a 512-pixel world at zoom zero; convert GPS metres to pixels.
+  const accuracyAtZoomZero = coordinates
+    ? (coordinates.accuracy ?? 0) /
+      (78271.51696 *
+        Math.cos(
+          (Math.min(85, Math.abs(coordinates.latitude)) * Math.PI) / 180,
+        ))
+    : 0;
+
+  useEffect(() => {
+    if (!deviceLocation.position || !mapLoaded || !centreOnNextLocation.current)
+      return;
+    centreOnNextLocation.current = false;
+    camera.current?.easeTo({
+      center: [
+        deviceLocation.position.coords.longitude,
+        deviceLocation.position.coords.latitude,
+      ],
+      zoom: 16,
+      duration: 0,
+    });
+  }, [deviceLocation.position, mapLoaded]);
+
+  function showMyLocation() {
+    setSelected(null);
+    centreOnNextLocation.current = true;
+    deviceLocation.locate();
+  }
 
   useEffect(() => {
     let active = true;
@@ -196,6 +230,7 @@ export default function MapScreen() {
   }, [area, mapLoaded, mapError, mapVersion]);
 
   function recentre() {
+    centreOnNextLocation.current = false;
     setSelected(null);
     if (area?.bbox)
       camera.current?.fitBounds(area.bbox, {
@@ -393,6 +428,51 @@ export default function MapScreen() {
               }}
             />
           </GeoJSONSource>
+          {coordinates && (
+            <GeoJSONSource
+              id="device-location"
+              data={{
+                type: "Feature",
+                properties: {},
+                geometry: {
+                  type: "Point",
+                  coordinates: [coordinates.longitude, coordinates.latitude],
+                },
+              }}
+            >
+              <Layer
+                id="location-accuracy"
+                type="circle"
+                paint={{
+                  "circle-radius": [
+                    "interpolate",
+                    ["exponential", 2],
+                    ["zoom"],
+                    0,
+                    accuracyAtZoomZero,
+                    24,
+                    accuracyAtZoomZero * 2 ** 24,
+                  ],
+                  "circle-color": "#2678D8",
+                  "circle-opacity": 0.14,
+                  "circle-stroke-color": "#2678D8",
+                  "circle-stroke-width": 1,
+                  "circle-stroke-opacity": 0.3,
+                  "circle-pitch-alignment": "map",
+                }}
+              />
+              <Layer
+                id="location-dot"
+                type="circle"
+                paint={{
+                  "circle-radius": 8,
+                  "circle-color": "#2678D8",
+                  "circle-stroke-color": "#FFFFFF",
+                  "circle-stroke-width": 3,
+                }}
+              />
+            </GeoJSONSource>
+          )}
         </Map>
       )}
 
@@ -423,14 +503,67 @@ export default function MapScreen() {
           ))}
         </View>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Recentre on campus"
-        onPress={recentre}
-        style={styles.recentre}
-      >
-        <Text style={styles.buttonText}>↗ {area?.name ?? "Campus"}</Text>
-      </Pressable>
+      <View style={styles.mapControls}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Show my location"
+          accessibilityState={{
+            disabled: !mapLoaded || deviceLocation.finding,
+            busy: deviceLocation.finding,
+          }}
+          disabled={!mapLoaded || deviceLocation.finding}
+          onPress={showMyLocation}
+          style={styles.recentre}
+        >
+          {deviceLocation.finding ? (
+            <ActivityIndicator color="#2678D8" />
+          ) : null}
+          <Text style={styles.buttonText}>
+            {deviceLocation.finding
+              ? "Finding your location…"
+              : "◎ My location"}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Recentre on campus"
+          onPress={recentre}
+          style={styles.recentre}
+        >
+          <Text style={styles.buttonText}>↗ {area?.name ?? "Campus"}</Text>
+        </Pressable>
+      </View>
+
+      {deviceLocation.error && (
+        <View style={styles.locationStatus} accessibilityLiveRegion="polite">
+          <Text style={styles.body}>{deviceLocation.error}</Text>
+          <View style={styles.locationActions}>
+            {deviceLocation.settingsRequired && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  void Linking.openSettings().catch(() => {
+                    Alert.alert(
+                      "Open device settings",
+                      "Enable Location Services and allow Campus Pickup to access your location while using the app.",
+                    );
+                  });
+                }}
+                style={styles.retry}
+              >
+                <Text style={styles.buttonText}>Open Settings</Text>
+              </Pressable>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              onPress={showMyLocation}
+              style={styles.retry}
+            >
+              <Text style={styles.buttonText}>Try location again</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {areaError || placesError || mapError ? (
         <View style={styles.status}>
@@ -654,18 +787,34 @@ const styles = StyleSheet.create({
     borderBottomColor: "#DEE3D8",
   },
   eventTitle: { fontSize: 18, color: "#15201B", fontWeight: "700" },
-  recentre: {
+  mapControls: {
     position: "absolute",
     right: 16,
     top: 245,
+    gap: 8,
+    alignItems: "flex-end",
+  },
+  recentre: {
     backgroundColor: "#F4F5F0",
     padding: 14,
     borderRadius: 24,
+    flexDirection: "row",
+    gap: 8,
   },
+  locationStatus: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    top: 440,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: "#F4F5F0",
+  },
+  locationActions: { flexDirection: "row", flexWrap: "wrap", gap: 20 },
   buttonText: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
   loading: {
     position: "absolute",
-    top: 310,
+    top: 365,
     alignSelf: "center",
     flexDirection: "row",
     gap: 10,
@@ -675,7 +824,7 @@ const styles = StyleSheet.create({
   },
   status: {
     position: "absolute",
-    top: 310,
+    top: 365,
     left: 16,
     right: 16,
     padding: 18,

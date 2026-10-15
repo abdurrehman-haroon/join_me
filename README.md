@@ -23,6 +23,8 @@ Double-click `startup.command` in Finder. It runs `startup.sh`, starts the exist
 
 Keep Terminal open; press Ctrl+C to stop only the servers this launcher started. PostgreSQL and reused servers stay running. Logs are in ignored `.startup.local/`. You can also run `./startup.sh` from a terminal. `DATABASE_URL`, `SIMULATOR_NAME` and `SIMULATOR_RUNTIME` can override local defaults. The launcher explicitly selects iPhone 18 Pro on iOS 27, even if another simulator is booted.
 
+Before opening the app, the launcher fetches the iOS project manifest and compiles its JavaScript bundle. The first bundle may take a minute. It opens the client at `http://127.0.0.1:8081` and reports if a launcher-owned server stops. If the app shows a connection error after closing Terminal, run `startup.command` again and keep its window open.
+
 ## Run the backend
 
 Install Go 1.23+ and PostgreSQL/PostGIS. See [backend setup](backend/README.md) for the database connection and migration instructions. With `DATABASE_URL` set, `make api` starts the API on port 8080. It serves health, area details, and viewport places.
