@@ -1,12 +1,39 @@
 # Handoff
 
-Updated: 2026-10-15
+Updated: 2026-10-19
 
-## Current direction
+## Current tracking state
 
-Statistics discussion saved in [statistics-and-insights.md](statistics-and-insights.md) on 2026-10-15: full idea inventory, proposed activity events, metric definitions, data boundaries and suggested first version. Documentation only; analytics implementation is not approved.
+The agreed catalogue is implemented using migration 000011 and the existing activities table: sessions, discovery, creation/participation, host edits/cancellation and chat. Persistent delivery, foreground timing and transactional backend outcomes are tested. [activities.md](activities.md) is the authoritative recording/schema/details contract. Five SQL report files remain in backend/reports; user-facing statistics, production authentication and database retention/deletion policy are still undecided. Demo identity does not establish real-person retention.
 
-LUMS first, no sign-in, basic profile, slim pickup flow. Guest sessions deferred. Required order: schema discussion → frontend mechanics → implementation. User approved areas/places with `type`, automatic timestamps on every application table, a real MapLibre map, and OpenFreeMap tiles. Full illustrated-v6 fidelity is deferred; keep the 45-feature inventory for later.
+## Verification
+
+Database-backed `make check` passes: Go integration tests, all five SQL report fixtures, Expo lint, TypeScript, four realtime tests and nine activity tests. The uncached full Go race suite also passed. Tests cover strict contracts, actor ownership, immutable retries, late delivery, queue bounds, timing, concurrent mutations and rollback of business/realtime changes when tracking fails.
+
+Native verification on iPhone 18 Pro / iOS 27 across 2026-10-18–19:
+
+| Check | Observed result |
+|---|---|
+| Saved-queue termination/relaunch | Two persisted activities survived unchanged and were delivered once, preserving all fields and timestamps. |
+| Lost creation response | Withheld a committed 201 response. The 12-second timeout offered Confirm creation; the identical receipt/body retry left one event, host membership, submitted attempt and success activity. |
+| Form background/lock timing | Same draft/interaction survived. Pause/resume excluded 17,597 ms, 7,988 ms and 34,489 ms from active time while elapsed time advanced. |
+| Offline recovery | A queued lifecycle row arrived unchanged after recovery; a failed chat message retried into one stored message. |
+| Discovery | Repeated filter taps, refreshes and overlays did not inflate views/empty impressions; a discovered-event join had correct place/view attribution. |
+| Edit/join/leave/cancel | Capacity 10 → 6 produced the expected history. Visitor roster changed 1/3 → 2/3 → 1/3. Confirmed cancellation retained roster/chat, moved the event to Past and made chat read-only. |
+| Chat tracking | Reopening produced two distinct visits. Retrying a failed message from the second visit recorded one outcome linked to the first; refresh did not add an opening. Background/resume excluded 18,103 ms from active time without changing the visit. |
+| Session starts | Launch recorded one start; background/return and repeated delivery kept one unchanged row. Termination/relaunch produced a distinct second session. |
+
+Fault injection used a temporary local HTTP/WebSocket proxy and a fixture-scoped database trigger; both were removed. Disposable events, messages, memberships, realtime rows and owned activities were cleaned up without touching user records. The 15 temporary analytics verification files and separate reliability document were removed after consolidating these results here. No production fault switches were introduced.
+
+## Remaining device coverage and runtime
+
+No Android SDK/emulator or physical device was available. Native automation used keyboard capture/direct accessibility entry; physical soft-keyboard ergonomics, gestures, radio transitions and OS-driven memory pressure remain unverified. Repeat the interruption matrix on physical iOS/Android. Deliberate termination proves saved-queue recovery, not every interruption during a disk write.
+
+Normal PostgreSQL/PostGIS is at 127.0.0.1:5432/joinme, API at 8080 and Metro at 8081 through startup.command. Reload from development menu → Reload. Keep the launcher open; Ctrl+C stops only its owned servers and retains PostgreSQL. Work remains on main, uncommitted and unpushed.
+
+## Earlier implementation notes
+
+The notes below are historical; the current status and verification above supersede earlier provisional tracking and simulator-test limitations.
 
 ## Realtime integration (2026-10-15)
 

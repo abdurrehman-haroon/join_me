@@ -15,6 +15,8 @@ Database schema changes use numbered, forward-only `*.up.sql` migrations. Apply 
 
 Use PostgreSQL enums for fields with a fixed set of values, including type and status; never model these as text columns (even with CHECK constraints). Generate matching Go types with sqlc.
 
+For every new or changed feature, explicitly assess whether activities should be stored and which ones support a useful product question or report. Record the decision (including when no tracking is needed) in the feature plan. For selected activities, define the action, exact trigger, actor, trackable, source, allowed details, historical context, recording owner and retry/deduplication behavior; reuse existing definitions where appropriate. Follow docs/activities.md. Discuss this during schema/frontend planning; do not automatically track every interaction or treat this rule as approval to implement the proposed activities system.
+
 Never commit or push automatically. Leave all work uncommitted and unpushed for user review. Only commit or push when the user explicitly requests that specific action after reviewing; do not infer approval from earlier actions or broad access.
 
 Keep these files short and factual. Never commit secrets or chat transcripts.

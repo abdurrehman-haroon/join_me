@@ -1,8 +1,10 @@
 package events
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"joinme/backend/internal/activities"
 	"joinme/backend/internal/database"
 	"joinme/backend/internal/geography"
 )
@@ -26,6 +29,11 @@ type Handler struct {
 }
 
 func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request) {
+	tracking, trackingErr := activities.ReadRequestContext(request)
+	if trackingErr != nil {
+		http.Error(w, trackingErr.Error(), 400)
+		return
+	}
 	var input struct {
 		PlaceID  string             `json:"place_id"`
 		Title    string             `json:"title"`
@@ -53,7 +61,7 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "type must be football or cricket", http.StatusBadRequest)
 		return
 	}
-	if !input.StartsAt.After(time.Now()) {
+	if !tracking.ID.Valid && !input.StartsAt.After(time.Now()) {
 		http.Error(w, "start time must be in the future", http.StatusBadRequest)
 		return
 	}
@@ -88,6 +96,41 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 	}
 	defer transaction.Rollback(request.Context())
 	queries := handler.Queries.WithTx(transaction)
+	// Serialize matching request IDs, including concurrent first deliveries.
+	body, _ := json.Marshal(input)
+	requestHash := fmt.Sprintf("%x", sha256.Sum256(body))
+	if tracking.ID.Valid {
+		if err = queries.LockActivityRequest(request.Context(), tracking.ID.String()); err != nil {
+			http.Error(w, "could not lock creation request", 500)
+			return
+		}
+		saved, readErr := queries.GetActivity(request.Context(), tracking.ID)
+		if readErr == nil {
+			var details struct {
+				RequestHash string `json:"request_hash"`
+			}
+			json.Unmarshal(saved.Details, &details)
+			if saved.UserID != handler.DemoUserID || saved.Action != database.ActivityActionEventCreated || details.RequestHash != requestHash || saved.InteractionID != tracking.InteractionID || saved.SessionID != tracking.SessionID {
+				http.Error(w, "creation request ID already used with different content", 409)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Location", "/events/"+saved.TrackableID.String())
+			w.WriteHeader(201)
+			json.NewEncoder(w).Encode(struct {
+				ID pgtype.UUID `json:"id"`
+			}{saved.TrackableID})
+			return
+		}
+		if !errors.Is(readErr, pgx.ErrNoRows) {
+			http.Error(w, "could not read creation request", 500)
+			return
+		}
+	}
+	if !input.StartsAt.After(time.Now()) {
+		http.Error(w, "start time must be in the future", 400)
+		return
+	}
 	event, err := queries.CreateEvent(request.Context(), database.CreateEventParams{
 		HostID: handler.DemoUserID, PlaceID: placeID, StatusID: statusID, Title: input.Title,
 		Type: input.Type, StartsAt: pgtype.Timestamptz{Time: input.StartsAt, Valid: true}, Capacity: input.Capacity,
@@ -109,7 +152,11 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "could not create event", http.StatusInternalServerError)
 		return
 	}
-	if err = recordEventUpdate(request.Context(), queries, event.ID); err == nil {
+	if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, event.ID,
+		database.ActivityActionEventCreated, database.ActivitySourceEventForm, tracking, map[string]any{"request_hash": requestHash}); err == nil {
+		err = recordEventUpdate(request.Context(), queries, event.ID)
+	}
+	if err == nil {
 		err = transaction.Commit(request.Context())
 	}
 	if err != nil {
@@ -170,6 +217,11 @@ func (handler Handler) GetEvent(w http.ResponseWriter, request *http.Request) {
 
 // ChangeParticipation serializes all membership changes on the event row.
 func (handler Handler) ChangeParticipation(w http.ResponseWriter, request *http.Request) {
+	tracking, trackingErr := activities.ReadRequestContext(request)
+	if trackingErr != nil {
+		http.Error(w, trackingErr.Error(), 400)
+		return
+	}
 	var eventID pgtype.UUID
 	if err := eventID.Scan(request.PathValue("id")); err != nil || !eventID.Valid {
 		http.Error(w, "invalid event ID", http.StatusBadRequest)
@@ -212,6 +264,34 @@ func (handler Handler) ChangeParticipation(w http.ResponseWriter, request *http.
 		http.Error(w, "could not update participation", http.StatusInternalServerError)
 		return
 	}
+	// The event lock serializes participation receipts with roster mutations.
+	if tracking.ID.Valid {
+		if err = queries.LockActivityRequest(request.Context(), tracking.ID.String()); err != nil {
+			http.Error(w, "could not lock participation request", 500)
+			return
+		}
+		saved, readErr := queries.GetActivity(request.Context(), tracking.ID)
+		if readErr == nil {
+			expected := database.ActivityActionParticipationJoined
+			if request.Method == http.MethodDelete {
+				expected = database.ActivityActionParticipationLeft
+			}
+			if saved.UserID != handler.DemoUserID || saved.TrackableID != eventID || saved.InteractionID != tracking.InteractionID || saved.SessionID != tracking.SessionID || (saved.Action != expected && !(request.Method == http.MethodPut && saved.Action == database.ActivityActionJoinRejected)) {
+				http.Error(w, "participation request ID already used", 409)
+				return
+			}
+			if saved.Action == database.ActivityActionJoinRejected {
+				http.Error(w, "this join attempt was rejected; refresh before another attempt", 409)
+			} else {
+				w.WriteHeader(204)
+			}
+			return
+		}
+		if !errors.Is(readErr, pgx.ErrNoRows) {
+			http.Error(w, "could not read participation request", 500)
+			return
+		}
+	}
 	var changed int64
 	if request.Method == http.MethodDelete {
 		if event.HostID == handler.DemoUserID {
@@ -229,10 +309,28 @@ func (handler Handler) ChangeParticipation(w http.ResponseWriter, request *http.
 		}
 		if !participation.Joined {
 			if statusSlug != "scheduled" || !event.StartsAt.Time.After(time.Now()) {
+				if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, eventID,
+					database.ActivityActionJoinRejected, database.ActivitySourceEventDetails, tracking, map[string]any{"reason": "closed"}); err != nil {
+					http.Error(w, "could not record join outcome", 500)
+					return
+				}
+				if err = transaction.Commit(request.Context()); err != nil {
+					http.Error(w, "could not record join outcome", 500)
+					return
+				}
 				http.Error(w, "this event is not open for joining", http.StatusConflict)
 				return
 			}
 			if participation.ParticipantCount >= int64(event.Capacity) {
+				if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, eventID,
+					database.ActivityActionJoinRejected, database.ActivitySourceEventDetails, tracking, map[string]any{"reason": "full"}); err != nil {
+					http.Error(w, "could not record join outcome", 500)
+					return
+				}
+				if err = transaction.Commit(request.Context()); err != nil {
+					http.Error(w, "could not record join outcome", 500)
+					return
+				}
 				http.Error(w, "this event is full", http.StatusConflict)
 				return
 			}
@@ -245,6 +343,15 @@ func (handler Handler) ChangeParticipation(w http.ResponseWriter, request *http.
 		return
 	}
 	if changed > 0 {
+		action := database.ActivityActionParticipationJoined
+		if request.Method == http.MethodDelete {
+			action = database.ActivityActionParticipationLeft
+		}
+		if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, eventID,
+			action, database.ActivitySourceEventDetails, tracking, nil); err != nil {
+			http.Error(w, "could not record participation", 500)
+			return
+		}
 		if err = recordEventUpdate(request.Context(), queries, eventID); err != nil {
 			log.Printf("record participation: %v", err)
 			http.Error(w, "could not update participation", 500)
@@ -367,6 +474,13 @@ func (handler Handler) CancelEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "could not cancel event", http.StatusInternalServerError)
 		return
 	}
+	if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, eventID,
+		database.ActivityActionEventCancelled, database.ActivitySourceEventDetails, activities.RequestContext{},
+		map[string]any{"previous_status": statusSlug}); err != nil {
+		log.Printf("record cancellation activity: %v", err)
+		http.Error(w, "could not cancel event", http.StatusInternalServerError)
+		return
+	}
 	if err = recordEventUpdate(request.Context(), queries, eventID); err != nil {
 		log.Printf("record cancellation: %v", err)
 		http.Error(w, "could not cancel event", 500)
@@ -482,6 +596,24 @@ func (handler Handler) UpdateEvent(w http.ResponseWriter, request *http.Request)
 		return
 	}
 	if changed > 0 {
+		changes := make(map[string]any)
+		if event.Title != input.Title {
+			changes["title"] = map[string]bool{"changed": true}
+		}
+		if event.Capacity != input.Capacity {
+			changes["capacity"] = map[string]int32{"before": event.Capacity, "after": input.Capacity}
+		}
+		// PostgreSQL stores timestamps at microsecond precision, including in history.
+		if !event.StartsAt.Time.Equal(input.StartsAt.Truncate(time.Microsecond)) {
+			changes["starts_at"] = map[string]time.Time{"before": event.StartsAt.Time, "after": input.StartsAt.Truncate(time.Microsecond)}
+		}
+		if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, eventID,
+			database.ActivityActionEventEdited, database.ActivitySourceEventForm, activities.RequestContext{},
+			map[string]any{"changes": changes}); err != nil {
+			log.Printf("record edit activity: %v", err)
+			http.Error(w, "could not update event", http.StatusInternalServerError)
+			return
+		}
 		if err = recordEventUpdate(request.Context(), queries, eventID); err != nil {
 			log.Printf("record edit: %v", err)
 			http.Error(w, "could not update event", 500)

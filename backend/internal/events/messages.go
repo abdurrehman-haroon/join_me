@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"joinme/backend/internal/activities"
 	"joinme/backend/internal/realtime"
 	"log"
 	"net/http"
@@ -53,8 +54,15 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 		ID   pgtype.UUID `json:"id"`
 		Body string      `json:"body"`
 	}
+	var tracking activities.RequestContext
 	params := database.ListMessagesParams{EventID: eventID}
 	if request.Method == http.MethodPost {
+		var trackingErr error
+		tracking, trackingErr = activities.ReadRequestContext(request)
+		if trackingErr != nil {
+			http.Error(w, trackingErr.Error(), http.StatusBadRequest)
+			return
+		}
 		request.Body = http.MaxBytesReader(w, request.Body, 16384)
 		decoder := json.NewDecoder(request.Body)
 		decoder.DisallowUnknownFields()
@@ -176,6 +184,12 @@ func (handler Handler) Messages(w http.ResponseWriter, request *http.Request) {
 		if err != nil {
 			log.Printf("insert message: %v", err)
 			http.Error(w, "could not send message", 500)
+			return
+		}
+		if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, eventID,
+			database.ActivityActionMessageSent, database.ActivitySourceEventChat, tracking, nil); err != nil {
+			log.Printf("record message activity: %v", err)
+			http.Error(w, "could not send message", http.StatusInternalServerError)
 			return
 		}
 		saved, err := queries.GetMessageWithSender(request.Context(), input.ID)

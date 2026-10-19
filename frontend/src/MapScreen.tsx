@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   Linking,
   Pressable,
@@ -21,6 +22,9 @@ import {
 import EventDetails, { type EventSummary } from "./EventDetails";
 import EventForm from "./EventForm";
 import useDeviceLocation from "./useDeviceLocation";
+import { uuid } from "expo-modules-core";
+import { useActivities, useActivityInteraction } from "./ActivitiesProvider";
+import { DiscoveryTracker, type SportFilter } from "./activities";
 
 type Area = {
   id: string;
@@ -64,6 +68,20 @@ const emptyPlaces: Places = {
 };
 
 export default function MapScreen() {
+  const { queue, sessionID } = useActivities();
+  const [discovery] = useState(
+    () =>
+      new DiscoveryTracker(
+        sessionID,
+        (activity) => queue.record(activity),
+        () => uuid.v4(),
+      ),
+  );
+  const [foreground, setForeground] = useState(
+    AppState.currentState === "active",
+  );
+  const [loadedQuery, setLoadedQuery] = useState<string | null>(null);
+  const [eventReferrer, setEventReferrer] = useState<string | undefined>(undefined);
   const camera = useRef<CameraRef>(null);
   const deviceLocation = useDeviceLocation();
   const centreOnNextLocation = useRef(false);
@@ -105,6 +123,77 @@ export default function MapScreen() {
   const placeEvents = events.events.filter(
     (event) => event.place.id === selected?.properties.id,
   );
+  const sport: SportFilter = eventType || "all";
+  const queryKey = bounds ? `${bounds.join(",")}|${eventType}` : null;
+  const discoveryVisible = foreground && !eventID && !creationPlace;
+  const placeInteraction = useActivityInteraction({
+    enabled: Boolean(selected),
+    visible: !eventID && !creationPlace,
+    target: { type: "place", id: selected?.properties.id ?? "" },
+    source: "map",
+    startAction: "place_viewed",
+    details: { sport, referrer_interaction_id: discovery.id },
+  });
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) =>
+      setForeground(state === "active"),
+    );
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    // Only count an impression of the successful query currently shown, never stale/loading/error data.
+    if (
+      !discoveryVisible ||
+      !queryKey ||
+      loadedQuery !== queryKey ||
+      !mapLoaded ||
+      loadingPlaces ||
+      areaError ||
+      placesError ||
+      mapError
+    )
+      return;
+    if (selected) {
+      if (placeInteraction.current)
+        discovery.observePlaceResults(
+          placeInteraction.current,
+          sport,
+          !events.truncated &&
+            (events.place_counts[selected.properties.id] ?? 0) === 0,
+        );
+    } else {
+      const emptyKind =
+        places.truncated || events.truncated
+          ? null
+          : places.features.length === 0
+            ? "no_places"
+            : events.events.length === 0
+              ? "no_events"
+              : null;
+      // Coordinate-based fingerprints are local deduplication only, not activity data.
+      const viewKey = bounds?.map((value) => value.toFixed(5)).join(",") ?? "";
+      discovery.observeMapResults(viewKey, sport, emptyKind);
+    }
+  }, [
+    discovery,
+    discoveryVisible,
+    queryKey,
+    loadedQuery,
+    mapLoaded,
+    loadingPlaces,
+    areaError,
+    placesError,
+    mapError,
+    selected,
+    events,
+    places,
+    sport,
+    bounds,
+    placeInteraction,
+  ]);
+
   const coordinates = deviceLocation.position?.coords;
   // MapLibre uses a 512-pixel world at zoom zero; convert GPS metres to pixels.
   const accuracyAtZoomZero = coordinates
@@ -199,6 +288,7 @@ export default function MapScreen() {
         if (active) {
           setPlaces(loadedPlaces);
           setEvents(loadedEvents);
+          setLoadedQuery(`${bounds!.join(",")}|${eventType}`);
           setSelected((current) =>
             current
               ? (loadedPlaces.features.find(
@@ -487,7 +577,7 @@ export default function MapScreen() {
               accessibilityRole="button"
               accessibilityState={{ selected: eventType === type }}
               onPress={() => {
-                setEventType(type);
+                if (discovery.selectSport(type || "all")) setEventType(type);
               }}
               style={[styles.filter, eventType === type && styles.activeFilter]}
             >
@@ -652,7 +742,10 @@ export default function MapScreen() {
                     key={event.id}
                     accessibilityRole="button"
                     accessibilityLabel={`View ${event.title}`}
-                    onPress={() => setEventID(event.id)}
+                    onPress={() => {
+                      setEventReferrer(placeInteraction.current?.id);
+                      setEventID(event.id);
+                    }}
                     style={styles.eventCard}
                   >
                     <Text style={styles.eventTitle}>{event.title}</Text>
@@ -714,6 +807,7 @@ export default function MapScreen() {
           key={eventID}
           id={eventID}
           apiURL={apiURL}
+          referrerInteractionID={eventReferrer}
           onClose={() => setEventID(null)}
           onEventChanged={() => setEventRefresh((value) => value + 1)}
         />
@@ -729,6 +823,7 @@ export default function MapScreen() {
           onSaved={() => {
             setCreatedAtPlace(creationPlace.id);
             setCreationPlace(null);
+            discovery.resetSport();
             setEventType("");
             setEventRefresh((value) => value + 1);
           }}

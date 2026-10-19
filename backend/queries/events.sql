@@ -86,7 +86,7 @@ SELECT jsonb_build_object(
 SELECT EXISTS(SELECT 1 FROM users WHERE id = $1);
 
 -- name: LockEventForParticipation :one
-SELECT host_id, capacity, starts_at, status_id
+SELECT host_id, title, capacity, starts_at, status_id
 FROM events WHERE id = $1 FOR UPDATE;
 
 -- name: GetEventStatusSlug :one

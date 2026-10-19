@@ -7,6 +7,7 @@
     "expo": "~57.0.27",
     "expo-build-properties": "~57.0.22",
     "expo-dev-client": "~57.0.19",
+    "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-location": "~57.0.21",
     "expo-modules-core": "~57.0.21",
@@ -24,7 +25,8 @@
     "start": "expo start",
     "ios": "expo run:ios",
     "lint": "expo lint",
-    "test:realtime": "node --test tests/realtime.test.cjs"
+    "test:realtime": "node --test tests/realtime.test.cjs",
+    "test:activities": "node --test tests/activities.test.cjs"
   },
   "private": true
 }

@@ -1,3 +1,6 @@
+import { uuid } from "expo-modules-core";
+import { useActivityInteraction } from "./ActivitiesProvider";
+import type { ActivitySource } from "./activities";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -55,12 +58,16 @@ export default function EventDetails({
   apiURL,
   onClose,
   closeLabel = "Back to map",
+  source = "place_details",
+  referrerInteractionID,
   onEventChanged,
 }: {
   id: string | null;
   apiURL: string;
   onClose: () => void;
   closeLabel?: string;
+  source?: ActivitySource;
+  referrerInteractionID?: string;
   onEventChanged: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -110,12 +117,56 @@ export default function EventDetails({
         ),
     },
   );
+  const [shown, setShown] = useState(false);
+  const interaction = useActivityInteraction({
+    enabled: shown && event?.id === id,
+    visible: shown && !editing && !chatOpen,
+    target: { type: "event", id: id ?? "" },
+    source,
+    startAction: "event_viewed",
+    details: event
+      ? {
+          snapshot: {
+            participant_count: event.participant_count,
+            capacity: event.capacity,
+            starts_at: event.starts_at,
+            status: event.status.slug,
+          },
+          ...(referrerInteractionID
+            ? { referrer_interaction_id: referrerInteractionID }
+            : {}),
+          viewer_role: event.viewer.is_host
+            ? "host"
+            : event.viewer.is_participant
+              ? "participant"
+              : "visitor",
+        }
+      : {},
+  });
+  const joinAttempt = useRef(0);
+  const participationRequest = useRef<{ id: string; joining: boolean } | null>(
+    null,
+  );
   const pending = useRef(false);
   const mutationController = useRef<AbortController | null>(null);
   useEffect(() => () => mutationController.current?.abort(), []);
 
   async function changeEvent(cancel = false) {
     if (!event || pending.current) return;
+    const joining = !event.viewer.is_participant;
+    if (
+      !cancel &&
+      (!participationRequest.current ||
+        participationRequest.current.joining !== joining)
+    ) {
+      participationRequest.current = { id: uuid.v4(), joining };
+      if (joining)
+        interaction.current?.record(
+          "join_attempted",
+          { attempt_number: ++joinAttempt.current },
+          "event_details",
+        );
+    }
     pending.current = true;
     setMutating(true);
     setActionError("");
@@ -128,8 +179,13 @@ export default function EventDetails({
         {
           method: cancel || !event.viewer.is_participant ? "PUT" : "DELETE",
           signal: controller.signal,
+          headers:
+            !cancel && participationRequest.current
+              ? interaction.current?.headers(participationRequest.current.id)
+              : undefined,
         },
       );
+      if (response.status < 500 && !cancel) participationRequest.current = null;
       if (!response.ok)
         setActionError(
           (await response.text()).trim() || "Could not update this event.",
@@ -218,6 +274,7 @@ export default function EventDetails({
   return (
     <Modal
       visible={id !== null}
+      onShow={() => setShown(true)}
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={() => {

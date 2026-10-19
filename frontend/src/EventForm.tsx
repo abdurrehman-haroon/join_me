@@ -1,3 +1,5 @@
+import { uuid } from "expo-modules-core";
+import { useActivityInteraction } from "./ActivitiesProvider";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -40,15 +42,32 @@ export default function EventForm({
     return start;
   });
   const [title, setTitle] = useState(event?.title ?? "");
-  const [type, setType] = useState<"football" | "cricket">(event?.type ?? "football");
+  const [type, setType] = useState<"football" | "cricket">(
+    event?.type ?? "football",
+  );
   const [date, setDate] = useState(
     () =>
       `${initialStart.getFullYear()}-${String(initialStart.getMonth() + 1).padStart(2, "0")}-${String(initialStart.getDate()).padStart(2, "0")}`,
   );
   const [time, setTime] = useState(
-    () => `${String(initialStart.getHours()).padStart(2, "0")}:${String(initialStart.getMinutes()).padStart(2, "0")}`,
+    () =>
+      `${String(initialStart.getHours()).padStart(2, "0")}:${String(initialStart.getMinutes()).padStart(2, "0")}`,
   );
   const [capacity, setCapacity] = useState(String(event?.capacity ?? 10));
+  const [shown, setShown] = useState(false);
+  const interaction = useActivityInteraction({
+    enabled: !event && shown,
+    visible: shown,
+    target: { type: "place", id: place.id },
+    source: "event_form",
+    startAction: "event_creation_started",
+  });
+  const attempt = useRef(0);
+  const creationRequest = useRef<{
+    body: string;
+    headers: Record<string, string>;
+  } | null>(null);
+  const [uncertainCreation, setUncertainCreation] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const pending = useRef(false);
@@ -59,7 +78,10 @@ export default function EventForm({
   async function submit() {
     if (pending.current) return;
     setError("");
-    if (!title.trim() || [...title.trim()].length > 200) {
+    if (
+      !uncertainCreation &&
+      (!title.trim() || [...title.trim()].length > 200)
+    ) {
       setError("Enter a title with 1 to 200 characters.");
       return;
     }
@@ -84,9 +106,12 @@ export default function EventForm({
     const originalMinute = new Date(initialStart);
     originalMinute.setSeconds(0, 0);
     if (event && startsAt.getTime() === originalMinute.getTime()) {
-      startsAt.setSeconds(initialStart.getSeconds(), initialStart.getMilliseconds());
+      startsAt.setSeconds(
+        initialStart.getSeconds(),
+        initialStart.getMilliseconds(),
+      );
     }
-    if (startsAt.getTime() <= Date.now()) {
+    if (!uncertainCreation && startsAt.getTime() <= Date.now()) {
       setError("Choose a start time in the future.");
       return;
     }
@@ -101,8 +126,30 @@ export default function EventForm({
       return;
     }
     if (event && spots < event.participant_count) {
-      setError(`Capacity must be at least ${event.participant_count}, the current participant count.`);
+      setError(
+        `Capacity must be at least ${event.participant_count}, the current participant count.`,
+      );
       return;
+    }
+    let creation = creationRequest.current;
+    if (!event && !uncertainCreation) {
+      const body = JSON.stringify({
+        place_id: place.id,
+        type,
+        title: title.trim(),
+        starts_at: startsAt.toISOString(),
+        capacity: spots,
+      });
+      if (!creation || creation.body !== body) {
+        interaction.current?.record("event_creation_submitted", {
+          attempt_number: ++attempt.current,
+        });
+        creation = {
+          body,
+          headers: interaction.current?.headers(uuid.v4()) ?? {},
+        };
+        creationRequest.current = creation;
+      }
     }
     pending.current = true;
     setSubmitting(true);
@@ -110,28 +157,44 @@ export default function EventForm({
     controller.current = requestController;
     const timeout = setTimeout(() => requestController.abort(), 12000);
     try {
-      const response = await fetch(`${apiURL}/events${event ? `/${event.id}` : ""}`, {
-        method: event ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: requestController.signal,
-        body: JSON.stringify({
-          ...(!event && { place_id: place.id, type }),
-          title: title.trim(),
-          starts_at: startsAt.toISOString(),
-          capacity: spots,
-        }),
-      });
+      const response = await fetch(
+        `${apiURL}/events${event ? `/${event.id}` : ""}`,
+        {
+          method: event ? "PATCH" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(!event && creation ? creation.headers : {}),
+          },
+          signal: requestController.signal,
+          body:
+            !event && creation
+              ? creation.body
+              : JSON.stringify({
+                  ...(!event && { place_id: place.id, type }),
+                  title: title.trim(),
+                  starts_at: startsAt.toISOString(),
+                  capacity: spots,
+                }),
+        },
+      );
       if (!response.ok) {
+        if (!event) {
+          const uncertain = response.status >= 500;
+          setUncertainCreation(uncertain);
+          if (!uncertain) creationRequest.current = null;
+        }
         const message = await response.text();
         setError(message.trim() || "Could not save the event.");
         return;
       }
+      interaction.current?.close("completed");
       onSaved();
     } catch {
+      if (!event) setUncertainCreation(true);
       setError(
         event
           ? "Could not confirm the changes. Your draft is kept; retry or close to refresh the event."
-          : "Could not confirm creation. Close and check this place’s events before trying again.",
+          : "Could not confirm creation. Retry to confirm the same request, or close and check this place’s events.",
       );
     } finally {
       clearTimeout(timeout);
@@ -144,6 +207,7 @@ export default function EventForm({
   return (
     <Modal
       visible
+      onShow={() => setShown(true)}
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={() => {
@@ -155,7 +219,9 @@ export default function EventForm({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.heading}>
-          <Text style={styles.kicker}>{event ? "EDIT EVENT" : "NEW EVENT"}</Text>
+          <Text style={styles.kicker}>
+            {event ? "EDIT EVENT" : "NEW EVENT"}
+          </Text>
           <Pressable
             accessibilityRole="button"
             disabled={submitting}
@@ -169,7 +235,9 @@ export default function EventForm({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
-          <Text style={styles.title}>{event ? "Update your plan." : "Make a plan."}</Text>
+          <Text style={styles.title}>
+            {event ? "Update your plan." : "Make a plan."}
+          </Text>
           <Text style={styles.body}>{place.name}</Text>
           <Text style={styles.muted}>
             {event ? "Update the details below." : "Choose the details below."}
@@ -181,32 +249,41 @@ export default function EventForm({
             placeholderTextColor="#6C786E"
             value={title}
             onChangeText={setTitle}
-            editable={!submitting}
+            editable={!submitting && !uncertainCreation}
             style={styles.input}
           />
           <Text style={styles.label}>Event type</Text>
-          {event ? <Text style={styles.body}>{type === "football" ? "Football" : "Cricket"} · fixed for this event</Text> : <View style={styles.types}>
-            {(["football", "cricket"] as const).map((option) => (
-              <Pressable
-                key={option}
-                accessibilityRole="button"
-                accessibilityState={{ selected: type === option }}
-                disabled={submitting}
-                onPress={() => setType(option)}
-                style={[styles.type, type === option && styles.selectedType]}
-              >
-                <Text style={[styles.action, type === option && styles.white]}>
-                  {option === "football" ? "Football" : "Cricket"}
-                </Text>
-              </Pressable>
-            ))}
-          </View>}
+          {event ? (
+            <Text style={styles.body}>
+              {type === "football" ? "Football" : "Cricket"} · fixed for this
+              event
+            </Text>
+          ) : (
+            <View style={styles.types}>
+              {(["football", "cricket"] as const).map((option) => (
+                <Pressable
+                  key={option}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: type === option }}
+                  disabled={submitting || uncertainCreation}
+                  onPress={() => setType(option)}
+                  style={[styles.type, type === option && styles.selectedType]}
+                >
+                  <Text
+                    style={[styles.action, type === option && styles.white]}
+                  >
+                    {option === "football" ? "Football" : "Cricket"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <Text style={styles.label}>Date · YYYY-MM-DD</Text>
           <TextInput
             accessibilityLabel="Event date YYYY-MM-DD"
             value={date}
             onChangeText={setDate}
-            editable={!submitting}
+            editable={!submitting && !uncertainCreation}
             autoCorrect={false}
             autoCapitalize="none"
             style={styles.input}
@@ -216,7 +293,7 @@ export default function EventForm({
             accessibilityLabel="Start time HH:mm"
             value={time}
             onChangeText={setTime}
-            editable={!submitting}
+            editable={!submitting && !uncertainCreation}
             autoCorrect={false}
             autoCapitalize="none"
             style={styles.input}
@@ -227,7 +304,7 @@ export default function EventForm({
             accessibilityLabel="Capacity including host"
             value={capacity}
             onChangeText={setCapacity}
-            editable={!submitting}
+            editable={!submitting && !uncertainCreation}
             keyboardType="number-pad"
             style={styles.input}
           />
@@ -245,7 +322,13 @@ export default function EventForm({
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.submitText}>{event ? "Save changes" : "Create event"}</Text>
+              <Text style={styles.submitText}>
+                {event
+                  ? "Save changes"
+                  : uncertainCreation
+                    ? "Confirm creation"
+                    : "Create event"}
+              </Text>
             )}
           </Pressable>
         </ScrollView>

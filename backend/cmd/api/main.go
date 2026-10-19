@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"joinme/backend/internal/activities"
 	"joinme/backend/internal/database"
 	"joinme/backend/internal/events"
 	"joinme/backend/internal/geography"
@@ -71,7 +72,9 @@ func main() {
 	liveDone := make(chan struct{})
 	go func() { defer close(liveDone); live.Run(runtimeContext) }()
 	userHandler := users.Handler{Queries: database.New(pool), DemoUserID: demoUserID}
+	activityHandler := activities.Handler{Queries: database.New(pool), DemoUserID: demoUserID}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /activities", activityHandler.Ingest)
 	mux.HandleFunc("GET /ws", live.WebSocket)
 	mux.HandleFunc("GET /realtime", live.LongPoll)
 	mux.HandleFunc("GET /me", userHandler.Me)

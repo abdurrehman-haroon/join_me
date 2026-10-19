@@ -5,6 +5,47 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /activities:
+    post:
+      summary: Deliver client session, discovery, creation, joining and chat activities
+      description: Server assigns the configured demo actor. actor_id asserts queue ownership and must match that actor. Maximum 50 rows and 64 KiB; details at most 4 KiB each. Unknown row fields, backend-only actions, invalid targets/details, and times older than seven days or over five minutes ahead are rejected per row. Rows may arrive out of order. Matching retries are accepted unchanged; changed ID/step content conflicts. Earlier accepted rows remain committed if a later database error causes 500; retry unchanged IDs. This endpoint does not authenticate real users.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [actor_id, activities]
+              properties:
+                actor_id: { type: string, format: uuid }
+                activities:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { $ref: '#/components/schemas/ClientActivity' }
+      responses:
+        '200':
+          description: One result per input row, in input order. Only accepted, rejected and conflict are terminal acknowledgements. A malformed row without a valid ID may return null as its ID.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, status]
+                      properties:
+                        id: { type: string, format: uuid, nullable: true }
+                        status: { type: string, enum: [accepted, rejected, conflict] }
+                        error: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: Queue actor differs from current server identity; do not reattribute rows }
+        '503': { description: Demo identity missing or unavailable }
+        '500': { $ref: '#/components/responses/ServerError' }
   /ws:
     get:
       summary: Multiplex realtime subscriptions over WebSocket
@@ -98,7 +139,11 @@ paths:
   /events:
     post:
       summary: Create a scheduled event as the configured demo user
-      description: Temporary demo identity until sign-in is implemented. Host and status are chosen by the server. The host joins atomically and counts toward capacity. Request body limited to 16 KiB. No automatic retry or idempotency key in this slice.
+      parameters:
+        - { $ref: '#/components/parameters/ActivityID' }
+        - { $ref: '#/components/parameters/ActivitySession' }
+        - { $ref: '#/components/parameters/ActivityInteraction' }
+      description: Temporary demo identity until sign-in is implemented. Host and status are chosen by the server. The host joins atomically and counts toward capacity. Request body limited to 16 KiB. Records event_created transactionally. With all three activity headers, X-Activity-ID is an idempotency receipt scoped to the original actor, session, interaction and normalized body. Concurrent identical retries return the original 201/id even after kickoff; changed content/context returns 409. Receipt retention is required for retry safety. Without headers, legacy creation is not idempotent.
       requestBody:
         required: true
         content:
@@ -114,8 +159,9 @@ paths:
                 starts_at: { type: string, format: date-time, description: Future RFC3339 timestamp with explicit offset or Z. }
                 capacity: { type: integer, minimum: 1, maximum: 2147483647, description: Includes the host. }
       responses:
+        '409': { description: Creation receipt already used with different content or correlation context }
         '201':
-          description: Event and host participation created atomically
+          description: Event and host participation created atomically, or original creation replayed
           headers:
             Location:
               schema: { type: string }
@@ -175,7 +221,7 @@ paths:
   /events/{id}:
     patch:
       summary: Edit an upcoming scheduled event as its host
-      description: Updates title, start and capacity together. Place/type stay fixed. Uses DEMO_USER_ID and the shared event row lock; capacity cannot fall below the locked participant count. Automatic timestamps are database-owned. Body limit 16 KiB.
+      description: Updates title, start and capacity together. Place/type stay fixed. Uses DEMO_USER_ID and the shared event row lock; capacity cannot fall below the locked participant count. Automatic timestamps are database-owned. Actual changes atomically record event_edited with changed fields and a post-edit snapshot, alongside realtime publication. Unchanged retries record nothing; an intervening edit can make a repeated body a new change. No activity correlation headers or request receipts on this endpoint. Body limit 16 KiB.
       parameters:
         - name: id
           in: path
@@ -309,7 +355,7 @@ paths:
         schema: { type: string, format: uuid }
     put:
       summary: Cancel an upcoming event as its host
-      description: No request body. Uses the configured demo user. Locks the same event row as participation, verifies ownership, and changes status to the shared cancelled definition. Keeps the event and roster. Host retries on an already cancelled event succeed without another update. Completed or elapsed scheduled events cannot be cancelled. Publishes a committed realtime event update; no push notifications.
+      description: No request body. Uses the configured demo user. Locks the same event row as participation, verifies ownership, and changes status to the shared cancelled definition. Keeps the event and roster. Host retries on an already cancelled event succeed without another update. Completed or elapsed scheduled events cannot be cancelled. Atomically records event_cancelled with previous status and the cancellation snapshot, alongside the committed realtime event update; repeated cancellation records nothing. No activity correlation headers on this endpoint. No push notifications.
       responses:
         '204': { description: Cancelled or already cancelled }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -326,7 +372,11 @@ paths:
         schema: { type: string, format: uuid }
     put:
       summary: Join an event as the configured demo user
-      description: No request body. Locks the event row in a READ COMMITTED transaction, then checks membership, scheduled/future state and available capacity. Already joined is a successful no-op even for full or closed events. Concurrent requests cannot claim the same final spot.
+      parameters:
+        - { $ref: '#/components/parameters/ActivityID' }
+        - { $ref: '#/components/parameters/ActivitySession' }
+        - { $ref: '#/components/parameters/ActivityInteraction' }
+      description: No request body. Locks the event row in a READ COMMITTED transaction, then checks membership, scheduled/future state and available capacity. Already joined is a successful no-op even for full or closed events. Concurrent requests cannot claim the same final spot. Records participation_joined only on insertion and join_rejected for full/closed outcomes. All three optional activity headers correlate the outcome; replaying a recorded request returns its original outcome, without rejoining after a subsequent leave. A reused receipt with different actor/event/context conflicts.
       responses:
         '204': { description: Joined or already participating }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -336,7 +386,11 @@ paths:
         '500': { $ref: '#/components/responses/ServerError' }
     delete:
       summary: Leave an event as the configured demo user
-      description: No request body. Locks the same event row. Non-host participants can leave regardless of event status/time. Already absent is a successful no-op. Hosts cannot leave; use the host cancellation endpoint.
+      parameters:
+        - { $ref: '#/components/parameters/ActivityID' }
+        - { $ref: '#/components/parameters/ActivitySession' }
+        - { $ref: '#/components/parameters/ActivityInteraction' }
+      description: No request body. Locks the same event row. Non-host participants can leave regardless of event status/time. Already absent is a successful no-op. Hosts cannot leave; use the host cancellation endpoint. Records participation_left only on deletion; optional activity headers correlate and deduplicate recorded outcomes.
       responses:
         '204': { description: Left or already absent }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -388,7 +442,11 @@ paths:
         '500': { $ref: '#/components/responses/ServerError' }
     post:
       summary: Send a message with an idempotent client UUID
-      description: Trimmed 1–2000 Unicode characters. Scheduled events allow sending including after kickoff; cancelled/completed are read-only. Retry the same UUID/body after uncertainty. An identical accepted message succeeds even after cancellation. Changed content/event/author with the same UUID returns 409. Sender/timestamps are server-owned. Shares the event lock with leaving and cancellation.
+      description: Trimmed 1–2000 Unicode characters. Scheduled events allow sending including after kickoff; cancelled/completed are read-only. Retry the same UUID/body after uncertainty. An identical accepted message succeeds even after cancellation. Changed content/event/author with the same UUID returns 409. Sender/timestamps are server-owned. Shares the event lock with leaving and cancellation. New messages atomically record message_sent with an event snapshot and realtime publication; retries add nothing and retain original attribution. Optional activity headers must be supplied together and remain unchanged for that message through retries. No message content is copied into activities.
+      parameters:
+        - { $ref: '#/components/parameters/ActivityID' }
+        - { $ref: '#/components/parameters/ActivitySession' }
+        - { $ref: '#/components/parameters/ActivityInteraction' }
       requestBody:
         required: true
         content:
@@ -409,6 +467,20 @@ paths:
         '503': { description: Demo identity unavailable }
         '500': { $ref: '#/components/responses/ServerError' }
 components:
+  parameters:
+    ActivityID:
+      name: X-Activity-ID
+      in: header
+      description: Optional nonzero UUID, stable across retries of this business submission. All three activity headers must be supplied together. Distinct from frontend activity IDs/steps. Backend outcomes have a null interaction_step.
+      schema: { type: string, format: uuid }
+    ActivitySession:
+      name: X-Activity-Session
+      in: header
+      schema: { type: string, format: uuid }
+    ActivityInteraction:
+      name: X-Activity-Interaction
+      in: header
+      schema: { type: string, format: uuid }
   responses:
     BadRequest:
       description: Invalid ID, bounds, event type or creation fields
@@ -421,6 +493,43 @@ components:
         text/plain:
           schema: { type: string }
   schemas:
+    ClientActivity:
+      type: object
+      additionalProperties: false
+      required: [id, action, session_id, interaction_id, interaction_step, trackable_type, trackable_id, source, occurred_at, details]
+      description: Session, discovery, creation/join and chat client contract; other catalogue actions remain disabled. Session starts require id=session_id, null interaction_id/interaction_step/source/trackable_type/trackable_id and empty details. All screen actions require a nonzero interaction_id, positive interaction_step and a source. Creation actions target a place from event_form. Views target an event from place_details/your_events. Join attempts target an event from event_details. Chat openings target an event from event_details with step 1 and zero timing. Chat lifecycle rows target an event from event_chat. Other lifecycle rows target a place from event_form/place_details or an event from event_details. Timed starts/views must be step 1 with zero durations; timed continuations need step >=2. Sport selections and map empties have a null trackable pair and any positive step. Place views target a place from map and require sport, referrer_interaction_id and zero timing. Empty results require sport/empty_kind; map empties have no timing, place empties require timing and empty_kind=no_events. Referrer IDs are correlation context, not trusted proof of attribution. See docs/activities.md for exact action/detail combinations.
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [session_started, sport_filter_selected, place_viewed, empty_results_viewed, event_creation_started, event_creation_submitted, event_viewed, join_attempted, chat_opened, interaction_paused, interaction_resumed, interaction_closed] }
+        session_id: { type: string, format: uuid }
+        interaction_id: { type: string, format: uuid, nullable: true }
+        interaction_step: { type: integer, minimum: 1, maximum: 2147483647, nullable: true }
+        trackable_type: { type: string, enum: [event, place], nullable: true }
+        trackable_id: { type: string, format: uuid, nullable: true }
+        source: { type: string, enum: [map, event_form, event_details, event_chat, place_details, your_events], nullable: true }
+        occurred_at: { type: string, format: date-time }
+        details:
+          type: object
+          additionalProperties: false
+          description: Session starts require an empty object. Timed activities require elapsed_ms and active_ms with active_ms <= elapsed_ms. Untimed map discovery actions prohibit timing fields. attempt_number required only for submission/join_attempted. snapshot/viewer_role required only for event_viewed. reason required only for pause/close. All other combinations and explicit nulls are rejected.
+          properties:
+            sport: { type: string, enum: [all, football, cricket], description: Selected discovery filter; required only on discovery actions }
+            empty_kind: { type: string, enum: [no_events, no_places], description: Required only on empty_results_viewed; no_places is map-only }
+            referrer_interaction_id: { type: string, format: uuid, description: Required on place_viewed, optional on event_viewed; distinct from the current interaction }
+            elapsed_ms: { type: integer, minimum: 0, maximum: 9007199254740991 }
+            active_ms: { type: integer, minimum: 0, maximum: 9007199254740991 }
+            attempt_number: { type: integer, minimum: 1, maximum: 2147483647 }
+            viewer_role: { type: string, enum: [host, participant, visitor] }
+            reason: { type: string, enum: [app_backgrounded, screen_hidden, dismissed, completed] }
+            snapshot:
+              type: object
+              additionalProperties: false
+              required: [participant_count, capacity, starts_at, status]
+              properties:
+                participant_count: { type: integer, minimum: 0, maximum: 2147483647 }
+                capacity: { type: integer, minimum: 1, maximum: 2147483647 }
+                starts_at: { type: string, format: date-time }
+                status: { type: string, enum: [scheduled, cancelled, completed] }
     RealtimeFrame:
       type: object
       required: [type]

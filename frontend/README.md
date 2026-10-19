@@ -41,3 +41,17 @@ Participant event chat opens from event details after joining (hosts are partici
 ## Basic profile
 
 The You tab loads the server-configured demo user with GET /me. Edit name opens a single field with Save/Cancel; PATCH /me trims and validates 1–100 Unicode characters on one line, returns the saved profile and uses the existing automatic timestamps. Failed/uncertain saves retain the draft for retry; Cancel reloads the saved name. Re-entering Map/Your events/chat fetches current display names. No fake campus verification, account actions, statistics or notification settings are shown. Sign-in stays deferred.
+
+## Activity tracking
+
+Event creation and loaded event-details-to-join use interaction IDs/steps and monotonic elapsed/foreground-visible timings. Backgrounds and overlays pause active time; reopening starts a new interaction. Reading/thinking counts as active. Process restarts do not restore old interactions.
+
+ActivitiesProvider persists a bounded queue through Expo FileSystem (already included in the development build), scoped to API URL. It keeps up to 1,000 rows for seven days, sends batches of 25 while foregrounded, and retries unchanged IDs with bounded backoff. Actor identity is rechecked before delivery; old actors are never silently reassigned. App termination can lose the last unwritten activity. The queue never retries business mutations.
+
+After an uncertain creation, fields are frozen and Confirm creation reuses the original request receipt/body. A definite rejection allows corrections. Closing the form does not persist its draft or request; check the event list before starting another attempt after uncertainty. See ../docs/activities.md. make check includes deterministic activity timing/queue tests.
+
+Discovery tracking records explicit sport changes, timed place visits and successful foreground-visible map/place empty states. Current query keys prevent attributing stale results to a newly selected filter. Repeated taps, rerenders, successful refreshes and overlay returns do not repeat the same impression. Place timers pause under event/form overlays. Coordinate fingerprints stay in memory and are never queued; referrer interaction IDs link place visits to event views. See ../docs/activities.md and ../backend/reports/discovery.sql.
+
+Chat activities start only after an authorized history load and visible modal, pause in background and close/reopen with fresh interaction IDs. Refreshes preserve the visit. Pending messages keep their original activity headers on Retry even after reopening; message contents stay out of activities. `pnpm run test:activities` covers chat lifecycle timing as well as earlier flows.
+
+The root activity queue records one `session_started` per process visit, reusing the session UUID as activity ID. Effect replay and background/foreground do not create another start; relaunch starts a new session while saved deliveries retain their original IDs. No screen, entity or timing details are attached to startup.

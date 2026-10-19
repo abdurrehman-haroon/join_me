@@ -344,12 +344,13 @@ func (q *Queries) ListUserEvents(ctx context.Context, arg ListUserEventsParams) 
 }
 
 const lockEventForParticipation = `-- name: LockEventForParticipation :one
-SELECT host_id, capacity, starts_at, status_id
+SELECT host_id, title, capacity, starts_at, status_id
 FROM events WHERE id = $1 FOR UPDATE
 `
 
 type LockEventForParticipationRow struct {
 	HostID   pgtype.UUID
+	Title    string
 	Capacity int32
 	StartsAt pgtype.Timestamptz
 	StatusID pgtype.UUID
@@ -360,6 +361,7 @@ func (q *Queries) LockEventForParticipation(ctx context.Context, id pgtype.UUID)
 	var i LockEventForParticipationRow
 	err := row.Scan(
 		&i.HostID,
+		&i.Title,
 		&i.Capacity,
 		&i.StartsAt,
 		&i.StatusID,

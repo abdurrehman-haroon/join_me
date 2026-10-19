@@ -64,7 +64,13 @@ func TestParticipantMessages(t *testing.T) {
 	call := func(method, path, body string, want int) *httptest.ResponseRecorder {
 		t.Helper()
 		response := httptest.NewRecorder()
-		mux.ServeHTTP(response, httptest.NewRequest(method, path, strings.NewReader(body)))
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
+		if method == "POST" && strings.Contains(body, "40000000-0000-4000-8000-000000000001") {
+			request.Header.Set("X-Activity-ID", "70000000-0000-4000-8000-000000000001")
+			request.Header.Set("X-Activity-Session", "70000000-0000-4000-8000-000000000002")
+			request.Header.Set("X-Activity-Interaction", "70000000-0000-4000-8000-000000000003")
+		}
+		mux.ServeHTTP(response, request)
 		if response.Code != want {
 			t.Fatalf("%s %s: got %d want %d: %s", method, path, response.Code, want, response.Body.String())
 		}
@@ -73,6 +79,16 @@ func TestParticipantMessages(t *testing.T) {
 	body := `{"id":"40000000-0000-4000-8000-000000000001","body":"  Hello group  "}`
 	call("POST", path, body, 204)
 	call("POST", path, body, 204)
+	// A later valid context cannot reattribute an already accepted message.
+	replayed := httptest.NewRequest("POST", path, strings.NewReader(body))
+	replayed.Header.Set("X-Activity-ID", "70000000-0000-4000-8000-000000000004")
+	replayed.Header.Set("X-Activity-Session", "70000000-0000-4000-8000-000000000005")
+	replayed.Header.Set("X-Activity-Interaction", "70000000-0000-4000-8000-000000000006")
+	replayedReply := httptest.NewRecorder()
+	mux.ServeHTTP(replayedReply, replayed)
+	if replayedReply.Code != 204 {
+		t.Fatalf("accepted retry with later context: %d", replayedReply.Code)
+	}
 	call("POST", path, strings.Replace(body, "Hello group", "different", 1), 409)
 	for _, invalid := range []string{`{}`, `null`, `{"id":"bad","body":"hello"}`, `{"id":"40000000-0000-4000-8000-000000000002","body":"   "}`, strings.Replace(body, "Hello group", strings.Repeat("x", 2001), 1), body + `{}`} {
 		call("POST", path, invalid, 400)
@@ -88,6 +104,28 @@ func TestParticipantMessages(t *testing.T) {
 	}
 	if len(page.Messages) != 1 || page.Messages[0].Body != "Hello group" || page.Messages[0].DisplayName == "" || !page.CanSend {
 		t.Fatalf("unexpected page: %+v", page)
+	}
+	var activityCount int
+	var activityDetails []byte
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM activities WHERE action='message_sent' AND trackable_id=$1`, event).Scan(&activityCount); err != nil || activityCount != 1 {
+		t.Fatalf("message activity count %d: %v", activityCount, err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT details FROM activities WHERE id='70000000-0000-4000-8000-000000000001' AND user_id=$1 AND source='event_chat' AND interaction_step IS NULL AND session_id='70000000-0000-4000-8000-000000000002' AND interaction_id='70000000-0000-4000-8000-000000000003'`, user).Scan(&activityDetails); err != nil {
+		t.Fatal(err)
+	}
+	var history map[string]json.RawMessage
+	if err := json.Unmarshal(activityDetails, &history); err != nil || len(history) != 1 || history["snapshot"] == nil {
+		t.Fatalf("unexpected message details: %s (%v)", activityDetails, err)
+	}
+	if strings.Contains(string(activityDetails), "Hello group") {
+		t.Fatal("message content leaked into activities")
+	}
+	partial := httptest.NewRequest("POST", path, strings.NewReader(body))
+	partial.Header.Set("X-Activity-Session", "70000000-0000-4000-8000-000000000002")
+	partialReply := httptest.NewRecorder()
+	mux.ServeHTTP(partialReply, partial)
+	if partialReply.Code != 400 {
+		t.Fatalf("partial tracking headers: %d", partialReply.Code)
 	}
 	firstCursor := page.Messages[0].Cursor
 	call("GET", path+"?before=invalid", "", 400)
@@ -181,4 +219,45 @@ func TestParticipantMessages(t *testing.T) {
 	if count != 62 {
 		t.Fatalf("history count %d", count)
 	}
+
+	// Denied/read-only/conflicting requests and concurrent identical retries added no extra outcomes.
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM activities WHERE action='message_sent' AND trackable_id=$1`, event).Scan(&activityCount); err != nil || activityCount != 2 {
+		t.Fatalf("duplicate or rejected message history: %d %v", activityCount, err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE events SET status_id=(SELECT id FROM status WHERE slug='scheduled') WHERE id=$1;`, event); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO event_participants(event_id,user_id) VALUES ($1,$2)`, event, user); err != nil {
+		t.Fatal(err)
+	}
+	var beforeSequence, afterSequence int64
+	var beforeOutbox, afterOutbox int
+	if err := pool.QueryRow(ctx, `SELECT last_sequence FROM realtime_streams WHERE target_type='event_messages' AND target_id=$1`, event).Scan(&beforeSequence); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM realtime_outbox`).Scan(&beforeOutbox); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `CREATE FUNCTION reject_message_history() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='message_sent' THEN RAISE EXCEPTION 'test message rollback'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_message_history BEFORE INSERT ON activities FOR EACH ROW EXECUTE FUNCTION reject_message_history()`); err != nil {
+		t.Fatal(err)
+	}
+	rollbackBody := `{"id":"80000000-0000-4000-8000-000000000001","body":"Rollback test"}`
+	call("POST", path, rollbackBody, 500)
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM messages WHERE id='80000000-0000-4000-8000-000000000001'`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("message survived tracking failure: %d %v", count, err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT last_sequence FROM realtime_streams WHERE target_type='event_messages' AND target_id=$1`, event).Scan(&afterSequence); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM realtime_outbox`).Scan(&afterOutbox); err != nil {
+		t.Fatal(err)
+	}
+	if beforeSequence != afterSequence || beforeOutbox != afterOutbox {
+		t.Fatal("tracking failure advanced realtime state")
+	}
+	if _, err := pool.Exec(ctx, `DROP TRIGGER reject_message_history ON activities; DROP FUNCTION reject_message_history()`); err != nil {
+		t.Fatal(err)
+	}
+	call("POST", path, rollbackBody, 204)
+	call("POST", path, rollbackBody, 204)
 }

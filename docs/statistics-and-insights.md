@@ -65,6 +65,8 @@ The main product question is: **are we helping students get a game together?** O
 
 ## Suggested activity events and journeys
 
+The current proposed activities schema, enum catalogue and validated JSON contracts are in [activities.md](activities.md). Future features must assess tracking needs under [ai.md](ai.md); implementation remains separate from this discussion.
+
 Keep the initial activity log focused on meaningful actions:
 
 - Discovery: app session started, sport filter selected, place opened, event details viewed and empty results shown.

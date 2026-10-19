@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { ActivitiesProvider } from "./ActivitiesProvider";
 import { RealtimeProvider } from "./RealtimeProvider";
 import MapScreen from "./MapScreen";
 import ProfileScreen from "./ProfileScreen";
@@ -26,37 +27,41 @@ export default function NativeApp() {
       </View>
     );
   return (
-    <RealtimeProvider>
-      <View style={styles.root}>
-        {tab === "map" && <MapScreen />}
-        {tab === "events" && <YourEvents />}
-        {tab === "you" && <ProfileScreen />}
-        <View style={styles.tabBar} accessibilityRole="tablist">
-          {(
-            [
-              ["map", "◇", "Map"],
-              ["events", "▣", "Your events"],
-              ["you", "♙", "You"],
-            ] as const
-          ).map(([key, icon, label]) => (
-            <Pressable
-              key={key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === key }}
-              onPress={() => setTab(key)}
-              style={styles.tabButton}
-            >
-              <Text style={[styles.tabIcon, tab === key && styles.activeTab]}>
-                {icon}
-              </Text>
-              <Text style={[styles.tabLabel, tab === key && styles.activeTab]}>
-                {label}
-              </Text>
-            </Pressable>
-          ))}
+    <ActivitiesProvider>
+      <RealtimeProvider>
+        <View style={styles.root}>
+          {tab === "map" && <MapScreen />}
+          {tab === "events" && <YourEvents />}
+          {tab === "you" && <ProfileScreen />}
+          <View style={styles.tabBar} accessibilityRole="tablist">
+            {(
+              [
+                ["map", "◇", "Map"],
+                ["events", "▣", "Your events"],
+                ["you", "♙", "You"],
+              ] as const
+            ).map(([key, icon, label]) => (
+              <Pressable
+                key={key}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === key }}
+                onPress={() => setTab(key)}
+                style={styles.tabButton}
+              >
+                <Text style={[styles.tabIcon, tab === key && styles.activeTab]}>
+                  {icon}
+                </Text>
+                <Text
+                  style={[styles.tabLabel, tab === key && styles.activeTab]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </View>
-    </RealtimeProvider>
+      </RealtimeProvider>
+    </ActivitiesProvider>
   );
 }
 

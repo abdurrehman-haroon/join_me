@@ -11,6 +11,154 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ActivityAction string
+
+const (
+	ActivityActionSessionStarted         ActivityAction = "session_started"
+	ActivityActionSportFilterSelected    ActivityAction = "sport_filter_selected"
+	ActivityActionPlaceViewed            ActivityAction = "place_viewed"
+	ActivityActionEventViewed            ActivityAction = "event_viewed"
+	ActivityActionEmptyResultsViewed     ActivityAction = "empty_results_viewed"
+	ActivityActionEventCreationStarted   ActivityAction = "event_creation_started"
+	ActivityActionEventCreationSubmitted ActivityAction = "event_creation_submitted"
+	ActivityActionEventCreated           ActivityAction = "event_created"
+	ActivityActionEventEdited            ActivityAction = "event_edited"
+	ActivityActionEventCancelled         ActivityAction = "event_cancelled"
+	ActivityActionJoinAttempted          ActivityAction = "join_attempted"
+	ActivityActionParticipationJoined    ActivityAction = "participation_joined"
+	ActivityActionJoinRejected           ActivityAction = "join_rejected"
+	ActivityActionParticipationLeft      ActivityAction = "participation_left"
+	ActivityActionChatOpened             ActivityAction = "chat_opened"
+	ActivityActionMessageSent            ActivityAction = "message_sent"
+	ActivityActionInteractionPaused      ActivityAction = "interaction_paused"
+	ActivityActionInteractionResumed     ActivityAction = "interaction_resumed"
+	ActivityActionInteractionClosed      ActivityAction = "interaction_closed"
+)
+
+func (e *ActivityAction) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ActivityAction(s)
+	case string:
+		*e = ActivityAction(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ActivityAction: %T", src)
+	}
+	return nil
+}
+
+type NullActivityAction struct {
+	ActivityAction ActivityAction
+	Valid          bool // Valid is true if ActivityAction is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullActivityAction) Scan(value interface{}) error {
+	if value == nil {
+		ns.ActivityAction, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ActivityAction.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullActivityAction) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ActivityAction), nil
+}
+
+type ActivitySource string
+
+const (
+	ActivitySourceMap          ActivitySource = "map"
+	ActivitySourcePlaceDetails ActivitySource = "place_details"
+	ActivitySourceEventDetails ActivitySource = "event_details"
+	ActivitySourceEventForm    ActivitySource = "event_form"
+	ActivitySourceEventChat    ActivitySource = "event_chat"
+	ActivitySourceYourEvents   ActivitySource = "your_events"
+	ActivitySourceProfile      ActivitySource = "profile"
+)
+
+func (e *ActivitySource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ActivitySource(s)
+	case string:
+		*e = ActivitySource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ActivitySource: %T", src)
+	}
+	return nil
+}
+
+type NullActivitySource struct {
+	ActivitySource ActivitySource
+	Valid          bool // Valid is true if ActivitySource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullActivitySource) Scan(value interface{}) error {
+	if value == nil {
+		ns.ActivitySource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ActivitySource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullActivitySource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ActivitySource), nil
+}
+
+type ActivityTrackableType string
+
+const (
+	ActivityTrackableTypeEvent ActivityTrackableType = "event"
+	ActivityTrackableTypePlace ActivityTrackableType = "place"
+)
+
+func (e *ActivityTrackableType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ActivityTrackableType(s)
+	case string:
+		*e = ActivityTrackableType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ActivityTrackableType: %T", src)
+	}
+	return nil
+}
+
+type NullActivityTrackableType struct {
+	ActivityTrackableType ActivityTrackableType
+	Valid                 bool // Valid is true if ActivityTrackableType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullActivityTrackableType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ActivityTrackableType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ActivityTrackableType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullActivityTrackableType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ActivityTrackableType), nil
+}
+
 type AreaType string
 
 const (
@@ -221,6 +369,22 @@ func (ns NullStatusableType) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.StatusableType), nil
+}
+
+type Activity struct {
+	ID              pgtype.UUID
+	Action          ActivityAction
+	UserID          pgtype.UUID
+	SessionID       pgtype.UUID
+	InteractionID   pgtype.UUID
+	InteractionStep pgtype.Int4
+	TrackableType   NullActivityTrackableType
+	TrackableID     pgtype.UUID
+	Source          NullActivitySource
+	OccurredAt      pgtype.Timestamptz
+	Details         []byte
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type Area struct {

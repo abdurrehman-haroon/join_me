@@ -1,3 +1,4 @@
+import { useActivityInteraction } from "./ActivitiesProvider";
 import { compareSequence, validSequence } from "./realtime";
 import { useRealtimeTarget, liveStatusText } from "./RealtimeProvider";
 import { uuid } from "expo-modules-core";
@@ -33,7 +34,12 @@ type Page = {
   can_send: boolean;
   viewer_id: string;
 };
-type PendingMessage = { id: string; body: string; state: "sending" | "failed" };
+type PendingMessage = {
+  id: string;
+  body: string;
+  state: "sending" | "failed";
+  activityHeaders?: Record<string, string>;
+};
 
 function mergeMessages(current: Message[], incoming: Message[]): Message[] {
   const byID = new Map(current.map((message) => [message.id, message]));
@@ -69,6 +75,24 @@ export default function EventChat({
   const [denied, setDenied] = useState(false);
   const [newMessages, setNewMessages] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [shown, setShown] = useState(false);
+  const [loadedForVisit, setLoadedForVisit] = useState(false);
+  const [previousVisibility, setPreviousVisibility] = useState(visible);
+  // Retain messages/drafts, but require fresh visibility and authorization per opening.
+  if (previousVisibility !== visible) {
+    setPreviousVisibility(visible);
+    setShown(false);
+    setLoadedForVisit(false);
+  }
+
+  const interaction = useActivityInteraction({
+    enabled: visible && shown && loadedForVisit && !denied,
+    visible: visible && shown,
+    target: { type: "event", id: eventID },
+    source: "event_details",
+    startAction: "chat_opened",
+  });
+
   const newest = useRef("");
   const oldest = useRef("");
   const nearBottom = useRef(true);
@@ -177,6 +201,7 @@ export default function EventChat({
         const page: Page = await response.json();
         if (!active) return;
         setDenied(false);
+        setLoadedForVisit(true);
         setCanSend(page.can_send);
         setViewer(page.viewer_id);
         setError("");
@@ -252,7 +277,7 @@ export default function EventChat({
     try {
       const response = await fetch(`${apiURL}/events/${eventID}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...message.activityHeaders },
         body: JSON.stringify({ id: message.id, body: message.body }),
         signal: controller.signal,
       });
@@ -290,6 +315,7 @@ export default function EventChat({
   return (
     <Modal
       visible={visible}
+      onShow={() => setShown(true)}
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={onClose}
@@ -438,7 +464,12 @@ export default function EventChat({
                 const body = draft.trim();
                 if (!body) return;
                 setDraft("");
-                void send({ id: uuid.v4(), body, state: "sending" });
+                void send({
+                  id: uuid.v4(),
+                  body,
+                  state: "sending",
+                  activityHeaders: interaction.current?.headers(uuid.v4()),
+                });
               }}
             >
               <Text style={styles.action}>Send</Text>

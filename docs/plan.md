@@ -1,5 +1,6 @@
 # Starting build plan
 
+
 ## Agreed scope (2026-10-11)
 
 LUMS first, expanding outwards. No sign-in or campus verification for now; keep a basic profile. Guest sessions are deferred. Always discuss schema first, then frontend mechanics, then implement each feature.
@@ -19,11 +20,17 @@ Device location (2026-10-13): approved frontend-only scope implemented with Expo
 
 Implemented the user-frozen streams/outbox/message-sequence schema, transactional event/chat publication, shared WebSocket server/client, sequence recovery, membership revocation and HTTP long-poll fallback. Event details update roster/count/status in place; chat no longer polls every four seconds. Details and chat share one connection while visible. See realtime.md and handoff.md. Sign-in, map-wide live updates and Your events live subscriptions remain separate work.
 
+## Activity tracking (implemented 2026-10-19)
+
+The approved catalogue is complete: session starts; sport filters, place/event views and empty results; creation/submission outcomes; join attempts/rejections, joins/leaves; host edits/cancellation; chat opens/messages; and pause/resume/close timing. Migration 000011, persistent delivery, strict ingestion and retry-safe transactional outcomes are implemented. Five SQL reports answer discovery, conversion, hosting, coordination and visit questions.
+
+[activities.md](activities.md) is the recording/schema/details contract; [handoff.md](handoff.md) owns verification results and remaining device coverage. Future features must explicitly assess tracking needs per ai.md. No public reporting API or user-facing statistics UI is added; production identity, database retention/deletion and broader insights remain decisions.
+
 ## Deferred
 
-Statistics/user-insight proposals are recorded in [statistics-and-insights.md](statistics-and-insights.md), including priorities, definitions and data boundaries. Implementation scope remains undecided; discuss schema and frontend mechanics before building.
+Broader statistics/user-insight proposals remain in [statistics-and-insights.md](statistics-and-insights.md) and require feature-specific discussion before implementation.
 
-Notifications, end-to-end test work (skipped at user request), reporting (legacy table removed), full illustrated-v6 parity, 3D camera choreography, beyond-campus social features, restricted visibility, verification, Regulars, availability/matching, scoring, Hostel Cup, and campus expansion services. The geographic model supports more campuses/places without a LUMS-specific query. Expansion UI and services remain separate milestones.
+Notifications, Android/physical-device verification, moderation reporting (legacy table removed), full illustrated-v6 parity, 3D camera choreography, beyond-campus social features, restricted visibility, verification, Regulars, availability/matching, scoring, Hostel Cup, and campus expansion services. The geographic model supports more campuses/places without a LUMS-specific query. Expansion UI and services remain separate milestones.
 
 `feature-inventory.md` preserves all 45 v6 features and dated scope decisions for future prototype comparisons. `v6-fidelity-plan.md` and `prototype-integration.md` preserve earlier design/rollout references; this current scope takes precedence.
 

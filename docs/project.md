@@ -1,5 +1,6 @@
 # Campus Pickup: shared context
 
+
 ## Goal and starting scope
 
 Help students at LUMS organise pickup football and tape-ball cricket games, then expand outwards. Start without sign-in or campus verification, with a basic profile and the slim pickup flow in `plan.md`. Sign-in will come later; guest sessions and ownership tokens are deferred.
@@ -29,7 +30,7 @@ The map opens at LUMS, pans/zooms freely, loads viewport places after movement s
 
 ## Current state
 
-The API connects to PostGIS and serves health, area details, and bounded viewport places. New migrations add geography and timestamp management to existing tables, plus community-mapped LUMS data from OpenStreetMap. Native MapLibre loads OpenFreeMap Liberty tiles and displays the campus and sports places. Initial data is not campus-verified. App tabs are Map, Your events and You; Hostel Cup and fixture UI are removed; event browsing is connected through read-only endpoints and map filters/place sheets/details. Event creation is connected from a selected place: POST /events uses the configured demo user, sets Scheduled status and atomically joins the host. No new schema changes. Joining/leaving is connected in event details using the demo user. Event-row locks serialize capacity checks and roster changes; hosts cannot leave. Your events lists hosted/joined events in paginated Upcoming/Past sections. Host cancellation uses the existing cancelled status, keeps the roster and shares the participation lock. Participant chat is connected through paginated HTTP history, shared WebSocket subscriptions and UUID retry; cancelled/completed history is read-only. Basic profile viewing/name editing is connected. Auth and push remain deferred. Reporting is deferred; migration 000009 removes the unused reports table and moderation_log.report_id.
+The API connects to PostGIS and serves health, area details, and bounded viewport places. New migrations add geography and timestamp management to existing tables, plus community-mapped LUMS data from OpenStreetMap. Native MapLibre loads OpenFreeMap Liberty tiles and displays the campus and sports places. Initial data is not campus-verified. App tabs are Map, Your events and You; Hostel Cup and fixture UI are removed; event browsing is connected through read-only endpoints and map filters/place sheets/details. Event creation is connected from a selected place: POST /events uses the configured demo user, sets Scheduled status and atomically joins the host. No new schema changes. Joining/leaving is connected in event details using the demo user. Event-row locks serialize capacity checks and roster changes; hosts cannot leave. Your events lists hosted/joined events in paginated Upcoming/Past sections. Host cancellation uses the existing cancelled status, keeps the roster and shares the participation lock. Participant chat is connected through paginated HTTP history, shared WebSocket subscriptions and UUID retry; cancelled/completed history is read-only. Basic profile viewing/name editing is connected. Auth and push remain deferred. Migration 000009 removed legacy moderation reporting. Internal activity reports are implemented; user-facing analytics remain deferred.
 
 ## Realtime (2026-10-15)
 
@@ -37,13 +38,15 @@ The frozen schema is implemented in migration 000010: polymorphic target_type/ta
 
 ## Next decisions
 
-Statistics and user-insight ideas are preserved in [statistics-and-insights.md](statistics-and-insights.md). These are discussion proposals only; no analytics schema, tracking or user-facing statistics are approved for implementation.
+The agreed activity-tracking catalogue is implemented: process visits, discovery, event creation/view/join/leave, host edits/cancellation and chat. Migration 000011 provides polymorphic history, strict client ingestion, persistent delivery, foreground timing and transactional backend outcomes. Five internal SQL reports cover creation/participation, discovery, hosting, chat and sessions. See [activities.md](activities.md) for the contract and [handoff.md](handoff.md) for verification and remaining device checks.
+
+The broader insights inventory is in [statistics-and-insights.md](statistics-and-insights.md). User-facing statistics and real-person retention analysis remain future work; current identity is the configured demo user. Every feature must assess tracking needs per ai.md.
 
 Device location support added (2026-10-13): Map has My location, foreground-only permission on tap, a live blue dot/accuracy circle, one-shot camera recentring and settings/retry states. Existing grants resume when the map opens; subscriptions stop on background/unmount. Coordinates stay in memory; no schema/API changes or location-sharing service. Existing viewport queries still follow camera movement.
 
 Merge recovery restored the verified event implementation; repairs were committed in 143210e. Remote history reconciliation preserves the repaired files. Participant messaging is implemented. Basic profile and removal of fixture UI are uncommitted for review (see handoff.md).
 
-Review map behavior and confirm campus names/locations. Reporting and notifications are skipped for now; event browsing, Your events and host cancellation are implemented. Confirm pilot access before a student rollout. Deployment accounts/domains and future verified-access rules remain undecided.
+Review map behavior and confirm campus names/locations. Moderation reporting and notifications are skipped for now; event browsing, Your events and host cancellation are implemented. Confirm pilot access before a student rollout. Deployment accounts/domains and future verified-access rules remain undecided.
 
 See `plan.md` for scope, `handoff.md` for verification and runtime details, and `feature-inventory.md` for the stable 45-feature v6 baseline.
 

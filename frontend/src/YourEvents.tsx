@@ -191,6 +191,7 @@ export default function YourEvents() {
           id={eventID}
           apiURL={apiURL}
           closeLabel="Back to events"
+          source="your_events"
           onClose={() => {
             setEventID(null);
             setRefresh((value) => value + 1);
