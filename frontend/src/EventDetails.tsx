@@ -17,6 +17,7 @@ import { compareSequence, validSequence } from "./realtime";
 import { useRealtimeTarget, liveStatusText } from "./RealtimeProvider";
 import EventForm from "./EventForm";
 import EventChat from "./EventChat";
+import HostSignupInsights from "./HostSignupInsights";
 
 type Person = { id: string; display_name: string };
 export type EventSummary = {
@@ -455,6 +456,16 @@ export default function EventDetails({
               >
                 <Text style={styles.participationText}>Open event chat</Text>
               </Pressable>
+            )}
+            {event.viewer.is_host && (
+              <HostSignupInsights
+                key={event.id}
+                eventID={event.id}
+                apiURL={apiURL}
+                revision={`${event.sequence}:${retry}`}
+                participantCount={event.participant_count}
+                capacity={event.capacity}
+              />
             )}
             <Text style={styles.kicker}>PARTICIPANTS · INCLUDING HOST</Text>
             {event.participants.length ? (

@@ -285,6 +285,39 @@ paths:
             text/plain:
               schema: { type: string }
         '500': { $ref: '#/components/responses/ServerError' }
+  /events/{id}/signup-insights:
+    get:
+      summary: Read signup insights as the event host
+      description: |
+        Uses the server-owned demo identity. Available for scheduled, past and cancelled
+        events. A separate host-authorized read; never included in shared event or realtime
+        payloads. Reading/refreshing records no activity. Responses are no-store.
+        Unique players exclude the host; repeat joins count once. A known leave proves
+        an earlier signup even if that signup predates tracking. Players left counts distinct
+        players with at least one recorded leave, including those who later rejoined.
+        First signup uses the earliest known server join or current membership creation.
+        Durations are whole seconds since event creation. Null means no recorded evidence.
+        First full uses the earliest recorded creation/join/capacity-reduction snapshot at
+        capacity, distinguishing initial_capacity, signup and capacity_reduction.
+        Current fullness alone does not establish a historical milestone.
+        history_complete means a server event_created record exists; legacy history may be
+        incomplete and missing untracked joins/leaves/capacity changes cannot be recovered.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Host signup history summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HostSignupInsights' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: Current demo user is not the event host }
+        '404': { description: Event not found }
+        '503': { description: Demo user not configured }
+        '500': { $ref: '#/components/responses/ServerError' }
   /me:
     get:
       summary: Load the configured demo user's basic profile
@@ -578,6 +611,18 @@ components:
         sequence: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
         payload: { type: object, description: Event snapshot, individual chat message, or fallback chat page }
         code: { type: string, description: Structured error category }
+    HostSignupInsights:
+      type: object
+      required: [history_complete, unique_players_joined, unique_players_left, first_signup_at, first_signup_seconds, first_full_at, first_full_seconds, first_full_reason]
+      properties:
+        history_complete: { type: boolean }
+        unique_players_joined: { type: integer, minimum: 0 }
+        unique_players_left: { type: integer, minimum: 0 }
+        first_signup_at: { type: string, format: date-time, nullable: true }
+        first_signup_seconds: { type: integer, minimum: 0, nullable: true }
+        first_full_at: { type: string, format: date-time, nullable: true }
+        first_full_seconds: { type: integer, minimum: 0, nullable: true }
+        first_full_reason: { type: string, enum: [signup, capacity_reduction, initial_capacity], nullable: true }
     UserActivity:
       type: object
       required: [joined, left, cancelled_joined, hosted, cancelled_hosted, sports, grounds, history, next_offset]

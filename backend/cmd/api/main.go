@@ -91,6 +91,7 @@ func main() {
 	mux.HandleFunc("PUT /events/{id}/cancellation", eventHandler.CancelEvent)
 	mux.HandleFunc("POST /events", eventHandler.CreateEvent)
 	mux.HandleFunc("GET /events/{id}", eventHandler.GetEvent)
+	mux.HandleFunc("GET /events/{id}/signup-insights", eventHandler.SignupInsights)
 	mux.HandleFunc("PATCH /events/{id}", eventHandler.UpdateEvent)
 	mux.HandleFunc("GET /events/{id}/messages", eventHandler.Messages)
 	mux.HandleFunc("POST /events/{id}/messages", eventHandler.Messages)

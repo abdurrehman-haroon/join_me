@@ -218,6 +218,7 @@ func TestActivitiesAndSafeCreation(t *testing.T) {
 		t.Fatal("session start changed actor")
 	}
 
+	t.Run("signup insights", func(t *testing.T) { testSignupInsights(t, pool, host, attendee) })
 	t.Run("hosting", func(t *testing.T) { testHostingActivities(t, pool, call, attendee) })
 	t.Run("reports", func(t *testing.T) { testActivityReports(t, pool) })
 
