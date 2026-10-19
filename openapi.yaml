@@ -319,6 +319,42 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '503': { description: Demo user not configured or missing from database }
         '500': { $ref: '#/components/responses/ServerError' }
+  /me/activity:
+    get:
+      summary: Load the current user's personal activity summary and history
+      description: |
+        Uses the server-owned DEMO_USER_ID, as /me does; no caller-selected user.
+        Month uses the requested IANA timezone, default UTC, through the current time.
+        Joined counts distinct non-host events by first known signup (activities plus
+        current memberships); rejoining never adds another event or moves it to a later month.
+        Hosted uses event creation time. Totals include left/cancelled events, with
+        separate current-state counts which may overlap. Sports and top three grounds
+        use these same totals. These are signups, not attendance.
+        History includes own creation, join, leave and cancellation actions in the period,
+        plus current memberships without tracked joins. Old deleted memberships and
+        unrecorded actions cannot be reconstructed. Titles, ground names and event status
+        reflect current records. History sorts by occurred_at descending, entry_id descending,
+        then action. Offset pages reflect live data; refresh from zero after changes.
+        No new activity is recorded by reading this endpoint. Responses are no-store.
+      parameters:
+        - name: period
+          in: query
+          schema: { type: string, enum: [month, all], default: month }
+        - name: timezone
+          in: query
+          schema: { type: string, default: UTC, example: Asia/Karachi }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 2147483627, default: 0 }
+      responses:
+        '200':
+          description: Personal summary and up to 20 history entries; empty arrays for no data
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserActivity' }
+        '400': { description: Invalid, repeated or unsupported parameter }
+        '503': { description: Demo identity not configured or user missing }
+        '500': { $ref: '#/components/responses/ServerError' }
   /me/events:
     get:
       summary: List events hosted or joined by the configured demo user
@@ -497,7 +533,7 @@ components:
       type: object
       additionalProperties: false
       required: [id, action, session_id, interaction_id, interaction_step, trackable_type, trackable_id, source, occurred_at, details]
-      description: Session, discovery, creation/join and chat client contract; other catalogue actions remain disabled. Session starts require id=session_id, null interaction_id/interaction_step/source/trackable_type/trackable_id and empty details. All screen actions require a nonzero interaction_id, positive interaction_step and a source. Creation actions target a place from event_form. Views target an event from place_details/your_events. Join attempts target an event from event_details. Chat openings target an event from event_details with step 1 and zero timing. Chat lifecycle rows target an event from event_chat. Other lifecycle rows target a place from event_form/place_details or an event from event_details. Timed starts/views must be step 1 with zero durations; timed continuations need step >=2. Sport selections and map empties have a null trackable pair and any positive step. Place views target a place from map and require sport, referrer_interaction_id and zero timing. Empty results require sport/empty_kind; map empties have no timing, place empties require timing and empty_kind=no_events. Referrer IDs are correlation context, not trusted proof of attribution. See docs/activities.md for exact action/detail combinations.
+      description: Session, discovery, creation/join and chat client contract; other catalogue actions remain disabled. Session starts require id=session_id, null interaction_id/interaction_step/source/trackable_type/trackable_id and empty details. All screen actions require a nonzero interaction_id, positive interaction_step and a source. Creation actions target a place from event_form. Views target an event from place_details/your_events/profile. Join attempts target an event from event_details. Chat openings target an event from event_details with step 1 and zero timing. Chat lifecycle rows target an event from event_chat. Other lifecycle rows target a place from event_form/place_details or an event from event_details. Timed starts/views must be step 1 with zero durations; timed continuations need step >=2. Sport selections and map empties have a null trackable pair and any positive step. Place views target a place from map and require sport, referrer_interaction_id and zero timing. Empty results require sport/empty_kind; map empties have no timing, place empties require timing and empty_kind=no_events. Referrer IDs are correlation context, not trusted proof of attribution. See docs/activities.md for exact action/detail combinations.
       properties:
         id: { type: string, format: uuid }
         action: { type: string, enum: [session_started, sport_filter_selected, place_viewed, empty_results_viewed, event_creation_started, event_creation_submitted, event_viewed, join_attempted, chat_opened, interaction_paused, interaction_resumed, interaction_closed] }
@@ -506,7 +542,7 @@ components:
         interaction_step: { type: integer, minimum: 1, maximum: 2147483647, nullable: true }
         trackable_type: { type: string, enum: [event, place], nullable: true }
         trackable_id: { type: string, format: uuid, nullable: true }
-        source: { type: string, enum: [map, event_form, event_details, event_chat, place_details, your_events], nullable: true }
+        source: { type: string, enum: [map, event_form, event_details, event_chat, place_details, your_events, profile], nullable: true }
         occurred_at: { type: string, format: date-time }
         details:
           type: object
@@ -542,6 +578,50 @@ components:
         sequence: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
         payload: { type: object, description: Event snapshot, individual chat message, or fallback chat page }
         code: { type: string, description: Structured error category }
+    UserActivity:
+      type: object
+      required: [joined, left, cancelled_joined, hosted, cancelled_hosted, sports, grounds, history, next_offset]
+      properties:
+        joined: { type: integer, minimum: 0 }
+        left: { type: integer, minimum: 0, description: Joined events without a current membership }
+        cancelled_joined: { type: integer, minimum: 0 }
+        hosted: { type: integer, minimum: 0 }
+        cancelled_hosted: { type: integer, minimum: 0 }
+        sports:
+          type: array
+          items:
+            type: object
+            required: [type, joined, hosted]
+            properties:
+              type: { type: string, enum: [football, cricket] }
+              joined: { type: integer, minimum: 0 }
+              hosted: { type: integer, minimum: 0 }
+        grounds:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [id, name, events]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              events: { type: integer, minimum: 1 }
+        history:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [entry_id, action, event_id, occurred_at, title, type, place_name, event_status]
+            properties:
+              entry_id: { type: string, format: uuid }
+              action: { type: string, enum: [event_created, participation_joined, participation_left, event_cancelled] }
+              event_id: { type: string, format: uuid }
+              occurred_at: { type: string, format: date-time }
+              title: { type: string }
+              type: { type: string, enum: [football, cricket] }
+              place_name: { type: string }
+              event_status: { type: string, enum: [scheduled, cancelled, completed] }
+        next_offset: { type: integer, nullable: true, minimum: 0 }
     Profile:
       type: object
       required: [id, display_name, created_at, updated_at]

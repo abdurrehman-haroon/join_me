@@ -281,7 +281,7 @@ func (activity clientActivity) validate(now time.Time) error {
 			return errors.New("creation targets a place from event_form")
 		}
 	case database.ActivityActionEventViewed:
-		if targetType != database.ActivityTrackableTypeEvent || (source != database.ActivitySourcePlaceDetails && source != database.ActivitySourceYourEvents) {
+		if targetType != database.ActivityTrackableTypeEvent || (source != database.ActivitySourcePlaceDetails && source != database.ActivitySourceYourEvents && source != database.ActivitySourceProfile) {
 			return errors.New("invalid event view target/source")
 		}
 	case database.ActivityActionChatOpened:

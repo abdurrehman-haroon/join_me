@@ -2,6 +2,8 @@
 
 Recorded: 2026-10-15. Status: discussion proposals, not approved implementation scope. The user requested preserving these ideas for later review. Discuss schema first, then frontend mechanics, before implementation.
 
+Current implementation (2026-10-19): personal joined/hosted totals, sports, top grounds and linked activity history are implemented in You → Your activity, with month/all-time selection scoped to the server-owned demo user. See plan.md for counting/tracking rules. The inventory below preserves the broader proposals; attendance, recaps and other later features remain deferred.
+
 ## Purpose
 
 Understand how people find games, organise them and come back to play again. Show a small, useful subset of insights to users; use most of the data internally to improve the app. Performance statistics are outside this discussion.

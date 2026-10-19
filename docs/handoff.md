@@ -4,7 +4,7 @@ Updated: 2026-10-19
 
 ## Current tracking state
 
-The agreed catalogue is implemented using migration 000011 and the existing activities table: sessions, discovery, creation/participation, host edits/cancellation and chat. Persistent delivery, foreground timing and transactional backend outcomes are tested. [activities.md](activities.md) is the authoritative recording/schema/details contract. Five SQL report files remain in backend/reports; user-facing statistics, production authentication and database retention/deletion policy are still undecided. Demo identity does not establish real-person retention.
+The agreed catalogue is implemented using migration 000011 and the existing activities table: sessions, discovery, creation/participation, host edits/cancellation and chat. Persistent delivery, foreground timing and transactional backend outcomes are tested. [activities.md](activities.md) is the authoritative recording/schema/details contract. Five SQL report files remain in backend/reports; personal statistics are implemented below; production authentication and database retention/deletion policy are still undecided. Demo identity does not establish real-person retention.
 
 ## Verification
 
@@ -30,6 +30,12 @@ Fault injection used a temporary local HTTP/WebSocket proxy and a fixture-scoped
 No Android SDK/emulator or physical device was available. Native automation used keyboard capture/direct accessibility entry; physical soft-keyboard ergonomics, gestures, radio transitions and OS-driven memory pressure remain unverified. Repeat the interruption matrix on physical iOS/Android. Deliberate termination proves saved-queue recovery, not every interruption during a disk write.
 
 Normal PostgreSQL/PostGIS is at 127.0.0.1:5432/joinme, API at 8080 and Metro at 8081 through startup.command. Reload from development menu → Reload. Keep the launcher open; Ctrl+C stops only its owned servers and retains PostgreSQL. Work remains on main, uncommitted and unpushed.
+
+## Personal statistics (2026-10-19)
+
+GET /me/activity and Your activity in the You tab use the same server-owned demo identity as /me. Joined/hosted totals, left/cancelled counts, sport breakdown, top three grounds and history (20/page) support local-month/all-time filtering. First known signup/creation dates define summary cohorts; each action date defines history. Rejoins count once; automatic host membership is excluded. Current memberships cover older retained signups, but removed untracked memberships/actions cannot be reconstructed. History links to current event details. No schema changes or internal-report changes. Reading/filtering statistics adds no tracking; history detail openings reuse event_viewed/source=profile.
+
+Database-backed make check passes, including personal-report fixtures for identity isolation, empty results, distinct/repeated joins, legacy memberships, cancellation/leave counts, sports/grounds, timezone boundaries and history pagination. Existing activity ingestion tests cover the new profile entry point; focused users/activities Go race tests pass. iPhone 18 Pro / iOS 27 verification confirmed the live demo totals (2 joined, 5 hosted, 1 cancelled hosted), sport/ground/history data, month/all-time selection and history → correct event details. The backend accepted event_viewed/source=profile. Coordinate scroll/drag automation returned noWindowsAvailable, so lower-section gesture ergonomics and native Load more remain unverified; database tests verify pagination. API 8080 and Metro 8081 were rebuilt/restarted through startup.sh. No user events or memberships were changed.
 
 ## Earlier implementation notes
 

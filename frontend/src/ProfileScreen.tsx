@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 
+import YourActivity from "./YourActivity";
+
 type Profile = {
   id: string;
   display_name: string;
@@ -217,6 +219,7 @@ export default function ProfileScreen() {
             Name saved.
           </Text>
         )}
+        {profile && <YourActivity />}
       </ScrollView>
     </KeyboardAvoidingView>
   );

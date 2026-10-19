@@ -182,3 +182,18 @@ func TestSessionStartedContract(t *testing.T) {
 		}
 	}
 }
+
+func TestProfileEventView(t *testing.T) {
+	var viewed clientActivity
+	body := fmt.Sprintf(`{"id":"30000000-0000-4000-8000-000000000001","action":"event_viewed","session_id":"30000000-0000-4000-8000-000000000002","interaction_id":"30000000-0000-4000-8000-000000000003","interaction_step":1,"trackable_type":"event","trackable_id":"30000000-0000-4000-8000-000000000004","source":"profile","occurred_at":%q,"details":{"elapsed_ms":0,"active_ms":0,"viewer_role":"participant","snapshot":{"participant_count":2,"capacity":10,"starts_at":"2026-10-20T12:00:00Z","status":"scheduled"}}}`, time.Now().UTC().Format(time.RFC3339Nano))
+	if err := json.Unmarshal([]byte(body), &viewed); err != nil {
+		t.Fatal(err)
+	}
+	if err := viewed.validate(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	viewed.Action = database.ActivityActionJoinAttempted
+	if viewed.validate(time.Now()) == nil {
+		t.Fatal("profile source accepted for join attempt")
+	}
+}

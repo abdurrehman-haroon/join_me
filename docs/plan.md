@@ -24,7 +24,7 @@ Implemented the user-frozen streams/outbox/message-sequence schema, transactiona
 
 The approved catalogue is complete: session starts; sport filters, place/event views and empty results; creation/submission outcomes; join attempts/rejections, joins/leaves; host edits/cancellation; chat opens/messages; and pause/resume/close timing. Migration 000011, persistent delivery, strict ingestion and retry-safe transactional outcomes are implemented. Five SQL reports answer discovery, conversion, hosting, coordination and visit questions.
 
-[activities.md](activities.md) is the recording/schema/details contract; [handoff.md](handoff.md) owns verification results and remaining device coverage. Future features must explicitly assess tracking needs per ai.md. No public reporting API or user-facing statistics UI is added; production identity, database retention/deletion and broader insights remain decisions.
+[activities.md](activities.md) is the recording/schema/details contract; [handoff.md](handoff.md) owns verification results and remaining device coverage. Future features must explicitly assess tracking needs per ai.md. Personal statistics are implemented below; production identity, database retention/deletion and broader insights remain decisions.
 
 ## Deferred
 
@@ -39,3 +39,11 @@ Only connected UI ships: Map, Your events and basic You profile. Hostel Cup, fix
 Local macOS startup: double-click startup.command (runs startup.sh) to start PostgreSQL if needed, backend, Metro and the iPhone 18 Pro / iOS 27 development app. Ctrl+C stops launcher-owned servers; existing servers and PostgreSQL stay running. See README.md.
 
 Host event editing implemented: PATCH /events/{id} accepts title/start/capacity together for the configured demo host, only while scheduled and upcoming. Place/type stay fixed; shared event locking prevents capacity reductions below concurrent membership. Existing DB timestamps remain automatic; no migration. Shared EventForm supports creation/editing with prefilled local time, Save/Cancel, draft retention and request guard. Success refreshes details/map/Your events; closing refreshes uncertain results. Hosting/deployment stays deferred.
+
+## Personal activity (2026-10-19)
+
+Approved user-only scope: You tab → Your activity, with joined/hosted totals, separate left/cancelled counts, sport breakdown, top three grounds and paginated history linking to event details. Month/all-time selection uses the device IANA timezone; first known signup/creation dates define summary cohorts, while history filters each action date. Rejoining counts once and host membership is excluded from joined. Totals include left/cancelled events; these are signups, not attendance.
+
+GET /me/activity derives identity from the server, accepts no user selection and reads existing events/memberships/server-owned activities. Current memberships supply pre-tracking joins; deleted untracked memberships cannot be recovered. No schema or migration change. Existing internal reports are unchanged.
+
+Tracking assessment: reading statistics, changing period and refreshing do not need new activities. Opening history event details reuses event_viewed with the existing profile source, same actor/event/snapshot/timing and retry rules; subsequent detail/chat actions retain their existing sources. No extra personal data enters activity details.

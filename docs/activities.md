@@ -32,7 +32,7 @@ Migration 000011 creates these PostgreSQL enums and sqlc types. Extend through f
 
 `activity_source`: `map`, `place_details`, `event_details`, `event_form`, `event_chat`, `your_events`, `profile`.
 
-Source means the initiating surface: opening event details from Your events records `your_events`; tapping Join inside details records `event_details`. It is nullable when no UI source applies, such as session startup. It does not indicate client/server trust; recording ownership is fixed by action.
+Source means the initiating surface: opening event details from personal activity history records `profile`; opening from Your events records `your_events`; tapping Join inside details records `event_details`. It is nullable when no UI source applies, such as session startup. It does not indicate client/server trust; recording ownership is fixed by action.
 
 `activity_action` and its details contract:
 

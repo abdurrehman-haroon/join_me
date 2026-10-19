@@ -78,6 +78,7 @@ func main() {
 	mux.HandleFunc("GET /ws", live.WebSocket)
 	mux.HandleFunc("GET /realtime", live.LongPoll)
 	mux.HandleFunc("GET /me", userHandler.Me)
+	mux.HandleFunc("GET /me/activity", userHandler.Activity)
 	mux.HandleFunc("PATCH /me", userHandler.Me)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
