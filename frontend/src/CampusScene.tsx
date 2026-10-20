@@ -148,6 +148,10 @@ export default function CampusScene({
   useImperativeHandle(ref, () => ({
     moveTo(frame, options) {
       goal.current = orbitOf(frame);
+      // Dragging can wind the camera round many times; take the short way back.
+      const full = Math.PI * 2;
+      orbit.current.turn +=
+        Math.round((goal.current.turn - orbit.current.turn) / full) * full;
       slowUntil.current = options?.slow ? Date.now() + slowDuration : 0;
       if (latest.current.reduceMotion) orbit.current = { ...goal.current };
     },
@@ -174,6 +178,7 @@ export default function CampusScene({
     if (!scene) return;
     for (const ball of balls.current.values()) scene.remove(ball);
     balls.current.clear();
+    labelSpots.current.clear();
     for (const pin of latest.current.pins) {
       const footprint = world.current!.footprints.get(pin.placeID);
       if (!footprint) continue;
@@ -218,8 +223,12 @@ export default function CampusScene({
     if (!view || !built || !width) return null;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2((x / width) * 2 - 1, -(y / height) * 2 + 1), view);
-    const hit = raycaster.intersectObjects([...balls.current.values(), ...built.grounds], false)[0];
-    if (!hit) return null;
+    // Buildings are included so a tap on a building does not select a ground behind it.
+    const hit = raycaster.intersectObjects(
+      [...balls.current.values(), ...built.grounds, ...built.buildings],
+      false,
+    )[0];
+    if (!hit || built.buildings.includes(hit.object as THREE.Mesh)) return null;
     const ball = [...balls.current.entries()].find(([, mesh]) => mesh === hit.object);
     return ball ? ball[0] : (hit.object.userData.placeID as string);
   }
@@ -386,9 +395,17 @@ export default function CampusScene({
           y: ((1 - projected.y) / 2) * screen.height,
           visible,
         };
-        labelSpots.current.set(placeID, spot);
-        labelPositions.get(placeID)?.setValue({ x: spot.x, y: spot.y });
-        labelOpacities.get(placeID)?.setValue(visible ? 1 : 0);
+        // Only update labels that moved, so a still screen sends no native updates.
+        const last = labelSpots.current.get(placeID);
+        if (
+          !last ||
+          last.visible !== visible ||
+          Math.abs(last.x - spot.x) + Math.abs(last.y - spot.y) > 0.5
+        ) {
+          labelSpots.current.set(placeID, spot);
+          labelPositions.get(placeID)?.setValue({ x: spot.x, y: spot.y });
+          labelOpacities.get(placeID)?.setValue(visible ? 1 : 0);
+        }
       }
 
       renderer.render(built.scene, view);

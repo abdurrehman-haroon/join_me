@@ -37,6 +37,8 @@ export type CampusWorld = {
   footprints: Map<string, Footprint>;
   // Ground and court meshes, each with `userData.placeID`, for tap hit-testing.
   grounds: THREE.Mesh[];
+  // Building meshes, which hide grounds behind them from taps.
+  buildings: THREE.Mesh[];
   setHour: (hour: number) => void;
   selection: THREE.Mesh;
 };
@@ -301,6 +303,7 @@ export function buildCampus(
   });
   const roofMaterial = new THREE.MeshLambertMaterial({ color: "#D8D2C4" });
   const buildingRings: { x: number; z: number }[][] = [];
+  const buildings: THREE.Mesh[] = [];
   for (const building of campusMap.buildings) {
     const ring = building.ring.map((p) => toScene([p[0], p[1]], origin));
     buildingRings.push(ring);
@@ -308,6 +311,7 @@ export function buildCampus(
     const geometry = new THREE.ExtrudeGeometry(shapeOf(ring), { depth: height, bevelEnabled: false });
     geometry.rotateX(-Math.PI / 2);
     const mesh = new THREE.Mesh(geometry, [roofMaterial, wallMaterial]);
+    buildings.push(mesh);
     scene.add(mesh);
   }
 
@@ -328,10 +332,11 @@ export function buildCampus(
   };
   const dummy = new THREE.Object3D();
   let count = 0;
+  const groundFootprints = [...footprints.values()];
   for (let i = 0; i < 4000 && count < 180; i++) {
     const point = { x: lerp(minX, maxX, random()), z: lerp(minZ, maxZ, random()) };
     if (!contains(point, campusRing)) continue;
-    if ([...footprints.values()].some((f) => Math.hypot(point.x - f.x, point.z - f.z) < footprintRadius(f) + 1.3))
+    if (groundFootprints.some((f) => Math.hypot(point.x - f.x, point.z - f.z) < footprintRadius(f) + 1.3))
       continue;
     if (buildingRings.some((ring) => contains(point, ring))) continue;
     const size = 0.7 + random() * 0.7;
@@ -387,7 +392,7 @@ export function buildCampus(
     wallMaterial.emissiveIntensity = dark * 0.95;
   }
 
-  return { scene, footprints, grounds, setHour, selection };
+  return { scene, footprints, grounds, buildings, setHour, selection };
 }
 
 // A floating ball over a ground with games: a football, or a red tape ball for cricket.

@@ -529,7 +529,10 @@ export default function MapScreen() {
     });
   }
   const storyFramesNow = storyFrames(storyPlace);
-  const sceneTime = feedTime ?? new Date(storyFramesNow[0]?.time ?? new Date().getTime());
+  // Explore shows the campus as it is now; the story shows the time being scrolled through.
+  const sceneTime = exploring
+    ? new Date()
+    : (feedTime ?? new Date(storyFramesNow[0]?.time ?? new Date().getTime()));
   const sceneHour = sceneTime.getHours() + sceneTime.getMinutes() / 60;
   const storyLevel: StoryLevel = {
     path: storyPlace
@@ -843,7 +846,9 @@ export default function MapScreen() {
           <Text style={styles.hintText}>
             {offCampus
               ? "You’re away from campus, so the view stays on LUMS."
-              : places.features.length
+              : places.truncated || events.truncated
+                ? "Some places or games could not all be loaded."
+                : places.features.length
                 ? "Drag to turn · pinch to zoom · tap a ground"
                 : "No places mapped on this campus yet."}
           </Text>
