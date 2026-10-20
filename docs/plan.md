@@ -71,3 +71,49 @@ Plan only; keep the current user-configured goals and implementation unchanged f
 Examples: 0 attended → 2; 1 → 2; 2 → 3; 3 → 5; 4 → 6. Round upward to a whole event. Calculate from actual attendance, not the previous target or signup count; preserve the existing host/joiner separation for joiner goals.
 
 This depends on implementing reliable attendance confirmation first. Define job timezone/period boundaries, late attendance corrections and safe repeat execution before implementation. Reassess activity recording and goal-update delivery during that feature's planning. The job and attendance-based goal calculation remain future work.
+
+## Floodlight map pass (2026-10-20)
+
+Frontend-only first step of bringing the v6 design into connected screens; no schema or API change. Partially revisits the 2026-10-11 deferral of 3D camera choreography; uncommitted for review with the team.
+
+- **3D map:** the map opens with the flat campus fit, then tilts to 55° (bearing -20°, half a zoom level closer) so OpenFreeMap's existing `building-3d` layer stands up. Recentre returns to that tilted view. MapLibre's initial bounds fit ignores pitch, which is why the tilt runs after load.
+- **Glides:** tapping a ground in Explore mode eases the camera to it (zoom 17, pitch 60°, 900 ms, framed above the sheet). iOS Reduce Motion makes this instant.
+- **Floodlight style:** the Liberty style is fetched and eight named layers are recoloured (background, park, grass, pitch, track, water, building, building-3d). If the fetch fails, the original style URL is used.
+- **Dusk:** a world-covering tint layer, drawn below our own layers, darkens the base map by hour (approximate: dusk from 17:00, dark 19:00–06:00, not real sunset times); 3D-building light cools after dark. The hour follows the home story's scroll position, otherwise the current time.
+- **Data freshness:** the home story queries `/events` with the campus bbox (so it does not shrink when zoomed) on open, filter change, after this user's create/join/cancel (`eventRefresh`) and when the app returns to the foreground. No realtime: map-wide live updates remain separate work.
+- **Activity tracking:** no new activities. Opening details from a card reuses existing event-view tracking with the map discovery interaction as referrer. Story scrolling is not recorded; tracking it would need a new `activity_source` value and a schema discussion.
+- **Base map:** shop/amenity icons, path and minor street names and one-way arrows are hidden so game pins stand out; main road names and area labels remain.
+
+## Event details: spots-left headline (2026-10-20)
+
+Frontend-only Floodlight pass on event details; no schema or API change. `SpotsLeft` replaces the small participant/capacity box: available spots as a 120 pt Big Shoulders number in tape red with "spots left" / "Last spot", "N of M going", and one dot per place (taken in turf, open as red rings; hidden above 30 places). Full shows a grey "Full"; cancelled/completed/started show the status word with "Joining closed". When the count changes (own action or a realtime `event_details` update) the old number drops out and the new one drops in over 420 ms with the native driver; Reduce Motion makes it instant. The block is one accessible element with a polite live region, so count changes are announced. A shared `useReduceMotion` hook now serves the map and this block.
+
+- **Data freshness:** unchanged; uses the existing event-details WebSocket/long-poll updates.
+- **Activity tracking:** none needed; the screen's existing event-view and join tracking are untouched.
+
+## Home story: v6 scroll and zoom levels (2026-10-20)
+
+The product owner asked for the v6 home experience on real data, replacing the 2026-10-11 deferral of 3D camera choreography for the home screen. Frontend only; no schema or API change. Replaces the horizontal feed from the Floodlight map pass.
+
+- **Story:** the Map tab opens on a vertical story over the tilted map (`TonightStory.tsx`). A giant title word (LUMS, or the ground's name) is scaled to the screen width and its letters lift and tilt away as you scroll; the kicker reads "Tonight in" when every game is today, otherwise "Coming up in". A compact title with the story's clock fades into the top bar.
+- **Camera follows scroll:** each level has camera frames: an overview, one per game (in kick-off order) and an end frame. Every scroll event interpolates between the two nearest frames (hold near a card, ease between, a small lift between grounds, short-way bearing turns) and calls MapLibre `jumpTo`. Scrolling snaps to each game so its ground is framed above its card. The map light follows the interpolated time in ten-minute steps; the story starts now, or 30 minutes before the first game if that is on a later day.
+- **Cards stand up:** below the focus line cards lie back (rotateX up to 40°) and rise to upright as they reach it, then tilt slightly and fade above it. Native-driver `Animated` interpolations; no new native dependency.
+- **Levels:** Lahore › LUMS › ground. Pinch out (two-finger spread on the story), the + button or a card's "Zoom in" dives into the game's ground; pinch in, − or the LUMS breadcrumb pulls back. The camera flies 1.6 s to the new level's overview and the story grows in (dive) or settles down (pull back). The ground level circles that ground, one bearing step per game, and its end card starts a game there. Lahore is shown but not tappable. DHA, blocks and venues (CBTL etc.) need area/place data and are the next step.
+- **Explore mode:** the Map button (or "Explore the map") switches to the previous free map with its pins, filters, place sheet and location controls; "Back to tonight" returns and flies to the story's overview. Only Explore mode reloads places/events when the camera moves.
+- **Reduce Motion:** title, card tilts and the level entrance are static, and the camera cuts between frames instead of travelling.
+- **Data freshness and tracking:** unchanged from the Floodlight map pass (campus `/events` query; no realtime for the story; no new activities).
+
+## Home story on the illustrated 3D campus (2026-10-20)
+
+The product owner asked for the v6 template's look, not a real street map: the home story now runs over an illustrated 3D model of LUMS rendered natively with three.js on `expo-gl` (new native dependency; dev-client rebuilt). The real MapLibre map is only mounted in Explore mode.
+
+- **Built from real data:** the campus outline and grounds come from our API (`areas.boundary`, `places.location`/`boundary`). Four-cornered grounds become pitches/courts at their real size and angle, rounder ones become ovals. Building footprints (65) and paths (118) inside the LUMS boundary were extracted once from OpenStreetMap into `frontend/assets/lums-campus.json` (ODbL; attribution shown on the scene). OpenStreetMap has no trees mapped there, so low-poly trees are scattered as in v6. One scene unit is 15 m; building heights are exaggerated (0.55 units per level, 2 levels when unknown).
+- **Look (ported from the v6 prototype's scene code):** striped football pitches with markings, a mown cricket oval with pitch strip and rope, coloured hard courts, floodlight poles with heads and beams that switch on at dusk, buildings whose windows light up at night, a sunset-to-night sky and fog, a floating football (or red tape ball for cricket) over each ground with games, with a native "x left" label for its next game, and a pulsing red ring on the ground in focus. Textures are painted into pixel buffers (`sceneTextures.ts`) because React Native has no 2D canvas.
+- **Camera:** the v6 orbit model (target, distance, tilt, turn). Scroll frames come from `MapScreen.storyFrames`; the scene eases towards the latest frame every frame, slower for level changes.
+- **Performance choices:** Lambert materials (no physically based shading), no real-time shadows, no point lights (floodlit pitches use an additive light pool), no MSAA, rendered at half the screen's pixel density and scaled up, idle frames capped at 30 fps, and each frame waits for the GL thread so frames never queue up. The iOS Simulator renders OpenGL ES in software: about 0.2 s per frame and roughly a minute to compile shaders on launch. A physical-device check is still needed.
+- **expo-gl workaround:** expo-gl's WebGL 2 context class inherits from its WebGL 1 class, so three.js's "WebGL 1 not supported" check is bypassed by hiding the WebGL 1 global only while the renderer is created.
+- **Explore mode in 3D (same day):** the Map button switches the same scene (never rebuilt) to free exploring: one finger turns and tilts, pinch zooms (20–140 units), two fingers pan, and tapping a ground, its ball or its label flies to it and opens the place sheet with its games and "+ Create event here". My location shows a blue dot on the campus and moves there when within about 1.8 km; ⌂ returns to the overview; Tonight returns to the story. Location errors only show after My location is tapped. The MapLibre street map is no longer used by any screen.
+- **Open decision:** `@maplibre/maplibre-react-native` is still installed (and in app.json plugins) but unused; `project.md`/`code-practice.md` still describe MapLibre as the map. Removing it needs a dev-client rebuild and a docs update; DHA/city levels may want real geography again.
+- **Not yet built:** DHA/area levels need area/place data.
+- **Activity tracking:** unchanged events; map discovery impressions (`observeMapResults`/`observePlaceResults`) are recorded only in Explore mode, using the campus bbox as the view.
+

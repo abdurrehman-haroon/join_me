@@ -18,6 +18,7 @@ import { useRealtimeTarget, liveStatusText } from "./RealtimeProvider";
 import EventForm from "./EventForm";
 import EventChat from "./EventChat";
 import HostSignupInsights from "./HostSignupInsights";
+import SpotsLeft from "./SpotsLeft";
 
 type Person = { id: string; display_name: string };
 export type EventSummary = {
@@ -341,20 +342,18 @@ export default function EventDetails({
               })}
             </Text>
             <Text style={styles.body}>Hosted by {event.host.display_name}</Text>
-            <View style={styles.capacity}>
-              <Text style={styles.count}>
-                {event.participant_count}/{event.capacity}
-              </Text>
-              <Text style={styles.body}>
-                {event.status.slug !== "scheduled"
+            <SpotsLeft
+              availableSpots={event.available_spots}
+              participantCount={event.participant_count}
+              capacity={event.capacity}
+              closedLabel={
+                event.status.slug !== "scheduled"
                   ? event.status.name
                   : hasStarted
-                    ? "Already started"
-                    : event.is_full
-                      ? "Full"
-                      : `${event.available_spots} spots left`}
-              </Text>
-            </View>
+                    ? "Started"
+                    : null
+              }
+            />
             <Text style={styles.muted}>
               Using the demo user · no sign-in yet
             </Text>
@@ -545,13 +544,6 @@ const styles = StyleSheet.create({
   title: { fontFamily: "BigShoulders", fontSize: 46, color: "#15201B" },
   body: { color: "#15201B", fontSize: 16, lineHeight: 24 },
   message: { padding: 28, gap: 18, alignItems: "center" },
-  capacity: {
-    backgroundColor: "#E5E9DF",
-    padding: 22,
-    borderRadius: 24,
-    gap: 4,
-  },
-  count: { fontFamily: "BigShoulders", fontSize: 56, color: "#1D5B3A" },
   person: {
     fontSize: 16,
     color: "#15201B",

@@ -1,12 +1,4 @@
-import {
-  Camera,
-  GeoJSONSource,
-  Layer,
-  Map,
-  type CameraRef,
-  type GeoJSONSourceRef,
-  type LngLatBounds,
-} from "@maplibre/maplibre-react-native";
+import type * as GeoJSON from "geojson";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,10 +14,16 @@ import {
 import EventDetails, { type EventSummary } from "./EventDetails";
 import EventForm from "./EventForm";
 import useDeviceLocation from "./useDeviceLocation";
+import TonightStory, { type CameraFrame, type StoryLevel } from "./TonightStory";
+import CampusScene, { type CampusSceneHandle, type ScenePin } from "./CampusScene";
+import { toScene, type ScenePlace } from "./campusModel";
+import useReduceMotion from "./useReduceMotion";
 import { uuid } from "expo-modules-core";
 import { useActivities, useActivityInteraction } from "./ActivitiesProvider";
 import { DiscoveryTracker, type SportFilter } from "./activities";
 
+// West, south, east, north.
+type LngLatBounds = [number, number, number, number];
 type Area = {
   id: string;
   name: string;
@@ -58,14 +56,21 @@ const apiURL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 const initialAreaID =
   process.env.EXPO_PUBLIC_INITIAL_AREA_ID ??
   "00000000-0000-4000-8000-000000000001";
-const mapStyle =
-  process.env.EXPO_PUBLIC_MAP_STYLE_URL ??
-  "https://tiles.openfreemap.org/styles/liberty";
 const emptyPlaces: Places = {
   type: "FeatureCollection",
   features: [],
   truncated: false,
 };
+// The home story's camera on the 3D campus, as in v6: a high overview, then each
+// ground from closer and steeper, turning a little either way between grounds.
+const homeTurn = 0.22;
+const overviewView = { distance: 96, tilt: 0.62 };
+const groundView = { distance: 30, tilt: 0.98 };
+// A ground's own level circles it, one step per game.
+const groundTurnPerGame = 0.32;
+// Beyond this distance from the campus centre (in scene units, 15 m each) the
+// device is treated as off campus and the camera does not follow it.
+const offCampusDistance = 120;
 
 export default function MapScreen() {
   const { queue, sessionID } = useActivities();
@@ -82,10 +87,9 @@ export default function MapScreen() {
   );
   const [loadedQuery, setLoadedQuery] = useState<string | null>(null);
   const [eventReferrer, setEventReferrer] = useState<string | undefined>(undefined);
-  const camera = useRef<CameraRef>(null);
+  const campusScene = useRef<CampusSceneHandle>(null);
   const deviceLocation = useDeviceLocation();
   const centreOnNextLocation = useRef(false);
-  const placeSource = useRef<GeoJSONSourceRef>(null);
   const [area, setArea] = useState<Area | null>(null);
   const [bounds, setBounds] = useState<LngLatBounds | null>(null);
   const [places, setPlaces] = useState<Places>(emptyPlaces);
@@ -106,20 +110,22 @@ export default function MapScreen() {
   const [areaError, setAreaError] = useState("");
   const [placesError, setPlacesError] = useState("");
   const [loadingPlaces, setLoadingPlaces] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapError, setMapError] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [mapVersion, setMapVersion] = useState(0);
-  const mapPlaces = {
-    ...places,
-    features: places.features.map((place) => ({
-      ...place,
-      properties: {
-        ...place.properties,
-        event_count: events.place_counts[place.properties.id] ?? 0,
-      },
-    })),
-  };
+  const reduceMotion = useReduceMotion();
+  // Campus-wide upcoming events for the feed. Unlike `events`, this does not shrink
+  // when the camera zooms into a single ground.
+  const [campusEvents, setCampusEvents] = useState<EventSummary[]>([]);
+  // The kick-off time of the feed card in focus; the map's light follows it.
+  const [feedTime, setFeedTime] = useState<Date | null>(null);
+  // The home story's level: the whole campus (null) or one ground.
+  const [storyPlace, setStoryPlace] = useState<EventSummary["place"] | null>(null);
+  const [entrance, setEntrance] = useState<"in" | "out" | null>(null);
+  // Explore mode: turn and zoom the 3D campus freely and tap grounds, instead of the story.
+  const [exploring, setExploring] = useState(false);
+  const [focusedPlaceID, setFocusedPlaceID] = useState<string | null>(null);
+  const [offCampus, setOffCampus] = useState(false);
+  // Location problems are only shown after the user asks for their location.
+  const [locationAsked, setLocationAsked] = useState(false);
   const placeEvents = events.events.filter(
     (event) => event.place.id === selected?.properties.id,
   );
@@ -142,17 +148,17 @@ export default function MapScreen() {
     return () => subscription.remove();
   }, []);
 
+
   useEffect(() => {
     // Only count an impression of the successful query currently shown, never stale/loading/error data.
     if (
       !discoveryVisible ||
       !queryKey ||
       loadedQuery !== queryKey ||
-      !mapLoaded ||
+      !exploring ||
       loadingPlaces ||
       areaError ||
-      placesError ||
-      mapError
+      placesError
     )
       return;
     if (selected) {
@@ -181,11 +187,10 @@ export default function MapScreen() {
     discoveryVisible,
     queryKey,
     loadedQuery,
-    mapLoaded,
+    exploring,
     loadingPlaces,
     areaError,
     placesError,
-    mapError,
     selected,
     events,
     places,
@@ -194,32 +199,39 @@ export default function MapScreen() {
     placeInteraction,
   ]);
 
+  // The 3D campus is laid out around the centre of the campus bounding box.
+  const origin: [number, number] | null = area?.bbox
+    ? [(area.bbox[0] + area.bbox[2]) / 2, (area.bbox[1] + area.bbox[3]) / 2]
+    : null;
+
   const coordinates = deviceLocation.position?.coords;
-  // MapLibre uses a 512-pixel world at zoom zero; convert GPS metres to pixels.
-  const accuracyAtZoomZero = coordinates
-    ? (coordinates.accuracy ?? 0) /
-      (78271.51696 *
-        Math.cos(
-          (Math.min(85, Math.abs(coordinates.latitude)) * Math.PI) / 180,
-        ))
-    : 0;
+  const you: [number, number] | null = coordinates
+    ? [coordinates.longitude, coordinates.latitude]
+    : null;
 
   useEffect(() => {
-    if (!deviceLocation.position || !mapLoaded || !centreOnNextLocation.current)
-      return;
+    if (!you || !origin || !centreOnNextLocation.current) return;
     centreOnNextLocation.current = false;
-    camera.current?.easeTo({
-      center: [
-        deviceLocation.position.coords.longitude,
-        deviceLocation.position.coords.latitude,
-      ],
-      zoom: 16,
-      duration: 0,
-    });
-  }, [deviceLocation.position, mapLoaded]);
+    const point = toScene(you, origin);
+    const away = Math.hypot(point.x, point.z) > offCampusDistance;
+    setOffCampus(away);
+    if (!away)
+      campusScene.current?.moveTo({
+        x: point.x,
+        z: point.z,
+        distance: 40,
+        tilt: 0.9,
+        turn: homeTurn,
+        time: 0,
+      });
+    // `you` changes identity every render; its coordinates are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coordinates?.latitude, coordinates?.longitude, origin?.[0], origin?.[1]]);
 
   function showMyLocation() {
+    setLocationAsked(true);
     setSelected(null);
+    setOffCampus(false);
     centreOnNextLocation.current = true;
     deviceLocation.locate();
   }
@@ -313,318 +325,379 @@ export default function MapScreen() {
     };
   }, [bounds, retry, eventType, eventRefresh]);
 
+  // Feed data loads for the whole campus on open, filter change, after this user
+  // creates/joins/cancels (eventRefresh), and when the app returns to the foreground.
+  // No live updates: map-wide realtime is separate work in plan.md.
   useEffect(() => {
-    if (!area || mapLoaded || mapError) return;
-    const timeout = setTimeout(() => setMapError(true), 20000);
-    return () => clearTimeout(timeout);
-  }, [area, mapLoaded, mapError, mapVersion]);
+    if (!area?.bbox || !foreground) return;
+    let active = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    async function loadCampusEvents() {
+      try {
+        const response = await fetch(
+          `${apiURL}/events?bbox=${area!.bbox!.join(",")}&type=${eventType}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("Could not load upcoming events");
+        const loaded: EventList = await response.json();
+        if (active) setCampusEvents(loaded.events);
+      } catch {
+        // Keep the last feed; the map's own error state already offers Try again.
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+    void loadCampusEvents();
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [area, eventType, eventRefresh, retry, foreground]);
+
+
+  // Looks slightly past a ground, towards the camera, so the ground sits above a card
+  // or sheet at the bottom of the screen.
+  function groundFrame(
+    coordinates: [number, number],
+    distance: number,
+    tilt: number,
+    turn: number,
+    time: number,
+  ): CameraFrame {
+    const point = toScene(coordinates, origin!);
+    const ahead = distance * 0.12;
+    return {
+      x: point.x + Math.sin(turn) * ahead,
+      z: point.z + Math.cos(turn) * ahead,
+      distance,
+      tilt,
+      turn,
+      time,
+    };
+  }
+
+  // Camera stops for the story at a level: an overview, one per game, then the end card.
+  function storyFrames(place: EventSummary["place"] | null): CameraFrame[] {
+    if (!origin) return [];
+    const now = new Date().getTime();
+    const games = place
+      ? campusEvents.filter((event) => event.place.id === place.id)
+      : campusEvents;
+    const lastTime = games.length
+      ? new Date(games[games.length - 1].starts_at).getTime()
+      : now;
+    // The story starts now, or just before the first game if that is on a later day,
+    // so the light does not pass through a night before the first card.
+    const firstTime = games.length ? new Date(games[0].starts_at).getTime() : now;
+    const start =
+      new Date(firstTime).toDateString() === new Date(now).toDateString()
+        ? now
+        : firstTime - 30 * 60000;
+    const end = lastTime + 30 * 60000;
+    const view = groundFrame;
+    // The overview looks between the middle of the campus and its grounds, so the
+    // grounds are in view under the title.
+    const groundPoints = places.features.map((p) =>
+      toScene(p.geometry.coordinates as [number, number], origin),
+    );
+    const middle = groundPoints.length
+      ? {
+          x: groundPoints.reduce((sum, p) => sum + p.x, 0) / groundPoints.length / 2,
+          z: groundPoints.reduce((sum, p) => sum + p.z, 0) / groundPoints.length / 2,
+        }
+      : { x: 0, z: 0 };
+    if (!place)
+      return [
+        { ...middle, ...overviewView, turn: homeTurn - 0.15, time: start },
+        ...games.map((event, index) =>
+          view(
+            event.place.coordinates,
+            groundView.distance,
+            groundView.tilt,
+            homeTurn + (index % 2 ? 0.2 : -0.16),
+            new Date(event.starts_at).getTime(),
+          ),
+        ),
+        { ...middle, distance: 86, tilt: 0.8, turn: homeTurn + 0.25, time: end },
+      ];
+    return [
+      view(place.coordinates, 40, 0.92, homeTurn - 0.3, start),
+      ...games.map((event, index) =>
+        view(
+          place.coordinates,
+          groundView.distance,
+          groundView.tilt,
+          homeTurn + 0.1 + index * groundTurnPerGame,
+          new Date(event.starts_at).getTime(),
+        ),
+      ),
+      view(place.coordinates, 34, 0.9, homeTurn + 0.6, end),
+    ];
+  }
+
+  function enterLevel(place: EventSummary["place"] | null) {
+    setEntrance(place ? "in" : "out");
+    setStoryPlace(place);
+    setFocusedPlaceID(place?.id ?? null);
+    setFeedTime(null);
+    const first = storyFrames(place)[0];
+    if (first) campusScene.current?.moveTo(first, { slow: true });
+  }
+
+  function backToStory() {
+    setExploring(false);
+    setLocationAsked(false);
+    setSelected(null);
+    setEntrance(null);
+    setFeedTime(null);
+    setOffCampus(false);
+    const first = storyFrames(storyPlace)[0];
+    if (first) campusScene.current?.moveTo(first, { slow: true });
+  }
+
+  function startExploring() {
+    setExploring(true);
+    setFocusedPlaceID(null);
+    setFeedTime(null);
+  }
+
+  // A tap in explore mode: open the ground's sheet and fly to it, or close the sheet.
+  function selectPlace(placeID: string | null) {
+    const place = places.features.find((item) => item.properties.id === placeID) ?? null;
+    setSelected(place);
+    if (place)
+      campusScene.current?.moveTo(
+        groundFrame(
+          place.geometry.coordinates as [number, number],
+          groundView.distance,
+          groundView.tilt,
+          homeTurn,
+          0,
+        ),
+      );
+  }
 
   function recentre() {
     centreOnNextLocation.current = false;
     setSelected(null);
-    if (area?.bbox)
-      camera.current?.fitBounds(area.bbox, {
-        duration: 0,
-        padding: { top: 120, right: 40, bottom: 130, left: 40 },
-      });
+    setOffCampus(false);
+    const overview = storyFrames(null)[0];
+    if (overview) campusScene.current?.moveTo(overview, { slow: true });
   }
+
+  // Follows the story's scroll position every frame.
+  function followStory(frame: CameraFrame) {
+    campusScene.current?.moveTo(frame);
+    // The light only needs to change every ten minutes of story time.
+    const step = Math.round(frame.time / 600000) * 600000;
+    if (step !== feedTime?.getTime()) setFeedTime(new Date(step));
+  }
+
+  const storyReady = Boolean(
+    area?.boundary && origin && loadedQuery !== null && !areaError,
+  );
+  const showStory = storyReady && !exploring;
+  const storyEvents = storyPlace
+    ? campusEvents.filter((event) => event.place.id === storyPlace.id)
+    : campusEvents;
+  const players = storyEvents.reduce((sum, event) => sum + event.participant_count, 0);
+  const allTonight = storyEvents.every(
+    (event) => new Date(event.starts_at).toDateString() === new Date().toDateString(),
+  );
+  const campusName = area?.name ?? "LUMS";
+  const scenePlaces: ScenePlace[] = places.features.map((place) => ({
+    id: place.properties.id,
+    name: place.properties.name,
+    type: place.properties.type,
+    coordinates: place.geometry.coordinates as [number, number],
+    boundary: place.properties.boundary ?? null,
+  }));
+  // One ball per ground with games, labelled with its next game.
+  const scenePins: ScenePin[] = [];
+  for (const event of campusEvents) {
+    if (scenePins.some((pin) => pin.placeID === event.place.id)) continue;
+    scenePins.push({
+      placeID: event.place.id,
+      sport: event.type,
+      full: event.is_full,
+      headline: event.is_full ? "Full" : `${event.available_spots} left`,
+      detail: `${event.type === "cricket" ? "Tape-ball" : "Football"}, ${new Date(
+        event.starts_at,
+      ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
+    });
+  }
+  const storyFramesNow = storyFrames(storyPlace);
+  // Explore shows the campus as it is now; the story shows the time being scrolled through.
+  const sceneTime = exploring
+    ? new Date()
+    : (feedTime ?? new Date(storyFramesNow[0]?.time ?? new Date().getTime()));
+  const sceneHour = sceneTime.getHours() + sceneTime.getMinutes() / 60;
+  const storyLevel: StoryLevel = {
+    path: storyPlace
+      ? [
+          { label: "Lahore", onPress: null },
+          { label: campusName, onPress: () => enterLevel(null) },
+          { label: storyPlace.name, onPress: null },
+        ]
+      : [
+          { label: "Lahore", onPress: null },
+          { label: campusName, onPress: null },
+        ],
+    kicker: `${allTonight ? "Tonight" : "Coming up"} ${storyPlace ? "at" : "in"}`,
+    heading: allTonight ? "Tonight" : "Coming up",
+    word: (storyPlace?.name ?? campusName).toUpperCase(),
+    subtitle: storyPlace
+      ? `${storyEvents.length} game${storyEvents.length === 1 ? "" : "s"} here. Scroll to circle the ground. Pinch in or tap − to go back to ${campusName}.`
+      : storyEvents.length
+        ? `${storyEvents.length} game${storyEvents.length === 1 ? "" : "s"} and ${players} player${players === 1 ? "" : "s"}. Scroll to walk the campus, game by game.`
+        : `No games yet. Start one and it drops onto the map for everyone at ${campusName}.`,
+    events: storyEvents,
+    frames: storyFramesNow,
+    end: storyPlace
+      ? {
+          title: "Nothing that fits?",
+          body: `Start your own game at ${storyPlace.name}. It shows up here for everyone at ${campusName}.`,
+          action: "Start a game here",
+          onAction: () => {
+            setCreatedAtPlace(null);
+            setCreationPlace({ id: storyPlace.id, name: storyPlace.name });
+          },
+        }
+      : {
+          title: storyEvents.length ? "That’s everything coming up" : "Be the first",
+          body: "No game at your time? Pick a ground on the map and start one.",
+          action: "Start a game",
+          onAction: startExploring,
+        },
+    canZoomOut: Boolean(storyPlace),
+  };
+
+  const sportFilter = (
+    <View style={styles.filters}>
+      {(["", "football", "cricket"] as const).map((type) => (
+        <Pressable
+          key={type}
+          accessibilityRole="button"
+          accessibilityState={{ selected: eventType === type }}
+          onPress={() => {
+            if (discovery.selectSport(type || "all")) setEventType(type);
+          }}
+          style={[styles.filter, eventType === type && styles.activeFilter]}
+        >
+          <Text
+            style={[
+              styles.filterText,
+              eventType === type && styles.activeFilterText,
+            ]}
+          >
+            {type ? type[0].toUpperCase() + type.slice(1) : "All"}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
 
   return (
     <View style={styles.root}>
-      {area?.bbox && (
-        <Map
-          key={mapVersion}
-          mapStyle={mapStyle}
-          style={StyleSheet.absoluteFill}
-          attributionPosition={{ bottom: 8, left: 8 }}
-          logoPosition={{ bottom: 8, right: 8 }}
-          onPress={() => setSelected(null)}
-          onRegionDidChange={(event) => setBounds(event.nativeEvent.bounds)}
-          onDidFinishLoadingStyle={() => {
-            setMapLoaded(true);
-            setMapError(false);
+      {/* One scene for both the story and explore mode, so it is never rebuilt. */}
+      {storyReady && area?.boundary && origin && storyFramesNow[0] && (
+        <CampusScene
+          ref={campusScene}
+          boundary={area.boundary}
+          origin={origin}
+          places={scenePlaces}
+          pins={scenePins}
+          focusPlaceID={exploring ? (selected?.properties.id ?? null) : focusedPlaceID}
+          hour={sceneHour}
+          initialFrame={storyFramesNow[0]}
+          reduceMotion={reduceMotion}
+          interactive={exploring}
+          onPlacePress={selectPlace}
+          you={you}
+        />
+      )}
+      {showStory && (
+        <TonightStory
+          key={storyPlace?.id ?? "campus"}
+          level={storyLevel}
+          depth={storyPlace ? 1 : 0}
+          levelCount={2}
+          reduceMotion={reduceMotion}
+          entrance={entrance}
+          filter={storyPlace ? null : sportFilter}
+          onCameraFrame={followStory}
+          onActiveEventChange={(event) =>
+            setFocusedPlaceID(event?.place.id ?? storyPlace?.id ?? null)
+          }
+          onZoomIn={storyPlace ? null : (event) => enterLevel(event.place)}
+          onZoomOut={() => enterLevel(null)}
+          // Pinching out brings the camera closer; it springs back on release.
+          onPinch={(spread) =>
+            campusScene.current?.pinchZoom(spread === null ? null : 1 / spread)
+          }
+          onOpenEvent={(event) => {
+            setEventReferrer(discovery.id);
+            setEventID(event.id);
           }}
-          onDidFinishLoadingMap={() => {
-            setMapLoaded(true);
-            setMapError(false);
-          }}
-          onDidFailLoadingMap={() => {
-            setMapLoaded(false);
-            setMapError(true);
-          }}
-        >
-          <Camera
-            ref={camera}
-            initialViewState={{
-              bounds: area.bbox,
-              padding: { top: 120, right: 40, bottom: 130, left: 40 },
-            }}
-          />
-          {area.boundary && (
-            <GeoJSONSource
-              id="campus-outline"
-              data={{
-                type: "Feature",
-                properties: {},
-                geometry: area.boundary,
-              }}
-            >
-              <Layer
-                id="campus-fill"
-                type="fill"
-                paint={{ "fill-color": "#1D5B3A", "fill-opacity": 0.06 }}
-              />
-              <Layer
-                id="campus-line"
-                type="line"
-                paint={{
-                  "line-color": "#1D5B3A",
-                  "line-width": 2,
-                  "line-dasharray": [3, 2],
-                }}
-              />
-            </GeoJSONSource>
-          )}
-          {selected?.properties.boundary && (
-            <GeoJSONSource
-              id="selected-outline"
-              data={{
-                type: "Feature",
-                properties: {},
-                geometry: selected.properties.boundary,
-              }}
-            >
-              <Layer
-                id="selected-fill"
-                type="fill"
-                paint={{ "fill-color": "#E3342F", "fill-opacity": 0.18 }}
-              />
-              <Layer
-                id="selected-line"
-                type="line"
-                paint={{ "line-color": "#E3342F", "line-width": 2 }}
-              />
-            </GeoJSONSource>
-          )}
-          <GeoJSONSource
-            ref={placeSource}
-            id="places"
-            data={mapPlaces}
-            cluster
-            clusterRadius={42}
-            clusterMaxZoom={15}
-            onPress={async (event) => {
-              event.stopPropagation();
-              const feature = event.nativeEvent.features[0];
-              if (!feature) return;
-              if (
-                feature.properties?.cluster &&
-                feature.geometry.type === "Point"
-              ) {
-                const zoom = await placeSource.current?.getClusterExpansionZoom(
-                  feature.properties.cluster_id,
-                );
-                if (zoom !== undefined)
-                  camera.current?.easeTo({
-                    center: feature.geometry.coordinates as [number, number],
-                    zoom,
-                    duration: 250,
-                  });
-              } else {
-                setSelected(
-                  places.features.find((place) => place.id === feature.id) ??
-                    null,
-                );
+          onExplore={startExploring}
+        />
+      )}
+      {!showStory && (
+        <>
+          {/* Explore keeps the story's look: breadcrumb and filters on top, round controls on the right. */}
+          <View style={styles.exploreTop} pointerEvents="box-none">
+            <View style={styles.crumbs}>
+              <Text style={styles.crumbMuted}>Lahore</Text>
+              <Text style={styles.crumbSeparator}>›</Text>
+              <Text style={styles.crumbCurrent}>{campusName}</Text>
+              <Text style={styles.crumbSeparator}>·</Text>
+              <Text style={styles.crumbMuted}>Explore</Text>
+            </View>
+            {sportFilter}
+          </View>
+          <View style={styles.exploreControls}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                deviceLocation.finding ? "Finding your location" : "Show my location"
               }
-            }}
-          >
-            <Layer
-              id="clusters"
-              type="circle"
-              filter={["has", "point_count"]}
-              paint={{
-                "circle-radius": 24,
-                "circle-color": "#1D5B3A",
-                "circle-stroke-color": "#F4F5F0",
-                "circle-stroke-width": 3,
+              accessibilityState={{
+                disabled: deviceLocation.finding,
+                busy: deviceLocation.finding,
               }}
-            />
-            <Layer
-              id="cluster-count"
-              type="symbol"
-              filter={["has", "point_count"]}
-              layout={{
-                "text-field": [
-                  "concat",
-                  ["to-string", ["get", "point_count_abbreviated"]],
-                  "\nplaces",
-                ],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 11,
-              }}
-              paint={{ "text-color": "#FFFFFF" }}
-            />
-            <Layer
-              id="ground-pins"
-              type="circle"
-              filter={["!", ["has", "point_count"]]}
-              paint={{
-                "circle-radius": [
-                  "case",
-                  ["==", ["get", "id"], selected?.properties.id ?? ""],
-                  16,
-                  13,
-                ],
-                "circle-color": [
-                  "case",
-                  ["==", ["get", "id"], selected?.properties.id ?? ""],
-                  "#E3342F",
-                  "#1D5B3A",
-                ],
-                "circle-stroke-color": "#FFFFFF",
-                "circle-stroke-width": 3,
-              }}
-            />
-            <Layer
-              id="event-counts"
-              type="symbol"
-              filter={["!", ["has", "point_count"]]}
-              layout={{
-                "text-field":
-                  loadingPlaces || placesError
-                    ? "…"
-                    : ["to-string", ["get", "event_count"]],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 12,
-              }}
-              paint={{ "text-color": "#FFFFFF" }}
-            />
-            <Layer
-              id="ground-labels"
-              type="symbol"
-              minzoom={16}
-              filter={["!", ["has", "point_count"]]}
-              layout={{
-                "text-field": ["get", "name"],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 12,
-                "text-anchor": "top",
-                "text-offset": [0, 1.2],
-              }}
-              paint={{
-                "text-color": "#15201B",
-                "text-halo-color": "#FFFFFF",
-                "text-halo-width": 2,
-              }}
-            />
-          </GeoJSONSource>
-          {coordinates && (
-            <GeoJSONSource
-              id="device-location"
-              data={{
-                type: "Feature",
-                properties: {},
-                geometry: {
-                  type: "Point",
-                  coordinates: [coordinates.longitude, coordinates.latitude],
-                },
-              }}
+              disabled={deviceLocation.finding}
+              onPress={showMyLocation}
+              style={styles.roundButton}
             >
-              <Layer
-                id="location-accuracy"
-                type="circle"
-                paint={{
-                  "circle-radius": [
-                    "interpolate",
-                    ["exponential", 2],
-                    ["zoom"],
-                    0,
-                    accuracyAtZoomZero,
-                    24,
-                    accuracyAtZoomZero * 2 ** 24,
-                  ],
-                  "circle-color": "#2678D8",
-                  "circle-opacity": 0.14,
-                  "circle-stroke-color": "#2678D8",
-                  "circle-stroke-width": 1,
-                  "circle-stroke-opacity": 0.3,
-                  "circle-pitch-alignment": "map",
-                }}
-              />
-              <Layer
-                id="location-dot"
-                type="circle"
-                paint={{
-                  "circle-radius": 8,
-                  "circle-color": "#2678D8",
-                  "circle-stroke-color": "#FFFFFF",
-                  "circle-stroke-width": 3,
-                }}
-              />
-            </GeoJSONSource>
-          )}
-        </Map>
+              {deviceLocation.finding ? (
+                <ActivityIndicator color="#2678D8" />
+              ) : (
+                <Text style={styles.roundIcon}>◎</Text>
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Show all of ${campusName}`}
+              onPress={recentre}
+              style={styles.roundButton}
+            >
+              <Text style={styles.roundIcon}>⌂</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to tonight’s games"
+              onPress={backToStory}
+              style={[styles.roundButton, styles.tonightButton]}
+            >
+              <Text style={styles.tonightText}>Tonight</Text>
+            </Pressable>
+          </View>
+        </>
       )}
 
-      <View style={styles.header}>
-        <Text style={styles.kicker}>CAMPUS PICKUP</Text>
-        <Text style={styles.title}>{area?.name ?? "LUMS"}</Text>
-        <Text style={styles.subtitle}>Find a place. See what’s happening.</Text>
-        <View style={styles.filters}>
-          {(["", "football", "cricket"] as const).map((type) => (
-            <Pressable
-              key={type}
-              accessibilityRole="button"
-              accessibilityState={{ selected: eventType === type }}
-              onPress={() => {
-                if (discovery.selectSport(type || "all")) setEventType(type);
-              }}
-              style={[styles.filter, eventType === type && styles.activeFilter]}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  eventType === type && styles.activeFilterText,
-                ]}
-              >
-                {type ? type[0].toUpperCase() + type.slice(1) : "All"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-      <View style={styles.mapControls}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Show my location"
-          accessibilityState={{
-            disabled: !mapLoaded || deviceLocation.finding,
-            busy: deviceLocation.finding,
-          }}
-          disabled={!mapLoaded || deviceLocation.finding}
-          onPress={showMyLocation}
-          style={styles.recentre}
-        >
-          {deviceLocation.finding ? (
-            <ActivityIndicator color="#2678D8" />
-          ) : null}
-          <Text style={styles.buttonText}>
-            {deviceLocation.finding
-              ? "Finding your location…"
-              : "◎ My location"}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Recentre on campus"
-          onPress={recentre}
-          style={styles.recentre}
-        >
-          <Text style={styles.buttonText}>↗ {area?.name ?? "Campus"}</Text>
-        </Pressable>
-      </View>
-
-      {deviceLocation.error && (
+      {!showStory && locationAsked && deviceLocation.error && (
         <View style={styles.locationStatus} accessibilityLiveRegion="polite">
           <Text style={styles.body}>{deviceLocation.error}</Text>
           <View style={styles.locationActions}>
@@ -655,43 +728,27 @@ export default function MapScreen() {
         </View>
       )}
 
-      {areaError || placesError || mapError ? (
+      {areaError || placesError ? (
         <View style={styles.status}>
-          <Text style={styles.body}>
-            {areaError ||
-              (mapError
-                ? "The map could not load. Check your connection and try again."
-                : placesError)}
-          </Text>
+          <Text style={styles.body}>{areaError || placesError}</Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => {
-              setRetry((value) => value + 1);
-              if (mapError) {
-                setMapError(false);
-                setMapLoaded(false);
-                setMapVersion((value) => value + 1);
-              }
-            }}
+            onPress={() => setRetry((value) => value + 1)}
             style={styles.retry}
           >
             <Text style={styles.buttonText}>Try again</Text>
           </Pressable>
         </View>
-      ) : !area || !mapLoaded || loadingPlaces ? (
+      ) : !storyReady || (exploring && loadingPlaces) ? (
         <View style={styles.loading}>
           <ActivityIndicator color="#1D5B3A" />
           <Text style={styles.body}>
-            {!area
-              ? "Loading campus…"
-              : !mapLoaded
-                ? "Loading map…"
-                : "Loading places and events…"}
+            {storyReady ? "Loading places and events…" : "Loading campus…"}
           </Text>
         </View>
       ) : null}
 
-      {selected ? (
+      {showStory ? null : selected ? (
         <View style={styles.sheet}>
           <View style={styles.sheetHeading}>
             <Text style={styles.kicker}>
@@ -781,24 +838,19 @@ export default function MapScreen() {
             )}
           </ScrollView>
           <Text style={styles.source}>
-            Community-mapped location · OpenStreetMap
+            Community-mapped ground · OpenStreetMap
           </Text>
         </View>
-      ) : area &&
-        mapLoaded &&
-        !loadingPlaces &&
-        !placesError &&
-        !areaError &&
-        !mapError ? (
-        <View style={styles.hint}>
-          <Text style={styles.body}>
-            {places.truncated || events.truncated
-              ? "Zoom in to see all places and events."
-              : places.features.length
-                ? events.events.length
-                  ? "Zoom into clusters. Place markers show event counts."
-                  : "No upcoming events in this view. Tap a place to explore."
-                : "No places mapped in this view yet."}
+      ) : storyReady && !loadingPlaces && !placesError && !areaError ? (
+        <View style={styles.hint} pointerEvents="none">
+          <Text style={styles.hintText}>
+            {offCampus
+              ? "You’re away from campus, so the view stays on LUMS."
+              : places.truncated || events.truncated
+                ? "Some places or games could not all be loaded."
+                : places.features.length
+                ? "Drag to turn · pinch to zoom · tap a ground"
+                : "No places mapped on this campus yet."}
           </Text>
         </View>
       ) : null}
@@ -842,28 +894,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   createText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
-  header: {
-    position: "absolute",
-    top: 62,
-    left: 16,
-    right: 75,
-    padding: 16,
-    borderRadius: 22,
+  exploreTop: { position: "absolute", top: 58, left: 16, right: 76, gap: 2 },
+  crumbs: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     backgroundColor: "#F4F5F0",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
+  crumbMuted: { color: "#9AA49D", fontSize: 14, fontWeight: "600" },
+  crumbSeparator: { color: "#9AA49D", fontSize: 14 },
+  crumbCurrent: { color: "#15201B", fontSize: 14, fontWeight: "700" },
+  exploreControls: { position: "absolute", right: 12, top: 118, gap: 8, alignItems: "center" },
+  roundButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: "#F4F5F0",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  roundIcon: { fontSize: 22, color: "#15201B", lineHeight: 26 },
+  tonightButton: { backgroundColor: "#15201B", height: 52 },
+  tonightText: { color: "#F4F5F0", fontSize: 11, fontWeight: "700" },
   kicker: {
     color: "#1D5B3A",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.5,
   },
-  title: {
-    fontFamily: "BigShoulders",
-    fontSize: 48,
-    lineHeight: 52,
-    color: "#15201B",
-  },
-  subtitle: { fontSize: 13, color: "#6C786E" },
   filters: { flexDirection: "row", gap: 6, marginTop: 12 },
   filter: {
     paddingHorizontal: 10,
@@ -882,20 +952,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "#DEE3D8",
   },
   eventTitle: { fontSize: 18, color: "#15201B", fontWeight: "700" },
-  mapControls: {
-    position: "absolute",
-    right: 16,
-    top: 245,
-    gap: 8,
-    alignItems: "flex-end",
-  },
-  recentre: {
-    backgroundColor: "#F4F5F0",
-    padding: 14,
-    borderRadius: 24,
-    flexDirection: "row",
-    gap: 8,
-  },
   locationStatus: {
     position: "absolute",
     left: 16,
@@ -931,12 +987,14 @@ const styles = StyleSheet.create({
   body: { color: "#15201B", fontSize: 14, lineHeight: 21 },
   hint: {
     position: "absolute",
-    bottom: 40,
+    bottom: 28,
     alignSelf: "center",
-    padding: 14,
-    backgroundColor: "#F4F5F0",
-    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: "rgba(244,245,240,0.92)",
+    borderRadius: 999,
   },
+  hintText: { color: "#15201B", fontSize: 12, fontWeight: "600" },
   sheet: {
     position: "absolute",
     bottom: 40,

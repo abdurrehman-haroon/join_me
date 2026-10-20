@@ -1,6 +1,34 @@
 # Handoff
 
-Updated: 2026-10-19
+Updated: 2026-10-20
+
+## On a physical iPhone (2026-10-20)
+
+Release build installed on an iPhone 13 (iOS 18.6.2) with a free Personal Team signing set in the generated `ios/` project (not in git) and `EXPO_PUBLIC_API_URL` pointing at the Mac's LAN address. The owner reports the 3D story, pinch and explore feel smooth on the phone; the simulator's slowness is software rendering only. Device install steps: Xcode account + team in Signing & Capabilities, Developer Mode on, `EXPO_PUBLIC_API_URL=http://<mac-lan-ip>:8080 pnpm exec expo run:ios --device <udid> --configuration Release --no-bundler`, then trust the developer profile in Settings → General → VPN & Device Management.
+
+## Scroll and pinch feel (2026-10-20, uncommitted)
+
+The camera now eases by elapsed time (90 ms catch-up, 420 ms for level changes) instead of a fixed step per frame, so it keeps up with the scroll even at the simulator's ~5 fps (it used to lag 15–20 s there). Pinching on the story moves the camera live and springs back unless it passes the level threshold. Floodlight beams and pools are not drawn in daylight. Verified in the simulator: scroll to the Football Field card lands the camera on the ground within a second; pinch out dives into the Football Field level.
+
+## Explore mode on the 3D campus (2026-10-20, uncommitted)
+
+The Map button now explores the 3D campus instead of the street map (see plan.md). `MapScreen.tsx` no longer imports MapLibre; `floodlightMapStyle.ts` was removed; `@types/geojson` added because GeoJSON types previously came through MapLibre. Verified in the simulator: drag to turn, pinch zoom, tap the Cricket Ground → camera flies there and the sheet shows its game with "+ Create event here", Close, Tonight back to the story. Not verified: two-finger pan, My location dot (the simulator has no location), creating an event from the 3D sheet (same EventForm flow as before).
+
+## Home story on the illustrated 3D campus (2026-10-20, uncommitted)
+
+See plan.md "Home story on the illustrated 3D campus". New `frontend/src/CampusScene.tsx`, `campusModel.ts`, `sceneTextures.ts` and `frontend/assets/lums-campus.json`; new dependencies `expo-gl`, `three` (and `@types/three`), so run `pnpm install` and rebuild the dev client (`pnpm exec expo run:ios --no-bundler --device <id>`; CocoaPods needs `LANG=en_US.UTF-8`). Verified in the iPhone 18 Pro simulator: overview with title, real buildings, pitches, oval, courts, floodlights, balls and "x left" labels; scrolling flies the camera to each ground with the selection ring. The simulator draws about 5 frames a second and takes about a minute to compile shaders on launch; not yet checked on a physical iPhone.
+
+## Home story: v6 scroll and zoom levels (2026-10-20, uncommitted)
+
+See plan.md "Home story". New `frontend/src/TonightStory.tsx`; `MapScreen.tsx` builds the camera frames and levels, and keeps the old map UI as Explore mode; `floodlightMapStyle.ts` hides busy label layers; `UpcomingFeed.tsx` was removed. `make check` passes. Verified on the iPhone 18 Pro simulator against the local database: giant LUMS title, scroll from overview through four games (3:30, 5:15, 6:00, 9:00 pm) with the camera at each ground, its pin highlighted and the light darkening, end card, "Zoom in" to Football Field (breadcrumb, rail and title update), two-finger pinch back to LUMS, Map → Explore mode → Back to tonight. Not yet verified: frame rate of per-frame `jumpTo` on a physical device, Reduce Motion, pinch out (zoom in) by gesture (only the button was used).
+
+## Floodlight map pass (2026-10-20, uncommitted)
+
+See plan.md "Floodlight map pass". Files: `frontend/src/MapScreen.tsx` and new `frontend/src/floodlightMapStyle.ts` (its horizontal feed has since been replaced by the home story). `make check` passes. Verified on iPhone 18 Pro / iOS 27 simulator against the local database: tilted opening view with 3D buildings, feed card render, swipe snaps and camera glides across four events (3:30 pm to 9:00 pm), dusk tint deepening with kick-off time, place pins staying bright above the tint. Not yet verified: frame rate on a physical device, the Recentre button (the Expo dev tools button overlaps it in the simulator), Reduce Motion behaviour, and the style-fetch failure fallback. Known existing issue seen during testing: the location error card overlaps the place sheet/feed.
+
+Event details spots-left headline (2026-10-20, uncommitted): new `frontend/src/SpotsLeft.tsx` and `frontend/src/useReduceMotion.ts`; `EventDetails.tsx` uses SpotsLeft in place of the capacity box. Verified in the simulator with the details screen left open while a second API instance (DEMO_USER_ID = Demo Sara, port 18081) joined and the host edited capacity: live updates moved 13 → 12 spots, then "Full" (2 of 2), then "Last spot" (2 of 3), each without reopening. The 420 ms roll itself was too fast to capture with simulator screenshots; check it by eye. Test data was restored afterwards (1 of 14). `make check` passes.
+
+Local setup note: development uses a local PostgreSQL 17 on port 5433 (port 5432 was taken by another project). A shared Neon copy exists but is slow from Lahore (~240 ms/query) and is not used for daily development.
 
 ## Current tracking state
 

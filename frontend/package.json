@@ -9,14 +9,18 @@
     "expo-dev-client": "~57.0.19",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
+    "expo-gl": "~57.0.2",
     "expo-location": "~57.0.21",
     "expo-modules-core": "~57.0.21",
     "react": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-svg": "15.15.4"
+    "react-native-svg": "15.15.4",
+    "three": "^0.186.1"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
     "@types/react": "~19.2.2",
+    "@types/three": "^0.186.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
