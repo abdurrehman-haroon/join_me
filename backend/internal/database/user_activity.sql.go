@@ -12,35 +12,79 @@ import (
 )
 
 const getUserActivity = `-- name: GetUserActivity :one
-WITH join_dates AS (
+WITH report_periods AS (
+    SELECT
+        date_trunc('week', $3::timestamptz AT TIME ZONE $2::text)
+            AT TIME ZONE $2::text AS week_start,
+        (date_trunc('week', $3::timestamptz AT TIME ZONE $2::text) + interval '1 week')
+            AT TIME ZONE $2::text AS week_end,
+        date_trunc('month', $3::timestamptz AT TIME ZONE $2::text)
+            AT TIME ZONE $2::text AS month_start,
+        (date_trunc('month', $3::timestamptz AT TIME ZONE $2::text) + interval '1 month')
+            AT TIME ZONE $2::text AS month_end,
+        (date_trunc('month', $3::timestamptz AT TIME ZONE $2::text) - interval '1 month')
+            AT TIME ZONE $2::text AS previous_month_start
+), eligible_signups AS (
+    -- Goal/milestone eligibility is current membership, not historical join attempts.
+    SELECT events.id, events.starts_at, events.type, events.place_id
+    FROM events JOIN event_participants ON event_participants.event_id = events.id
+        JOIN status ON status.id = events.status_id
+    WHERE event_participants.user_id = $4 AND events.host_id <> $4
+        AND status.slug <> 'cancelled'
+), participation_progress AS (
+    SELECT jsonb_build_object(
+        'event_goal_target', users.event_goal_target,
+        'event_goal_period', users.event_goal_period,
+        'goal_progress', CASE users.event_goal_period
+            WHEN 'weekly' THEN (SELECT count(*) FROM eligible_signups
+                WHERE starts_at >= week_start AND starts_at < week_end)
+            WHEN 'monthly' THEN (SELECT count(*) FROM eligible_signups
+                WHERE starts_at >= month_start AND starts_at < month_end)
+            ELSE 0 END,
+        'goal_starts_at', CASE users.event_goal_period WHEN 'weekly' THEN week_start WHEN 'monthly' THEN month_start END,
+        'goal_ends_at', CASE users.event_goal_period WHEN 'weekly' THEN week_end WHEN 'monthly' THEN month_end END,
+        'eligible_joined', (SELECT count(*) FROM eligible_signups),
+        'football_joined', (SELECT count(*) FROM eligible_signups WHERE type = 'football'),
+        'cricket_joined', (SELECT count(*) FROM eligible_signups WHERE type = 'cricket'),
+        'month_starts_at', month_start, 'month_ends_at', month_end,
+        'month_joined', (SELECT count(*) FROM eligible_signups WHERE starts_at >= month_start AND starts_at < month_end),
+        'previous_month_joined', (SELECT count(*) FROM eligible_signups WHERE starts_at >= previous_month_start AND starts_at < month_start),
+        'month_sports', (SELECT count(DISTINCT type) FROM eligible_signups WHERE starts_at >= month_start AND starts_at < month_end),
+        'month_grounds', (SELECT count(DISTINCT place_id) FROM eligible_signups WHERE starts_at >= month_start AND starts_at < month_end),
+        'month_hosted', (SELECT count(*) FROM events JOIN status ON status.id = events.status_id
+            WHERE events.host_id = users.id AND status.slug <> 'cancelled'
+                AND starts_at >= month_start AND starts_at < month_end)
+    ) AS progress
+    FROM users CROSS JOIN report_periods WHERE users.id = $4
+), join_dates AS (
     -- Current memberships preserve signups from before activity tracking existed.
     SELECT event_id, min(joined_at) AS joined_at
     FROM (
         SELECT trackable_id AS event_id, occurred_at AS joined_at
         FROM activities
-        WHERE activities.user_id = $2 AND trackable_type = 'event'
+        WHERE activities.user_id = $4 AND trackable_type = 'event'
             AND action = 'participation_joined'
         UNION ALL
         SELECT event_id, created_at FROM event_participants
-        WHERE event_participants.user_id = $2
+        WHERE event_participants.user_id = $4
     ) AS signups
     GROUP BY event_id
 ), personal_events AS (
     SELECT events.id, events.place_id, events.type, status.slug AS status,
         'hosted' AS role, events.created_at AS action_at, false AS left_event
     FROM events JOIN status ON status.id = events.status_id
-    WHERE host_id = $2
+    WHERE host_id = $4
     UNION ALL
     SELECT events.id, events.place_id, events.type, status.slug,
         'joined', join_dates.joined_at,
         NOT EXISTS (SELECT 1 FROM event_participants
-            WHERE event_id = events.id AND event_participants.user_id = $2)
+            WHERE event_id = events.id AND event_participants.user_id = $4)
     FROM join_dates JOIN events ON events.id = join_dates.event_id
         JOIN status ON status.id = events.status_id
-    WHERE events.host_id <> $2
+    WHERE events.host_id <> $4
 ), period_events AS (
     SELECT id, place_id, type, status, role, action_at, left_event FROM personal_events
-    WHERE action_at >= $3::timestamptz AND action_at < $4::timestamptz
+    WHERE action_at >= $5::timestamptz AND action_at < $3::timestamptz
 ), sport_counts AS (
     SELECT type, count(*) FILTER (WHERE role = 'joined') AS joined,
         count(*) FILTER (WHERE role = 'hosted') AS hosted
@@ -53,25 +97,25 @@ WITH join_dates AS (
 ), history AS (
     SELECT events.id AS entry_id, 'event_created' AS action, events.id AS event_id,
         events.created_at AS occurred_at
-    FROM events WHERE host_id = $2
+    FROM events WHERE host_id = $4
     UNION ALL
     SELECT activities.id, activities.action::text, activities.trackable_id, activities.occurred_at
     FROM activities JOIN events ON events.id = activities.trackable_id
-    WHERE activities.user_id = $2 AND activities.trackable_type = 'event'
+    WHERE activities.user_id = $4 AND activities.trackable_type = 'event'
         AND (activities.action IN ('participation_joined', 'participation_left')
-                AND events.host_id <> $2
-            OR activities.action = 'event_cancelled' AND events.host_id = $2)
+                AND events.host_id <> $4
+            OR activities.action = 'event_cancelled' AND events.host_id = $4)
     UNION ALL
     SELECT event_participants.event_id, 'participation_joined', event_participants.event_id,
         event_participants.created_at
     FROM event_participants JOIN events ON events.id = event_participants.event_id
-    WHERE event_participants.user_id = $2 AND events.host_id <> $2
+    WHERE event_participants.user_id = $4 AND events.host_id <> $4
         AND NOT EXISTS (SELECT 1 FROM activities
-            WHERE activities.user_id = $2 AND trackable_type = 'event'
+            WHERE activities.user_id = $4 AND trackable_type = 'event'
                 AND trackable_id = events.id AND action = 'participation_joined')
 ), period_history AS (
     SELECT entry_id, action, event_id, occurred_at FROM history
-    WHERE occurred_at >= $3::timestamptz AND occurred_at < $4::timestamptz
+    WHERE occurred_at >= $5::timestamptz AND occurred_at < $3::timestamptz
 ), history_page AS (
     SELECT period_history.entry_id, period_history.action, period_history.event_id, period_history.occurred_at, events.title, events.type, places.name AS place_name,
         status.slug AS event_status
@@ -81,6 +125,7 @@ WITH join_dates AS (
     LIMIT 20 OFFSET $1::integer
 )
 SELECT jsonb_build_object(
+    'participation', (SELECT progress FROM participation_progress),
     'joined', (SELECT count(*) FROM period_events WHERE role = 'joined'),
     'left', (SELECT count(*) FROM period_events WHERE role = 'joined' AND left_event),
     'cancelled_joined', (SELECT count(*) FROM period_events WHERE role = 'joined' AND status = 'cancelled'),
@@ -96,17 +141,19 @@ SELECT jsonb_build_object(
 
 type GetUserActivityParams struct {
 	PageOffset int32
+	Timezone   string
+	Until      pgtype.Timestamptz
 	UserID     pgtype.UUID
 	Since      pgtype.Timestamptz
-	Until      pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserActivity(ctx context.Context, arg GetUserActivityParams) ([]byte, error) {
 	row := q.db.QueryRow(ctx, getUserActivity,
 		arg.PageOffset,
+		arg.Timezone,
+		arg.Until,
 		arg.UserID,
 		arg.Since,
-		arg.Until,
 	)
 	var activity []byte
 	err := row.Scan(&activity)

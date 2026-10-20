@@ -202,6 +202,48 @@ func (ns NullAreaType) Value() (driver.Value, error) {
 	return string(ns.AreaType), nil
 }
 
+type EventGoalPeriod string
+
+const (
+	EventGoalPeriodWeekly  EventGoalPeriod = "weekly"
+	EventGoalPeriodMonthly EventGoalPeriod = "monthly"
+)
+
+func (e *EventGoalPeriod) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = EventGoalPeriod(s)
+	case string:
+		*e = EventGoalPeriod(s)
+	default:
+		return fmt.Errorf("unsupported scan type for EventGoalPeriod: %T", src)
+	}
+	return nil
+}
+
+type NullEventGoalPeriod struct {
+	EventGoalPeriod EventGoalPeriod
+	Valid           bool // Valid is true if EventGoalPeriod is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullEventGoalPeriod) Scan(value interface{}) error {
+	if value == nil {
+		ns.EventGoalPeriod, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.EventGoalPeriod.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullEventGoalPeriod) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.EventGoalPeriod), nil
+}
+
 type EventType string
 
 const (
@@ -477,8 +519,10 @@ type Status struct {
 }
 
 type User struct {
-	ID          pgtype.UUID
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	DisplayName string
+	ID              pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	DisplayName     string
+	EventGoalTarget pgtype.Int4
+	EventGoalPeriod NullEventGoalPeriod
 }

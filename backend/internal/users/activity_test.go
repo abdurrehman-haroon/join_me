@@ -173,4 +173,5 @@ func TestPersonalActivity(t *testing.T) {
 	if string(month["joined"]) != "1" {
 		t.Fatalf("timezone boundary/rejoin inflated count: %s", month["joined"])
 	}
+	t.Run("event goal and progress", func(t *testing.T) { testEventGoalProgress(t, pool, actor) })
 }

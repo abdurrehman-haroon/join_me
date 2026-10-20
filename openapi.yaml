@@ -352,6 +352,30 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '503': { description: Demo user not configured or missing from database }
         '500': { $ref: '#/components/responses/ServerError' }
+  /me/event-goal:
+    put:
+      summary: Set or turn off the current user's event goal
+      description: |
+        Uses server-owned DEMO_USER_ID; callers cannot select a user. Both fields are
+        required. Set a positive int32 target and weekly/monthly period, or both to null
+        to turn the goal off. One active goal applies to the current and following periods;
+        changing it does not create goal history. Repeating the same request is safe.
+        Database-owned timestamps preserve created_at and refresh updated_at.
+        No new activity is recorded. Body limit 1 KiB; response is no-store.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventGoal' }
+      responses:
+        '200':
+          description: Saved goal settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventGoal' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { description: Demo identity not configured or user missing }
+        '500': { $ref: '#/components/responses/ServerError' }
   /me/activity:
     get:
       summary: Load the current user's personal activity summary and history
@@ -368,6 +392,13 @@ paths:
         unrecorded actions cannot be reconstructed. Titles, ground names and event status
         reflect current records. History sorts by occurred_at descending, entry_id descending,
         then action. Offset pages reflect live data; refresh from zero after changes.
+        participation is independent of period/offset: it supplies the saved goal,
+        current local week/month progress, current/previous monthly recap and all-time
+        eligible signup counts for milestones. These use scheduled event dates and current
+        memberships, excluding hosted/cancelled/left events. Rejoining counts once;
+        leaving, cancellation or rescheduling can reduce progress. Upcoming events count.
+        Weeks start Monday; local calendar boundaries respect timezone/DST. Hosting in the
+        recap is separate and excludes cancelled events. None of these confirm attendance.
         No new activity is recorded by reading this endpoint. Responses are no-store.
       parameters:
         - name: period
@@ -623,10 +654,42 @@ components:
         first_full_at: { type: string, format: date-time, nullable: true }
         first_full_seconds: { type: integer, minimum: 0, nullable: true }
         first_full_reason: { type: string, enum: [signup, capacity_reduction, initial_capacity], nullable: true }
+    EventGoal:
+      type: object
+      additionalProperties: false
+      required: [event_goal_target, event_goal_period]
+      description: Both fields must be set together or both null.
+      properties:
+        event_goal_target: { type: integer, minimum: 1, maximum: 2147483647, nullable: true }
+        event_goal_period: { type: string, enum: [weekly, monthly], nullable: true }
+    ParticipationProgress:
+      allOf:
+        - type: object
+          required: [event_goal_target, event_goal_period]
+          properties:
+            event_goal_target: { type: integer, minimum: 1, maximum: 2147483647, nullable: true }
+            event_goal_period: { type: string, enum: [weekly, monthly], nullable: true }
+        - type: object
+          required: [goal_progress, goal_starts_at, goal_ends_at, eligible_joined, football_joined, cricket_joined, month_starts_at, month_ends_at, month_joined, previous_month_joined, month_sports, month_grounds, month_hosted]
+          properties:
+            goal_progress: { type: integer, minimum: 0, description: Uncapped progress; zero when goal is off }
+            goal_starts_at: { type: string, format: date-time, nullable: true }
+            goal_ends_at: { type: string, format: date-time, nullable: true, description: Exclusive end }
+            eligible_joined: { type: integer, minimum: 0 }
+            football_joined: { type: integer, minimum: 0 }
+            cricket_joined: { type: integer, minimum: 0 }
+            month_starts_at: { type: string, format: date-time }
+            month_ends_at: { type: string, format: date-time, description: Exclusive end }
+            month_joined: { type: integer, minimum: 0 }
+            previous_month_joined: { type: integer, minimum: 0 }
+            month_sports: { type: integer, minimum: 0 }
+            month_grounds: { type: integer, minimum: 0 }
+            month_hosted: { type: integer, minimum: 0 }
     UserActivity:
       type: object
-      required: [joined, left, cancelled_joined, hosted, cancelled_hosted, sports, grounds, history, next_offset]
+      required: [participation, joined, left, cancelled_joined, hosted, cancelled_hosted, sports, grounds, history, next_offset]
       properties:
+        participation: { $ref: '#/components/schemas/ParticipationProgress' }
         joined: { type: integer, minimum: 0 }
         left: { type: integer, minimum: 0, description: Joined events without a current membership }
         cancelled_joined: { type: integer, minimum: 0 }

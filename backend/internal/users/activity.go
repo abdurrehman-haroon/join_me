@@ -69,6 +69,7 @@ func (handler Handler) Activity(w http.ResponseWriter, request *http.Request) {
 		Since:      pgtype.Timestamptz{Time: since, Valid: true},
 		Until:      pgtype.Timestamptz{Time: until, Valid: true},
 		PageOffset: int32(offset),
+		Timezone:   timezone,
 	})
 	if err != nil {
 		log.Printf("read user activity: %v", err)

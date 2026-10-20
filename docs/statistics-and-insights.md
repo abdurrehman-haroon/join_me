@@ -2,7 +2,7 @@
 
 Recorded: 2026-10-15. Status: discussion proposals, not approved implementation scope. The user requested preserving these ideas for later review. Discuss schema first, then frontend mechanics, before implementation.
 
-Current implementation (2026-10-19): personal joined/hosted totals, sports, top grounds and linked activity history are implemented in You → Your activity, with month/all-time selection scoped to the server-owned demo user. See plan.md for counting/tracking rules. The inventory below preserves the broader proposals; attendance, recaps and other later features remain deferred.
+Current implementation (2026-10-19): personal joined/hosted totals, sports, top grounds, linked activity history, weekly/monthly goals, signup milestones and monthly recap are implemented in You → Your activity, with month/all-time selection scoped to the server-owned demo user. See plan.md for counting/tracking rules. The inventory below preserves the broader proposals; attendance, recaps and other later features remain deferred.
 
 ## Purpose
 

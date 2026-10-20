@@ -53,3 +53,21 @@ Tracking assessment: reading statistics, changing period and refreshing do not n
 Approved event-details scope: host-only signup progress, first known signup timing, first recorded capacity milestone and distinct joined/left player counts. GET /events/{id}/signup-insights uses the server-owned demo identity and separate SQL; no schema change or private fields in shared event/realtime payloads. Existing current capacity includes the host; player counts exclude the host. Rejoins count once; left counts players who left at least once even if they rejoin. A recorded leave also proves an earlier signup for legacy events. First signup uses server join history/current membership dates. Capacity milestones distinguish signup, capacity reduction and initially full; current fullness is not invented history. Events without event_created history show an incompleteness note.
 
 The host card refreshes on event sequence changes and realtime recovery, retaining its previous data while the authorized HTTP refresh runs. It reuses the event WebSocket subscription and existing long-poll fallback; no separate stream or periodic poller. Failed refreshes label last-loaded data; only an error-retry action remains; the routine Refresh button is removed. The card stays available for past/cancelled events. Tracking assessment: these derived reads add no activity; existing event view and mutation contracts suffice. Internal SQL reports remain unchanged.
+
+## Joiner goals, milestones and recap (2026-10-19)
+
+Approved implementation: users.event_goal_target (positive nullable integer) and users.event_goal_period (nullable weekly/monthly PostgreSQL enum), both set or both null. Migration 000012 adds the pair without changing existing identities or timestamps. One active goal applies to the current and following periods; PUT /me/event-goal uses the server-owned identity, accepts both fields and can turn the goal off. Goal progress is not persisted.
+
+Your activity now includes a weekly/monthly goal editor (presets plus custom positive target), goal progress, derived first/5/10/25-event and first-sport milestones, and a current-month recap with previous-month comparison and separate hosted count. Existing signup-date history/totals keep their original meaning. New progress/recap use scheduled event dates and current non-host memberships, exclude cancelled/left events and include upcoming events. Hosting recap excludes cancelled events. Rejoining counts once. Leaving/cancellation can remove milestones or progress; rescheduling can move period credit. These are signups, not attendance. Weeks start Monday in the requested device IANA timezone, with local calendar month/week boundaries including DST.
+
+Tracking assessment: no new activities; saved goal settings and existing event/membership data answer these user-facing questions. Freshness: reuse personal-report HTTP refresh on entry, foreground, goal save, returning from event details and explicit Refresh activity. No new socket stream or periodic/background polling for these summary panels; existing host-insight realtime behavior is unchanged. Requests are cancelled on cleanup; save failures preserve the goal draft and retries set the same values safely.
+
+## Future: automatically assigned event goals (2026-10-20)
+
+Plan only; keep the current user-configured goals and implementation unchanged for now. Eventually, goal targets will be assigned by the system instead of entered by users. A weekly/monthly job will use confirmed events actually attended in the previous completed matching period to set the next period's target:
+
+`next_target = max(2, ceil(attended_count * 1.5))`
+
+Examples: 0 attended → 2; 1 → 2; 2 → 3; 3 → 5; 4 → 6. Round upward to a whole event. Calculate from actual attendance, not the previous target or signup count; preserve the existing host/joiner separation for joiner goals.
+
+This depends on implementing reliable attendance confirmation first. Define job timezone/period boundaries, late attendance corrections and safe repeat execution before implementation. Reassess activity recording and goal-update delivery during that feature's planning. The job and attendance-based goal calculation remain future work.

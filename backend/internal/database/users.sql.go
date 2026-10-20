@@ -12,7 +12,7 @@ import (
 )
 
 const getUser = `-- name: GetUser :one
-SELECT id, created_at, updated_at, display_name FROM users WHERE id = $1
+SELECT id, created_at, updated_at, display_name, event_goal_target, event_goal_period FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -23,13 +23,40 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DisplayName,
+		&i.EventGoalTarget,
+		&i.EventGoalPeriod,
 	)
+	return i, err
+}
+
+const updateUserEventGoal = `-- name: UpdateUserEventGoal :one
+UPDATE users SET event_goal_target = $1::integer,
+    event_goal_period = $2::event_goal_period
+WHERE id = $3
+RETURNING event_goal_target, event_goal_period
+`
+
+type UpdateUserEventGoalParams struct {
+	EventGoalTarget pgtype.Int4
+	EventGoalPeriod NullEventGoalPeriod
+	ID              pgtype.UUID
+}
+
+type UpdateUserEventGoalRow struct {
+	EventGoalTarget pgtype.Int4
+	EventGoalPeriod NullEventGoalPeriod
+}
+
+func (q *Queries) UpdateUserEventGoal(ctx context.Context, arg UpdateUserEventGoalParams) (UpdateUserEventGoalRow, error) {
+	row := q.db.QueryRow(ctx, updateUserEventGoal, arg.EventGoalTarget, arg.EventGoalPeriod, arg.ID)
+	var i UpdateUserEventGoalRow
+	err := row.Scan(&i.EventGoalTarget, &i.EventGoalPeriod)
 	return i, err
 }
 
 const updateUserName = `-- name: UpdateUserName :one
 UPDATE users SET display_name = $2 WHERE id = $1
-RETURNING id, created_at, updated_at, display_name
+RETURNING id, created_at, updated_at, display_name, event_goal_target, event_goal_period
 `
 
 type UpdateUserNameParams struct {
@@ -45,6 +72,8 @@ func (q *Queries) UpdateUserName(ctx context.Context, arg UpdateUserNameParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DisplayName,
+		&i.EventGoalTarget,
+		&i.EventGoalPeriod,
 	)
 	return i, err
 }

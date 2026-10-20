@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import EventDetails from "./EventDetails";
+import JoinerProgress, { type ParticipationProgress } from "./JoinerProgress";
 
 type HistoryEntry = {
   entry_id: string;
@@ -24,6 +25,7 @@ type HistoryEntry = {
   event_status: string;
 };
 type ActivitySummary = {
+  participation: ParticipationProgress;
   joined: number;
   left: number;
   cancelled_joined: number;
@@ -135,6 +137,13 @@ export default function YourActivity() {
           <Text style={styles.action}>Refresh activity</Text>
         </Pressable>
       </View>
+      {summary && (
+        <JoinerProgress
+          progress={summary.participation}
+          apiURL={apiURL}
+          onSaved={reload}
+        />
+      )}
       <View accessibilityRole="tablist" style={styles.row}>
         {(
           [
