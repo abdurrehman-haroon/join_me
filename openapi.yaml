@@ -118,6 +118,57 @@ paths:
             text/plain:
               schema: { type: string }
         '500': { $ref: '#/components/responses/ServerError' }
+  /areas/{id}/children:
+    get:
+      summary: List the areas inside an area, such as DHA's phases and LUMS
+      description: Public read-only endpoint. Each feature's geometry is the child's outline, or null when it has none; its bbox comes from the outline or its places.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Child areas ordered by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [type, features]
+                properties:
+                  type: { type: string, enum: [FeatureCollection] }
+                  features:
+                    type: array
+                    items:
+                      type: object
+                      required: [type, id, geometry, properties]
+                      properties:
+                        type: { type: string, enum: [Feature] }
+                        id: { type: string, format: uuid }
+                        geometry: { $ref: '#/components/schemas/Boundary' }
+                        properties:
+                          type: object
+                          required: [id, parent_id, name, type, bbox, created_at, updated_at]
+                          properties:
+                            id: { type: string, format: uuid }
+                            parent_id: { type: string, format: uuid }
+                            name: { type: string }
+                            type: { type: string, enum: [city, district, campus] }
+                            bbox:
+                              type: array
+                              nullable: true
+                              minItems: 4
+                              maxItems: 4
+                              items: { type: number }
+                            created_at: { type: string, format: date-time, readOnly: true }
+                            updated_at: { type: string, format: date-time, readOnly: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: Area not found
+          content:
+            text/plain:
+              schema: { type: string }
+        '500': { $ref: '#/components/responses/ServerError' }
   /places:
     get:
       summary: Load mapped places in the visible viewport
@@ -155,7 +206,7 @@ paths:
               properties:
                 place_id: { type: string, format: uuid }
                 title: { type: string, minLength: 1, maxLength: 200, description: Trimmed; whitespace-only titles are rejected. }
-                type: { type: string, enum: [football, cricket] }
+                type: { type: string, enum: [football, cricket, padel] }
                 starts_at: { type: string, format: date-time, description: Future RFC3339 timestamp with explicit offset or Z. }
                 capacity: { type: integer, minimum: 1, maximum: 2147483647, description: Includes the host. }
       responses:
@@ -197,7 +248,7 @@ paths:
         - name: type
           in: query
           description: Omit or leave empty for all event types.
-          schema: { type: string, enum: [football, cricket, ''] }
+          schema: { type: string, enum: [football, cricket, padel, ''] }
       responses:
         '200':
           description: Upcoming scheduled events, exact counts per place, and truncation flag
@@ -613,7 +664,7 @@ components:
           additionalProperties: false
           description: Session starts require an empty object. Timed activities require elapsed_ms and active_ms with active_ms <= elapsed_ms. Untimed map discovery actions prohibit timing fields. attempt_number required only for submission/join_attempted. snapshot/viewer_role required only for event_viewed. reason required only for pause/close. All other combinations and explicit nulls are rejected.
           properties:
-            sport: { type: string, enum: [all, football, cricket], description: Selected discovery filter; required only on discovery actions }
+            sport: { type: string, enum: [all, football, cricket, padel], description: Selected discovery filter; required only on discovery actions }
             empty_kind: { type: string, enum: [no_events, no_places], description: Required only on empty_results_viewed; no_places is map-only }
             referrer_interaction_id: { type: string, format: uuid, description: Required on place_viewed, optional on event_viewed; distinct from the current interaction }
             elapsed_ms: { type: integer, minimum: 0, maximum: 9007199254740991 }
@@ -670,7 +721,7 @@ components:
             event_goal_target: { type: integer, minimum: 1, maximum: 2147483647, nullable: true }
             event_goal_period: { type: string, enum: [weekly, monthly], nullable: true }
         - type: object
-          required: [goal_progress, goal_starts_at, goal_ends_at, eligible_joined, football_joined, cricket_joined, month_starts_at, month_ends_at, month_joined, previous_month_joined, month_sports, month_grounds, month_hosted]
+          required: [goal_progress, goal_starts_at, goal_ends_at, eligible_joined, football_joined, cricket_joined, padel_joined, month_starts_at, month_ends_at, month_joined, previous_month_joined, month_sports, month_grounds, month_hosted]
           properties:
             goal_progress: { type: integer, minimum: 0, description: Uncapped progress; zero when goal is off }
             goal_starts_at: { type: string, format: date-time, nullable: true }
@@ -678,6 +729,7 @@ components:
             eligible_joined: { type: integer, minimum: 0 }
             football_joined: { type: integer, minimum: 0 }
             cricket_joined: { type: integer, minimum: 0 }
+            padel_joined: { type: integer, minimum: 0 }
             month_starts_at: { type: string, format: date-time }
             month_ends_at: { type: string, format: date-time, description: Exclusive end }
             month_joined: { type: integer, minimum: 0 }
@@ -701,7 +753,7 @@ components:
             type: object
             required: [type, joined, hosted]
             properties:
-              type: { type: string, enum: [football, cricket] }
+              type: { type: string, enum: [football, cricket, padel] }
               joined: { type: integer, minimum: 0 }
               hosted: { type: integer, minimum: 0 }
         grounds:
@@ -726,7 +778,7 @@ components:
               event_id: { type: string, format: uuid }
               occurred_at: { type: string, format: date-time }
               title: { type: string }
-              type: { type: string, enum: [football, cricket] }
+              type: { type: string, enum: [football, cricket, padel] }
               place_name: { type: string }
               event_status: { type: string, enum: [scheduled, cancelled, completed] }
         next_offset: { type: integer, nullable: true, minimum: 0 }
@@ -835,7 +887,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
-        type: { type: string, enum: [football, cricket] }
+        type: { type: string, enum: [football, cricket, padel] }
         starts_at: { type: string, format: date-time }
         capacity: { type: integer, minimum: 1, description: Includes the host. }
         host: { $ref: '#/components/schemas/Person' }

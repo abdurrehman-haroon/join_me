@@ -17,6 +17,7 @@ export type ParticipationProgress = {
   eligible_joined: number;
   football_joined: number;
   cricket_joined: number;
+  padel_joined: number;
   month_starts_at: string;
   month_ends_at: string;
   month_joined: number;
@@ -104,6 +105,7 @@ export default function JoinerProgress({
       .map((count) => `${count} events joined`),
     ...(progress.football_joined > 0 ? ["First football signup"] : []),
     ...(progress.cricket_joined > 0 ? ["First cricket signup"] : []),
+    ...(progress.padel_joined > 0 ? ["First padel signup"] : []),
   ];
   const nextMilestone = [1, 5, 10, 25].find(
     (count) => progress.eligible_joined < count,

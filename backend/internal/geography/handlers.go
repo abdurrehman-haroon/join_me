@@ -35,6 +35,26 @@ func (handler Handler) GetArea(w http.ResponseWriter, request *http.Request) {
 	w.Write(area)
 }
 
+func (handler Handler) ListChildAreas(w http.ResponseWriter, request *http.Request) {
+	var areaID pgtype.UUID
+	if err := areaID.Scan(request.PathValue("id")); err != nil || !areaID.Valid {
+		http.Error(w, "invalid area ID", http.StatusBadRequest)
+		return
+	}
+	children, err := handler.Queries.ListChildAreas(request.Context(), areaID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "area not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("list child areas: %v", err)
+		http.Error(w, "could not load areas", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(children)
+}
+
 // ParseBounds accepts west,south,east,north without crossing the antimeridian.
 func ParseBounds(value string) (database.ListPlacesInBoundsParams, error) {
 	parts := strings.Split(value, ",")

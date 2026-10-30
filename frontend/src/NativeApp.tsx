@@ -1,21 +1,37 @@
 import { useFonts } from "expo-font";
+import * as Haptics from "expo-haptics";
+import type { SFSymbol } from "expo-symbols";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ActivitiesProvider } from "./ActivitiesProvider";
 import { RealtimeProvider } from "./RealtimeProvider";
 import MapScreen from "./MapScreen";
 import ProfileScreen from "./ProfileScreen";
 import YourEvents from "./YourEvents";
+import { colors } from "./theme";
+import { Icon } from "./ui";
 
 type Tab = "map" | "events" | "you";
 
+// Each tab: its symbol when not selected and when selected (filled, as iOS does), and a
+// one-word label.
+const tabs: { key: Tab; symbol: SFSymbol; selectedSymbol: SFSymbol; fallback: string; label: string }[] = [
+  { key: "map", symbol: "map", selectedSymbol: "map.fill", fallback: "◇", label: "Explore" },
+  { key: "events", symbol: "calendar", selectedSymbol: "calendar", fallback: "▣", label: "Events" },
+  { key: "you", symbol: "person.crop.circle", selectedSymbol: "person.crop.circle.fill", fallback: "♙", label: "You" },
+];
+
 export default function NativeApp() {
+  return (
+    <SafeAreaProvider>
+      <App />
+    </SafeAreaProvider>
+  );
+}
+
+function App() {
+  const insets = useSafeAreaInsets();
   const [loaded, fontError] = useFonts({
     BigShoulders: require("../assets/BigShouldersDisplayBlack.ttf"),
   });
@@ -23,7 +39,7 @@ export default function NativeApp() {
   if (!loaded && !fontError)
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#1D5B3A" />
+        <ActivityIndicator color={colors.tint} />
       </View>
     );
   return (
@@ -33,31 +49,31 @@ export default function NativeApp() {
           {tab === "map" && <MapScreen />}
           {tab === "events" && <YourEvents />}
           {tab === "you" && <ProfileScreen />}
-          <View style={styles.tabBar} accessibilityRole="tablist">
-            {(
-              [
-                ["map", "◇", "Map"],
-                ["events", "▣", "Your events"],
-                ["you", "♙", "You"],
-              ] as const
-            ).map(([key, icon, label]) => (
-              <Pressable
-                key={key}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: tab === key }}
-                onPress={() => setTab(key)}
-                style={styles.tabButton}
-              >
-                <Text style={[styles.tabIcon, tab === key && styles.activeTab]}>
-                  {icon}
-                </Text>
-                <Text
-                  style={[styles.tabLabel, tab === key && styles.activeTab]}
+          <View style={[styles.tabBar, { paddingBottom: insets.bottom }]} accessibilityRole="tablist">
+            {tabs.map((item) => {
+              const selected = tab === item.key;
+              return (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="tab"
+                  accessibilityLabel={item.label}
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    if (!selected) void Haptics.selectionAsync();
+                    setTab(item.key);
+                  }}
+                  style={styles.tabButton}
                 >
-                  {label}
-                </Text>
-              </Pressable>
-            ))}
+                  <Icon
+                    name={selected ? item.selectedSymbol : item.symbol}
+                    fallback={item.fallback}
+                    size={22}
+                    color={selected ? colors.tint : colors.secondary}
+                  />
+                  <Text style={[styles.tabLabel, selected && styles.tabLabelSelected]}>{item.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </RealtimeProvider>
@@ -66,29 +82,27 @@ export default function NativeApp() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0" },
+  root: { flex: 1, backgroundColor: colors.chalk },
   loading: {
     flex: 1,
-    backgroundColor: "#F4F5F0",
+    backgroundColor: colors.chalk,
     alignItems: "center",
     justifyContent: "center",
   },
+  // Apple's tab bar: 49 points tall above the home indicator, with a hairline on top.
   tabBar: {
-    backgroundColor: "#F4F5F0",
-    height: 91,
-    paddingTop: 11,
-    paddingBottom: 20,
+    backgroundColor: colors.chalk,
     flexDirection: "row",
-    borderTopWidth: 1,
-    borderColor: "#DFE2DA",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.separator,
   },
   tabButton: {
     flex: 1,
+    height: 49,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
+    gap: 2,
   },
-  tabIcon: { fontSize: 28, color: "#91A098" },
-  tabLabel: { fontSize: 11, fontWeight: "700", color: "#91A098" },
-  activeTab: { color: "#F3192C" },
+  tabLabel: { fontSize: 10, lineHeight: 12, fontWeight: "500", color: colors.secondary },
+  tabLabelSelected: { color: colors.tint },
 });

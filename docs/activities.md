@@ -144,7 +144,7 @@ Details must be a JSON object, never null or an array. Only the listed keys are 
 {"sport": "cricket"}
 ```
 
-`sport` accepts `all`, `football` or `cricket`; these are validated JSON values, not additional table columns. The example above is a filter change. Empty-result details additionally require empty_kind (no_events or no_places); place empties also carry timings, as defined in the discovery extension. For map empty results, source is map and trackable is null; for place empty results, trackable is that place. Do not store GPS or viewport coordinates.
+`sport` accepts `all`, `football`, `cricket` or `padel`; these are validated JSON values, not additional table columns. The example above is a filter change. Empty-result details additionally require empty_kind (no_events or no_places); place empties also carry timings, as defined in the discovery extension. For map empty results, source is map and trackable is null; for place empty results, trackable is that place. Do not store GPS or viewport coordinates.
 
 ### Historical event snapshot
 
@@ -246,7 +246,7 @@ Contracts:
 
 | Action | Source / trackable | Details |
 |---|---|---|
-| sport_filter_selected | map / null pair | sport: all, football or cricket |
+| sport_filter_selected | map / null pair | sport: all, football, cricket or padel |
 | place_viewed | map / place | sport at opening, referrer_interaction_id for the map visit, elapsed_ms: 0, active_ms: 0 |
 | empty_results_viewed | map / null pair | sport; empty_kind: no_events or no_places; no timing fields |
 | empty_results_viewed | place_details / place | sport; empty_kind: no_events; elapsed_ms and active_ms within that place visit |

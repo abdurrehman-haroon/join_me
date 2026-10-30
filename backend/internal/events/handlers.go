@@ -57,8 +57,8 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "title must contain 1 to 200 characters", http.StatusBadRequest)
 		return
 	}
-	if input.Type != database.EventTypeFootball && input.Type != database.EventTypeCricket {
-		http.Error(w, "type must be football or cricket", http.StatusBadRequest)
+	if input.Type != database.EventTypeFootball && input.Type != database.EventTypeCricket && input.Type != database.EventTypePadel {
+		http.Error(w, "type must be football, cricket or padel", http.StatusBadRequest)
 		return
 	}
 	if !tracking.ID.Valid && !input.StartsAt.After(time.Now()) {
@@ -179,8 +179,8 @@ func (handler Handler) ListEvents(w http.ResponseWriter, request *http.Request) 
 		return
 	}
 	eventType := request.URL.Query().Get("type")
-	if eventType != "" && eventType != string(database.EventTypeFootball) && eventType != string(database.EventTypeCricket) {
-		http.Error(w, "type must be football or cricket", http.StatusBadRequest)
+	if eventType != "" && eventType != string(database.EventTypeFootball) && eventType != string(database.EventTypeCricket) && eventType != string(database.EventTypePadel) {
+		http.Error(w, "type must be football, cricket or padel", http.StatusBadRequest)
 		return
 	}
 	events, err := handler.Queries.ListEventsInBounds(request.Context(), database.ListEventsInBoundsParams{

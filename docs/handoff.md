@@ -2,11 +2,28 @@
 
 Updated: 2026-10-30
 
-## Windows setup with Expo Go on iPhone (2026-10-30, uncommitted)
+## Apple-style redesign (2026-10-30, uncommitted)
+
+See plan.md "Apple-style redesign of the app's look and motion". The owner picked two skills from GitHub: dickwu/apple-design-skill and apple-design-motion from s1gmamale1/apple-design-skills. They are installed in `~/.claude/skills` on this PC. New `theme.ts` (colours, Apple text styles, springs), `ui.tsx` (Glass, PressableScale, Icon, the native SegmentedControl) and `TopBar.tsx`. `PlaceFeed.tsx`, `MapScreen.tsx`, `NativeApp.tsx`, `EventDetails.tsx` and `EventForm.tsx` were restyled to match. `CampusScene.tsx` moves the camera on a critically damped spring. Six Expo Go packages were added with `expo install`.
+
+Verified on Windows:
+- `tsc`, lint and `check.ps1` pass.
+- Metro builds the iOS bundle with the new code.
+- Contrast of every new colour pair is 4.5:1 or better (computed).
+
+Not verified: anything on the iPhone. The iPhone 13 was on iOS 18.6.2 on 2026-10-20, so unless it has been updated to iOS 26 it shows the frosted-blur fallback instead of Liquid Glass.
+
+## Padel and the DHA level (2026-10-30, uncommitted)
+
+See plan.md "Padel and the DHA level". Migration 000013 adds the `padel` event type, DHA and its phases (OpenStreetMap outlines) as areas with LUMS under DHA, and 33 padel venues as `court` places; `GET /areas/{id}/children` is new; the demo seed adds two padel games (Padel Park, Pure Padel). The app has a DHA level above LUMS. After the owner found the first version ugly and laggy (flat blue boxes for courts, about 400 extra draw calls, labels moving every frame, LUMS and padel games mixed), it was reworked: one detailed, instanced padel court model at every venue, DHA drawn as an instanced town of houses and trees, a padel-only DHA story with arcing flights, and distance-based labels. The owner then asked for one consistent way of moving: the vertical story and Explore mode were replaced by a TikTok-style place feed (`PlaceFeed.tsx`): one swipe = one place in route order, All · Padel · Campus tabs, Inside/back for LUMS's grounds, and a Map mode whose taps return to the feed (see plan.md). The feed has been type-checked, linted and bundled, not yet used on the phone. The look was checked in a browser preview of the same scene code at iPhone size (kept outside the repo, in `C:\tmp\padel-preview` on the Windows PC); it has not yet been checked on the phone. sqlc was regenerated with the official `sqlc/sqlc:1.31.1` Docker image (sqlc is not installed on Windows). The venue research behind the data is [dha-padel-venues.md](dha-padel-venues.md).
+
+Verified on Windows: `check.ps1` (Go tests apply all 13 migrations and check the phases endpoint, Phase 5's 20 venues and padel events), the live API over the LAN (LUMS's parent is DHA, 12 child areas, 39 places in DHA, the two padel games, unknown sports rejected), and the iOS bundle (767 modules) served to Expo Go. Not yet verified: how the DHA level looks and moves on the iPhone, venue locations marked "to confirm", and a native iOS build on the Mac.
+
+## Windows setup with Expo Go on iPhone (2026-10-30, committed in c499a31)
 
 First run on a Windows 11 PC (Go 1.27, Node 24.22.1, pnpm 12.16.1, Docker PostGIS 16-3.4). `startup.ps1` and `check.ps1` pass under Windows PowerShell 5.1. The project is iOS-first, so Android was dropped from `startup.ps1`: it now starts Metro with `--go` and sets `EXPO_PUBLIC_API_URL` and `REACT_NATIVE_PACKAGER_HOSTNAME` to the computer's LAN address, then prints the `exp://` URL to open in Expo Go. The app imports only Expo Go modules (MapLibre is unused). New `.gitattributes` keeps `*.sql` files at LF: Windows `core.autocrlf` changed migration bytes, and the migration runner checksums them, so a Windows checkout would be rejected by databases migrated from the Mac. The scripts now explain a taken database port; this PC uses `JOINME_DB_PORT=5433` because another PostgreSQL holds 5432.
 
-## Expo SDK 58 upgrade (2026-10-30, uncommitted)
+## Expo SDK 58 upgrade (2026-10-30, committed in c499a31)
 
 The App Store Expo Go only runs SDK 58 and refused the SDK 57 project on the iPhone (Expo's version API still reported 57), so the app moved to SDK 58: React Native 0.88.1, React 19.3.0, via `expo install expo@^58.0.0 --fix` (expo kept at `~58.0.21`). `uuid` is now imported from `expo`, and the direct `expo-modules-core` dependency was removed because expo-doctor flags it. `expo-build-properties` was removed because its only setting, iOS scene support, is built into SDK 58. Expo added `expo-font` to the config plugins. Two `EventChat` list props changed from `null` to no value for the stricter 0.88 types; behaviour is unchanged. The app uses none of the React Native APIs that 0.88 removes. No schema, API, tracking or data-freshness changes. The Mac needs `pnpm install` and a fresh native build (delete `frontend/ios`, then `pnpm exec expo run:ios`); MapLibre 11.5 is still installed and was not checked against React Native 0.88, so that build may need it removed.
 

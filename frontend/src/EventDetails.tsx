@@ -1,12 +1,12 @@
 import { uuid } from "expo";
+import * as Haptics from "expo-haptics";
 import { useActivityInteraction } from "./ActivitiesProvider";
-import type { ActivitySource } from "./activities";
+import type { ActivitySource, Sport } from "./activities";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,12 +19,14 @@ import EventForm from "./EventForm";
 import EventChat from "./EventChat";
 import HostSignupInsights from "./HostSignupInsights";
 import SpotsLeft from "./SpotsLeft";
+import { colors, displayFont, minTouch, type } from "./theme";
+import { PressableScale } from "./ui";
 
 type Person = { id: string; display_name: string };
 export type EventSummary = {
   id: string;
   title: string;
-  type: "football" | "cricket";
+  type: Sport;
   starts_at: string;
   capacity: number;
   participant_count: number;
@@ -188,11 +190,17 @@ export default function EventDetails({
         },
       );
       if (response.status < 500 && !cancel) participationRequest.current = null;
+      void Haptics.notificationAsync(
+        response.ok
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Error,
+      );
       if (!response.ok)
         setActionError(
           (await response.text()).trim() || "Could not update this event.",
         );
     } catch {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setActionError(
         "Could not confirm the change. Refreshing the event before you try again.",
       );
@@ -289,7 +297,7 @@ export default function EventDetails({
       <View style={styles.root}>
         <View style={styles.heading}>
           <Text style={styles.kicker}>EVENT DETAILS</Text>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             onPress={() => {
               setChatOpen(false);
@@ -299,7 +307,7 @@ export default function EventDetails({
             style={styles.button}
           >
             <Text style={styles.action}>{closeLabel}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
         {id && (
           <Text accessibilityLiveRegion="polite" style={styles.liveStatus}>
@@ -312,7 +320,7 @@ export default function EventDetails({
         {error && event?.id !== id ? (
           <View style={styles.message}>
             <Text style={styles.body}>{error}</Text>
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               onPress={() => {
                 setError("");
@@ -320,8 +328,8 @@ export default function EventDetails({
               }}
               style={styles.button}
             >
-              <Text style={styles.action}>Try again</Text>
-            </Pressable>
+              <Text style={styles.action}>Try Again</Text>
+            </PressableScale>
           </View>
         ) : event?.id === id ? (
           <ScrollView contentContainerStyle={styles.content}>
@@ -368,32 +376,32 @@ export default function EventDetails({
                   You’re hosting this event. Hosts stay on the participant list.
                 </Text>
                 {event.status.slug === "scheduled" && !hasStarted && (
-                  <Pressable
+                  <PressableScale
                     accessibilityRole="button"
                     disabled={mutating}
-                    style={styles.participation}
+                    style={[styles.participation, styles.secondary]}
                     onPress={() => setEditing(true)}
                   >
-                    <Text style={styles.participationText}>Edit event</Text>
-                  </Pressable>
+                    <Text style={styles.secondaryText}>Edit Event</Text>
+                  </PressableScale>
                 )}
                 {event.status.slug === "scheduled" && !hasStarted && (
-                  <Pressable
+                  <PressableScale
                     accessibilityRole="button"
                     disabled={mutating}
                     style={[
                       styles.participation,
-                      { backgroundColor: "#913A32" },
+                      styles.destructive,
                       mutating && styles.disabled,
                     ]}
                     onPress={() =>
                       Alert.alert(
-                        "Cancel event?",
+                        "Cancel Event?",
                         "This closes joining and keeps the event and participant list in Past. Participants will not receive a notification yet.",
                         [
-                          { text: "Keep event", style: "cancel" },
+                          { text: "Keep Event", style: "cancel" },
                           {
-                            text: "Cancel event",
+                            text: "Cancel Event",
                             style: "destructive",
                             onPress: () => void changeEvent(true),
                           },
@@ -402,17 +410,17 @@ export default function EventDetails({
                     }
                   >
                     {mutating ? (
-                      <ActivityIndicator color="#FFFFFF" />
+                      <ActivityIndicator color={colors.signal} />
                     ) : (
-                      <Text style={styles.participationText}>Cancel event</Text>
+                      <Text style={styles.destructiveText}>Cancel Event</Text>
                     )}
-                  </Pressable>
+                  </PressableScale>
                 )}
               </View>
             ) : !event.viewer.id ? (
               <Text style={styles.body}>Participation is unavailable.</Text>
             ) : (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 disabled={
                   mutating ||
@@ -424,6 +432,7 @@ export default function EventDetails({
                 onPress={() => void changeEvent()}
                 style={[
                   styles.participation,
+                  event.viewer.is_participant && styles.secondary,
                   (mutating ||
                     (!event.viewer.is_participant &&
                       (event.is_full ||
@@ -433,28 +442,36 @@ export default function EventDetails({
                 ]}
               >
                 {mutating ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator
+                    color={event.viewer.is_participant ? colors.tint : colors.surface}
+                  />
                 ) : (
-                  <Text style={styles.participationText}>
+                  <Text
+                    style={
+                      event.viewer.is_participant
+                        ? styles.secondaryText
+                        : styles.participationText
+                    }
+                  >
                     {event.viewer.is_participant
-                      ? "Leave event"
+                      ? "Leave Event"
                       : event.status.slug !== "scheduled" || hasStarted
-                        ? "Joining closed"
+                        ? "Joining Closed"
                         : event.is_full
-                          ? "Event full"
-                          : "Join event"}
+                          ? "Event Full"
+                          : "Join Event"}
                   </Text>
                 )}
-              </Pressable>
+              </PressableScale>
             )}
             {event.viewer.is_participant && (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
-                style={styles.participation}
+                style={[styles.participation, styles.secondary]}
                 onPress={() => setChatOpen(true)}
               >
-                <Text style={styles.participationText}>Open event chat</Text>
-              </Pressable>
+                <Text style={styles.secondaryText}>Open Event Chat</Text>
+              </PressableScale>
             )}
             {event.viewer.is_host && (
               <HostSignupInsights
@@ -480,7 +497,7 @@ export default function EventDetails({
           </ScrollView>
         ) : (
           <View style={styles.message}>
-            <ActivityIndicator color="#1D5B3A" />
+            <ActivityIndicator color={colors.tint} />
             <Text style={styles.body}>Loading event…</Text>
           </View>
         )}
@@ -519,46 +536,54 @@ export default function EventDetails({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0", paddingTop: 24 },
+  root: { flex: 1, backgroundColor: colors.chalk, paddingTop: 12 },
   heading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 22,
+    paddingLeft: 20,
+    paddingRight: 8,
   },
   kicker: {
-    color: "#1D5B3A",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.3,
+    ...type.footnote,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    color: colors.tint,
   },
-  button: { paddingVertical: 14, paddingHorizontal: 6 },
-  action: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
+  button: { minHeight: minTouch, justifyContent: "center", paddingHorizontal: 12 },
+  action: { ...type.body, fontWeight: "600", color: colors.tint },
   liveStatus: {
-    color: "#6C786E",
-    fontSize: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 6,
+    ...type.footnote,
+    color: colors.secondary,
+    paddingHorizontal: 20,
+    paddingVertical: 4,
   },
-  content: { padding: 24, paddingBottom: 60, gap: 18 },
-  title: { fontFamily: "BigShoulders", fontSize: 46, color: "#15201B" },
-  body: { color: "#15201B", fontSize: 16, lineHeight: 24 },
+  content: { padding: 20, paddingBottom: 60, gap: 12 },
+  title: { fontFamily: displayFont, fontSize: 44, lineHeight: 48, color: colors.ink },
+  body: { ...type.body, color: colors.ink },
   message: { padding: 28, gap: 18, alignItems: "center" },
   person: {
-    fontSize: 16,
-    color: "#15201B",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#DEE3D8",
+    ...type.body,
+    color: colors.ink,
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.separator,
   },
-  muted: { fontSize: 13, color: "#6C786E", marginTop: 12 },
+  muted: { ...type.footnote, color: colors.secondary, marginTop: 4 },
+  // The sheet's buttons: Join is the one prominent (filled) button; the rest are tinted.
   participation: {
-    backgroundColor: "#1D5B3A",
-    padding: 18,
-    borderRadius: 20,
+    backgroundColor: colors.tint,
+    minHeight: 50,
+    borderRadius: 25,
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
   },
-  participationText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  participationText: { ...type.headline, color: colors.surface },
+  secondary: { backgroundColor: colors.tintSoft },
+  secondaryText: { ...type.headline, color: colors.tint },
+  destructive: { backgroundColor: "#F7E3E6" },
+  destructiveText: { ...type.headline, color: colors.signal },
   disabled: { opacity: 0.5 },
-  actionError: { color: "#B51E2C", fontSize: 14, lineHeight: 21 },
+  actionError: { ...type.subheadline, color: colors.signal },
 });

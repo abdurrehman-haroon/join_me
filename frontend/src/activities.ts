@@ -6,7 +6,13 @@ export type ActivitySource =
   | "event_chat"
   | "your_events"
   | "profile";
-export type SportFilter = "all" | "football" | "cricket";
+export type Sport = "football" | "cricket" | "padel";
+export type SportFilter = "all" | Sport;
+export const sportNames: Record<Sport, string> = {
+  football: "Football",
+  cricket: "Cricket",
+  padel: "Padel",
+};
 export type ClientAction =
   | "session_started"
   | "chat_opened"
