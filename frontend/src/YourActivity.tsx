@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import EventDetails from "./EventDetails";
 import JoinerProgress, { type ParticipationProgress } from "./JoinerProgress";
+import { sportNames, type Sport } from "./activities";
 
 type HistoryEntry = {
   entry_id: string;
@@ -20,7 +21,7 @@ type HistoryEntry = {
   event_id: string;
   occurred_at: string;
   title: string;
-  type: "football" | "cricket";
+  type: Sport;
   place_name: string;
   event_status: string;
 };
@@ -31,7 +32,7 @@ type ActivitySummary = {
   cancelled_joined: number;
   hosted: number;
   cancelled_hosted: number;
-  sports: { type: "football" | "cricket"; joined: number; hosted: number }[];
+  sports: { type: Sport; joined: number; hosted: number }[];
   grounds: { id: string; name: string; events: number }[];
   history: HistoryEntry[];
   next_offset: number | null;
@@ -207,7 +208,7 @@ export default function YourActivity() {
             summary.sports.map((sport) => (
               <View key={sport.type} style={styles.line}>
                 <Text style={styles.label}>
-                  {sport.type === "football" ? "Football" : "Cricket"}
+                  {sportNames[sport.type]}
                 </Text>
                 <Text style={styles.muted}>
                   {sport.joined} joined · {sport.hosted} hosted
@@ -250,7 +251,7 @@ export default function YourActivity() {
             >
               <Text style={styles.action}>
                 {actionLabels[entry.action]} ·{" "}
-                {entry.type === "football" ? "Football" : "Cricket"}
+                {sportNames[entry.type]}
               </Text>
               <Text style={styles.label}>{entry.title}</Text>
               <Text style={styles.muted}>

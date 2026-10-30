@@ -376,8 +376,8 @@ func (activity clientActivity) validateDiscovery(targetType database.ActivityTra
 	if err := decoder.Decode(&details); err != nil {
 		return errors.New("invalid discovery details")
 	}
-	if details.Sport != "all" && details.Sport != "football" && details.Sport != "cricket" {
-		return errors.New("sport must be all, football or cricket")
+	if details.Sport != "all" && details.Sport != "football" && details.Sport != "cricket" && details.Sport != "padel" {
+		return errors.New("sport must be all, football, cricket or padel")
 	}
 	allowed := map[string]bool{"sport": true}
 	timed := false

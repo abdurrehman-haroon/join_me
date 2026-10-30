@@ -2,9 +2,12 @@ import type * as GeoJSON from "geojson";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import campusMap from "../assets/lums-campus.json";
+import { buildPadelCourts, type PadelCourts } from "./padelCourt";
 import {
   courtTexture,
   cricketTexture,
+  houseTextures,
+  padelBallTexture,
   pitchTexture,
   tapeBallTexture,
   wallTextures,
@@ -75,6 +78,22 @@ function shapeOf(ring: { x: number; z: number }[]) {
   return new THREE.Shape(ring.map((point) => new THREE.Vector2(point.x, -point.z)));
 }
 
+// Flat ribbons along a line, one box per segment, for merging into a single mesh.
+function ribbonsAlong(line: { x: number; z: number }[], width: number, y: number) {
+  const ribbons: THREE.BufferGeometry[] = [];
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1];
+    const b = line[i];
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    if (length < 0.01) continue;
+    const ribbon = new THREE.BoxGeometry(length + width, 0.03, width);
+    ribbon.rotateY(-Math.atan2(b.z - a.z, b.x - a.x));
+    ribbon.translate((a.x + b.x) / 2, y, (a.z + b.z) / 2);
+    ribbons.push(ribbon);
+  }
+  return ribbons;
+}
+
 // Grounds mapped as four corners become rectangles; anything rounder becomes an oval.
 export function footprintOf(place: ScenePlace, origin: [number, number]): Footprint {
   const centre = toScene(place.coordinates, origin);
@@ -129,8 +148,9 @@ export function buildCampus(
   scene.background = new THREE.Color("#E7A77A");
   scene.fog = new THREE.Fog("#E7A77A", 80, 220);
 
+  // Wide enough for the DHA level, about 120 km across.
   const land = new THREE.Mesh(
-    new THREE.PlaneGeometry(700, 700),
+    new THREE.PlaneGeometry(8000, 8000),
     // Flat layers are pushed back in depth so the grounds and paths on top never flicker.
     new THREE.MeshLambertMaterial({
       color: "#C7BCA0",
@@ -156,20 +176,13 @@ export function buildCampus(
   scene.add(campus);
 
   // Paths: flat ribbons along each OpenStreetMap footway, merged into one mesh.
-  const ribbons: THREE.BufferGeometry[] = [];
-  for (const path of campusMap.paths) {
-    const points = path.map((p) => toScene([p[0], p[1]], origin));
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1];
-      const b = points[i];
-      const length = Math.hypot(b.x - a.x, b.z - a.z);
-      if (length < 0.01) continue;
-      const ribbon = new THREE.BoxGeometry(length + 0.3, 0.03, 0.32);
-      ribbon.rotateY(-Math.atan2(b.z - a.z, b.x - a.x));
-      ribbon.translate((a.x + b.x) / 2, 0.06, (a.z + b.z) / 2);
-      ribbons.push(ribbon);
-    }
-  }
+  const ribbons = campusMap.paths.flatMap((path) =>
+    ribbonsAlong(
+      path.map((p) => toScene([p[0], p[1]], origin)),
+      0.32,
+      0.06,
+    ),
+  );
   if (ribbons.length) {
     const paths = new THREE.Mesh(
       mergeGeometries(ribbons),
@@ -395,10 +408,224 @@ export function buildCampus(
   return { scene, footprints, grounds, buildings, setHour, selection };
 }
 
-// A floating ball over a ground with games: a football, or a red tape ball for cricket.
+// An area around the campus drawn at the district level: a DHA phase, or the campus.
+export type SceneArea = {
+  id: string;
+  name: string;
+  type: string;
+  boundary: GeoJSON.MultiPolygon | null;
+};
+
+// Where a padel venue's court is drawn, in scene units.
+export type CourtSpot = { placeID: string; x: number; z: number };
+
+// Padel courts are drawn 3.5 times real size so they read on the map, as v6 exaggerates
+// buildings: about 80 by 45 metres with the surround. `courtScale` turns the model's
+// metres into scene units.
+export const courtScale = 3.5 / metresPerUnit;
+// Half the court's footprint with its surround (23 by 13 metres), in scene units.
+const courtHalfLength = (23 / 2) * courtScale;
+const courtHalfWidth = (13 / 2) * courtScale;
+
+// Where each venue's court goes. Venues a few dozen metres apart (the Phase 5 strip)
+// would overlap at map size, so overlapping courts are pushed apart along whichever
+// axis needs the smaller move, until each has room.
+export function layoutCourts(venues: ScenePlace[], origin: [number, number]): CourtSpot[] {
+  const spots = venues.map((venue) => ({ placeID: venue.id, ...toScene(venue.coordinates, origin) }));
+  const gapX = courtHalfLength * 2 + 0.6;
+  const gapZ = courtHalfWidth * 2 + 0.6;
+  for (let pass = 0; pass < 60; pass++) {
+    let moved = false;
+    for (let i = 0; i < spots.length; i++)
+      for (let j = i + 1; j < spots.length; j++) {
+        const a = spots[i];
+        const b = spots[j];
+        const overlapX = gapX - Math.abs(b.x - a.x);
+        const overlapZ = gapZ - Math.abs(b.z - a.z);
+        if (overlapX <= 0 || overlapZ <= 0) continue;
+        moved = true;
+        if (overlapX / gapX < overlapZ / gapZ) {
+          const push = (overlapX / 2) * (b.x >= a.x ? 1 : -1);
+          a.x -= push;
+          b.x += push;
+        } else {
+          const push = (overlapZ / 2) * (b.z >= a.z ? 1 : -1);
+          a.z -= push;
+          b.z += push;
+        }
+      }
+    if (!moved) break;
+  }
+  return spots;
+}
+
+export type District = {
+  group: THREE.Group;
+  footprints: Map<string, Footprint>;
+  courts: PadelCourts;
+  setHour: (hour: number) => void;
+};
+
+// The district around the campus (DHA), as an illustrated town: the phases as softly
+// tinted land, houses in planned rows with tree-lined main roads, and a padel court at
+// every venue. Houses, trees and each part of the courts are instanced, so the whole
+// district is a handful of draw calls.
+export function buildDistrict(
+  areas: SceneArea[],
+  courtSpots: CourtSpot[],
+  origin: [number, number],
+): District {
+  const group = new THREE.Group();
+  const ringsOf = (area: SceneArea) =>
+    area.boundary
+      ? area.boundary.coordinates.map((polygon) => polygon[0].map((p) => toScene([p[0], p[1]], origin)))
+      : [];
+  const phaseRings = areas.filter((area) => area.type !== "campus").flatMap(ringsOf);
+  const campusRings = areas.filter((area) => area.type === "campus").flatMap(ringsOf);
+
+  if (phaseRings.length) {
+    const land = new THREE.Mesh(
+      mergeGeometries(phaseRings.map((ring) => new THREE.ShapeGeometry(shapeOf(ring)).rotateX(-Math.PI / 2))),
+      // Between the land (4) and the campus (2), so neither flickers against it.
+      new THREE.MeshLambertMaterial({
+        color: "#CFC7A9",
+        polygonOffset: true,
+        polygonOffsetFactor: 3,
+        polygonOffsetUnits: 3,
+      }),
+    );
+    land.position.y = 0.01;
+    group.add(land);
+    group.add(
+      new THREE.Mesh(
+        mergeGeometries(phaseRings.flatMap((ring) => ribbonsAlong(ring, 1.2, 0.05))),
+        new THREE.MeshLambertMaterial({ color: "#B4A784" }),
+      ),
+    );
+  }
+
+  // Houses in planned rows, like DHA's blocks: a regular grid of plots (about 65 by 75
+  // metres) in which every sixth row and column is a main road lined with trees. Plots
+  // on the campus or under a court stay empty.
+  const plotX = 4.4;
+  const plotZ = 5;
+  let seed = 23;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  const houses: { x: number; z: number; width: number; depth: number; height: number }[] = [];
+  const trees: { x: number; z: number; size: number }[] = [];
+  const usedPlots = new Set<string>();
+  for (const ring of phaseRings) {
+    const xs = ring.map((p) => p.x);
+    const zs = ring.map((p) => p.z);
+    for (let column = Math.ceil(Math.min(...xs) / plotX); column * plotX <= Math.max(...xs); column++)
+      for (let row = Math.ceil(Math.min(...zs) / plotZ); row * plotZ <= Math.max(...zs); row++) {
+        const plot = `${column},${row}`;
+        const point = { x: column * plotX, z: row * plotZ };
+        if (usedPlots.has(plot) || !contains(point, ring)) continue;
+        usedPlots.add(plot);
+        if (campusRings.some((campus) => contains(point, campus))) continue;
+        const nearCourt = courtSpots.some(
+          (spot) =>
+            Math.abs(point.x - spot.x) < courtHalfLength + 2.5 &&
+            Math.abs(point.z - spot.z) < courtHalfWidth + 2.5,
+        );
+        if (nearCourt) continue;
+        if (column % 6 === 0 || row % 6 === 0) {
+          if (random() < 0.6) trees.push({ ...point, size: 0.9 + random() * 0.5 });
+          continue;
+        }
+        houses.push({
+          x: point.x + (random() - 0.5) * 0.6,
+          z: point.z + (random() - 0.5) * 0.6,
+          width: 2 + random() * 0.9,
+          depth: 2.4 + random() * 1,
+          height: 0.8 + random() * 0.7,
+        });
+      }
+  }
+
+  // Each house is a block of windowed walls under a flat roof slab, as most DHA houses
+  // are; a soft tint per house keeps the rows from looking cloned.
+  const { wall, lit } = houseTextures();
+  const houseMaterial = new THREE.MeshLambertMaterial({
+    map: wall,
+    emissiveMap: lit,
+    emissive: "#FFC27A",
+    emissiveIntensity: 0,
+  });
+  const walls = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0),
+    houseMaterial,
+    houses.length,
+  );
+  const roofs = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1.08, 1, 1.08).translate(0, 0.5, 0),
+    new THREE.MeshLambertMaterial({ color: "#FFFFFF" }),
+    houses.length,
+  );
+  const wallTints = ["#FFFFFF", "#F6EFE2", "#EDE8E0", "#F9F3EA", "#E8E4DC"].map((colour) => new THREE.Color(colour));
+  const roofTints = ["#D8D3C9", "#CFC9BD", "#C6C0B4", "#DDD8CF"].map((colour) => new THREE.Color(colour));
+  const placement = new THREE.Object3D();
+  houses.forEach((house, index) => {
+    placement.position.set(house.x, 0, house.z);
+    placement.scale.set(house.width, house.height, house.depth);
+    placement.updateMatrix();
+    walls.setMatrixAt(index, placement.matrix);
+    walls.setColorAt(index, wallTints[index % wallTints.length]);
+    placement.position.y = house.height;
+    placement.scale.y = 0.12;
+    placement.updateMatrix();
+    roofs.setMatrixAt(index, placement.matrix);
+    roofs.setColorAt(index, roofTints[(index * 7) % roofTints.length]);
+  });
+  group.add(walls, roofs);
+
+  const treeMeshes = new THREE.InstancedMesh(
+    new THREE.IcosahedronGeometry(0.7, 0),
+    new THREE.MeshLambertMaterial({ color: "#3C6B3E", flatShading: true }),
+    trees.length,
+  );
+  trees.forEach((tree, index) => {
+    placement.position.set(tree.x, 0.5 * tree.size + 0.2, tree.z);
+    placement.scale.set(tree.size, tree.size * 1.15, tree.size);
+    placement.updateMatrix();
+    treeMeshes.setMatrixAt(index, placement.matrix);
+  });
+  group.add(treeMeshes);
+
+  const courts = buildPadelCourts(courtSpots, courtScale);
+  group.add(courts.group);
+  const footprints = new Map<string, Footprint>();
+  for (const spot of courtSpots)
+    footprints.set(spot.placeID, { kind: "circle", x: spot.x, z: spot.z, radius: courtHalfLength });
+
+  // The same Lahore evening as the campus: windows warm up and the floodlights come on.
+  function setHour(hour: number) {
+    const dark = smooth(17.3, 19, hour < 6 ? 24 : hour);
+    houseMaterial.emissiveIntensity = dark * 0.9;
+    courts.setFloodlights(smooth(17.4, 18.4, hour < 6 ? 24 : hour));
+  }
+
+  return { group, footprints, courts, setHour };
+}
+
+// A floating ball over a ground with games: a football, a red tape ball for cricket, or a
+// yellow padel ball.
 export function makeBall(sport: string, full: boolean): THREE.Mesh {
   let ball: THREE.Mesh;
-  if (sport === "cricket") {
+  if (sport === "padel") {
+    ball = new THREE.Mesh(
+      new THREE.SphereGeometry(0.7, 32, 24),
+      new THREE.MeshLambertMaterial({
+        map: padelBallTexture(),
+        color: full ? "#8E8A86" : "#FFFFFF",
+        emissive: "#4A4A18",
+      }),
+    );
+  } else if (sport === "cricket") {
     ball = new THREE.Mesh(
       new THREE.SphereGeometry(0.75, 32, 24),
       new THREE.MeshLambertMaterial({

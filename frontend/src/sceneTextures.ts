@@ -106,6 +106,48 @@ export function courtTexture(colour: string): THREE.DataTexture {
   return toTexture(p);
 }
 
+// A padel court's blue artificial turf, 20 by 10 metres: a fine grain, the two service
+// lines 6.95 m either side of the net and the centre service line between them.
+export function padelTurfTexture(): THREE.DataTexture {
+  const W = 256;
+  const H = 128;
+  const p = painter(W, H);
+  fillRect(p, 0, 0, W, H, rgb("#2167C8"));
+  let seed = 5;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  for (let i = 0; i < 2600; i++) dot(p, Math.floor(random() * W), Math.floor(random() * H), rgb("#3B82E0"), 0.5);
+  const metre = W / 20;
+  const serviceLine = Math.round((10 - 6.95) * metre);
+  fillRect(p, serviceLine - 1, 0, 3, H, white);
+  fillRect(p, W - serviceLine - 2, 0, 3, H, white);
+  fillRect(p, serviceLine, H / 2 - 1, W - serviceLine * 2, 3, white);
+  return toTexture(p);
+}
+
+// House walls for the DHA level: two floors of three windows on a pale render. The lit
+// version is the emissive map, so some windows glow after dark.
+export function houseTextures(): { wall: THREE.DataTexture; lit: THREE.DataTexture } {
+  const W = 48;
+  const H = 32;
+  const wall = painter(W, H);
+  const lit = painter(W, H);
+  fillRect(wall, 0, 0, W, H, rgb("#F4F0E8"));
+  fillRect(lit, 0, 0, W, H, rgb("#000000"));
+  // A darker plinth at the foot of the wall.
+  fillRect(wall, 0, H - 3, W, 3, rgb("#C9C2B6"));
+  for (let row = 0; row < 2; row++)
+    for (let col = 0; col < 3; col++) {
+      const x = 5 + col * 15;
+      const y = 4 + row * 13;
+      fillRect(wall, x, y, 8, 7, rgb("#5C6970"));
+      if ((row + col) % 2 === 0) fillRect(lit, x, y, 8, 7, rgb("#FFFFFF"));
+    }
+  return { wall: toTexture(wall), lit: toTexture(lit) };
+}
+
 // Building walls: three floors of windows. The lit version is used as an emissive map,
 // so the same windows glow after dark.
 export function wallTextures(): { wall: THREE.DataTexture; lit: THREE.DataTexture } {
@@ -128,6 +170,20 @@ export function wallTextures(): { wall: THREE.DataTexture; lit: THREE.DataTextur
       if (random() < 0.55) fillRect(lit, x, y, 4, 5, white);
     }
   return { wall: toTexture(wall, true), lit: toTexture(lit, true) };
+}
+
+// A fluorescent yellow padel ball with its curved white seam, the padel pin.
+export function padelBallTexture(): THREE.DataTexture {
+  const W = 128;
+  const H = 64;
+  const p = painter(W, H);
+  fillRect(p, 0, 0, W, H, rgb("#D8E43A"));
+  // The seam wraps around the ball as one wave, twice across the width.
+  for (let x = 0; x < W; x++) {
+    const y = Math.round(H / 2 + Math.sin((x / W) * Math.PI * 4) * H * 0.28);
+    for (let thickness = -2; thickness <= 2; thickness++) dot(p, x, y + thickness, rgb("#F7F7EE"));
+  }
+  return toTexture(p);
 }
 
 // A red taped tennis ball, the tape-ball cricket pin.
