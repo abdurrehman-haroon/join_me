@@ -18,7 +18,7 @@ import TonightStory, { type CameraFrame, type StoryLevel } from "./TonightStory"
 import CampusScene, { type CampusSceneHandle, type ScenePin } from "./CampusScene";
 import { toScene, type ScenePlace } from "./campusModel";
 import useReduceMotion from "./useReduceMotion";
-import { uuid } from "expo-modules-core";
+import { uuid } from "expo";
 import { useActivities, useActivityInteraction } from "./ActivitiesProvider";
 import { DiscoveryTracker, type SportFilter } from "./activities";
 

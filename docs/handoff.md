@@ -1,10 +1,18 @@
 # Handoff
 
-Updated: 2026-10-20
+Updated: 2026-10-30
 
-## Windows startup (2026-10-29, uncommitted)
+## Windows setup with Expo Go on iPhone (2026-10-30, uncommitted)
 
-New `startup.ps1` and `check.ps1` (see README "Local startup on Windows"): Docker PostGIS from `backend/compose.yaml` (host port now `JOINME_DB_PORT`, default 5432; scripts pass their own empty `--env-file` so Compose never reads a developer's `backend/.env`), API build/start, demo seed, Metro, and Android install/open via `adb reverse`. `frontend/app.json` gains `android.package` so `expo run:android` needs no prompt. Verified on macOS with Docker: fresh PostGIS, migrations, seed twice, `/events`, and `go test ./...` against a `joinme_test` database with PostGIS enabled (the tests need the extension pre-installed). Not run on Windows or Android yet.
+First run on a Windows 11 PC (Go 1.27, Node 24.22.1, pnpm 12.16.1, Docker PostGIS 16-3.4). `startup.ps1` and `check.ps1` pass under Windows PowerShell 5.1. The project is iOS-first, so Android was dropped from `startup.ps1`: it now starts Metro with `--go` and sets `EXPO_PUBLIC_API_URL` and `REACT_NATIVE_PACKAGER_HOSTNAME` to the computer's LAN address, then prints the `exp://` URL to open in Expo Go. The app imports only Expo Go modules (MapLibre is unused). New `.gitattributes` keeps `*.sql` files at LF: Windows `core.autocrlf` changed migration bytes, and the migration runner checksums them, so a Windows checkout would be rejected by databases migrated from the Mac. The scripts now explain a taken database port; this PC uses `JOINME_DB_PORT=5433` because another PostgreSQL holds 5432.
+
+## Expo SDK 58 upgrade (2026-10-30, uncommitted)
+
+The App Store Expo Go only runs SDK 58 and refused the SDK 57 project on the iPhone (Expo's version API still reported 57), so the app moved to SDK 58: React Native 0.88.1, React 19.3.0, via `expo install expo@^58.0.0 --fix` (expo kept at `~58.0.21`). `uuid` is now imported from `expo`, and the direct `expo-modules-core` dependency was removed because expo-doctor flags it. `expo-build-properties` was removed because its only setting, iOS scene support, is built into SDK 58. Expo added `expo-font` to the config plugins. Two `EventChat` list props changed from `null` to no value for the stricter 0.88 types; behaviour is unchanged. The app uses none of the React Native APIs that 0.88 removes. No schema, API, tracking or data-freshness changes. The Mac needs `pnpm install` and a fresh native build (delete `frontend/ios`, then `pnpm exec expo run:ios`); MapLibre 11.5 is still installed and was not checked against React Native 0.88, so that build may need it removed.
+
+Verified on Windows: expo-doctor 20/20, `check.ps1`, and Metro serving the Expo Go manifest (`exposdk:58.0.0`) and the iOS bundle (767 modules) on the LAN address. On the iPhone 13 in Expo Go: the bundle loaded, the expo-gl scene started (its usual `pixelStorei` notices), the app recorded `session_started` through the LAN API, and the phone held open connections to 8080 and 8081. Expo Go and Expo CLI must be signed in to the same Expo account (here `maliawan0`); `expo login` on Windows needs `BROWSER=none` because of an Expo CLI bug. The owner reports the app looks good on the phone under SDK 58. Not yet verified: a native iOS build on the Mac.
+
+The earlier Windows scripts (2026-10-29) were verified only on macOS with Docker; `frontend/app.json` still has the `android.package` added then.
 
 ## On a physical iPhone (2026-10-20)
 

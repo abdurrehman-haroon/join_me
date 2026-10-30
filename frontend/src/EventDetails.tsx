@@ -1,4 +1,4 @@
-import { uuid } from "expo-modules-core";
+import { uuid } from "expo";
 import { useActivityInteraction } from "./ActivitiesProvider";
 import type { ActivitySource } from "./activities";
 import { useEffect, useRef, useState } from "react";

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { AppState } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
-import { uuid } from "expo-modules-core";
+import { uuid } from "expo";
 import {
   ActivityQueue,
   ActivityInteraction,

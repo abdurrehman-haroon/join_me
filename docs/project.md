@@ -16,7 +16,7 @@ The map opens at LUMS, pans/zooms freely, loads viewport places after movement s
 ## Stack and data rules
 
 - Go HTTP API, pgx/sqlc, PostgreSQL/PostGIS. Existing `net/http` routing is retained; gorilla/websocket supplies realtime transport and PostgreSQL notifications supply fanout. Redis and FCM remain deferred.
-- Expo SDK 57, React Native, TypeScript, native MapLibre. OpenFreeMap serves background tiles directly; our API serves our places.
+- Expo SDK 58, React Native, TypeScript. The map tab draws the campus in 3D with three.js on expo-gl; MapLibre is still installed but no longer imported. Our API serves our places.
 - `openapi.yaml` defines the HTTP contract.
 - Numbered forward-only migrations run once, with checksums and applied-version tracking. Never modify applied files.
 - Every application table has database-owned `created_at` and `updated_at`. Inserts set both; updates preserve creation time and refresh update time. PostGIS extension metadata is excluded.

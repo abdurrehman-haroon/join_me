@@ -26,7 +26,9 @@ function Invoke-Step($directory, $file, $arguments) {
 }
 
 docker @Compose up -d --wait db
-if ($LASTEXITCODE -ne 0) { throw "Could not start the database. Is Docker Desktop running?" }
+if ($LASTEXITCODE -ne 0) {
+  throw "Could not start the database. Is Docker Desktop running? If port $DatabasePort is taken (for example by another PostgreSQL), set JOINME_DB_PORT to a free port such as 5433 and run again."
+}
 $hasTestDatabase = docker @Compose exec -T db psql -U joinme -d joinme -tAc "SELECT 1 FROM pg_database WHERE datname = 'joinme_test'"
 if ("$hasTestDatabase".Trim() -ne "1") {
   docker @Compose exec -T db psql -U joinme -d joinme -c "CREATE DATABASE joinme_test" | Out-Null

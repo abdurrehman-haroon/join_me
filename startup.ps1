@@ -3,8 +3,8 @@
 #   powershell -ExecutionPolicy Bypass -File .\startup.ps1
 #
 # Starts the PostGIS database in Docker, builds and starts the API on 8080, loads the
-# demo data, starts Metro on 8081 and, if an Android phone or emulator is connected,
-# installs and opens the app on it. iOS builds need a Mac (see README).
+# demo data and starts Metro on 8081 for Expo Go, so the app opens on an iPhone on the
+# same network. Native iOS builds need a Mac (see README).
 # Keep this window open; press Ctrl+C to stop the API and Metro. The database keeps running.
 
 $ErrorActionPreference = "Stop"
@@ -21,10 +21,17 @@ $DatabasePort = if ($env:JOINME_DB_PORT) { $env:JOINME_DB_PORT } else { "5432" }
 $env:JOINME_DB_PORT = $DatabasePort
 $env:DATABASE_URL = "postgres://joinme:joinme@127.0.0.1:$DatabasePort/joinme?sslmode=disable"
 $env:TEST_DATABASE_URL = "postgres://joinme:joinme@127.0.0.1:$DatabasePort/joinme_test?sslmode=disable"
-# The app reaches the API and Metro on localhost; for Android, `adb reverse` forwards
-# the phone's localhost ports to this computer.
-$env:EXPO_PUBLIC_API_URL = "http://localhost:8080"
-$AppPackage = "com.abdrhsteam.campuspickup"
+# The iPhone reaches the API and Metro over the local network, so both use this computer's
+# LAN address. Without REACT_NATIVE_PACKAGER_HOSTNAME, Expo can pick a Hyper-V/WSL adapter.
+# Set JOINME_LAN_ADDRESS when the computer has several networks (for example a VPN).
+$LanAddress = $env:JOINME_LAN_ADDRESS
+if (-not $LanAddress) {
+  $network = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq "Up" } | Select-Object -First 1
+  # Offline, the phone cannot connect, but the API and Metro still run on this computer.
+  $LanAddress = if ($network) { $network.IPv4Address[0].IPAddress } else { "localhost" }
+}
+$env:REACT_NATIVE_PACKAGER_HOSTNAME = $LanAddress
+$env:EXPO_PUBLIC_API_URL = "http://${LanAddress}:8080"
 $started = @()
 New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
 
@@ -74,7 +81,9 @@ try {
 
   Write-Host "Starting the database (Docker)..."
   docker @Compose up -d --wait db
-  if ($LASTEXITCODE -ne 0) { throw "Could not start the database. Is Docker Desktop running?" }
+  if ($LASTEXITCODE -ne 0) {
+    throw "Could not start the database. Is Docker Desktop running? If port $DatabasePort is taken (for example by another PostgreSQL), set JOINME_DB_PORT to a free port such as 5433 and run again."
+  }
   # The Go tests use a separate database.
   $hasTestDatabase = docker @Compose exec -T db psql -U joinme -d joinme -tAc "SELECT 1 FROM pg_database WHERE datname = 'joinme_test'"
   if ("$hasTestDatabase".Trim() -ne "1") {
@@ -104,48 +113,30 @@ try {
   Get-Content (Join-Path $ProjectDir "backend\seeds\demo.sql") -Raw |
     docker @Compose exec -T db psql -q -U joinme -d joinme --single-transaction -v ON_ERROR_STOP=1 | Out-Null
 
+  # Install every time so a pulled package change (such as an Expo SDK upgrade) is applied;
+  # it finishes in about a second when nothing changed.
   $frontend = Join-Path $ProjectDir "frontend"
-  if (-not (Test-Path (Join-Path $frontend "node_modules"))) {
-    Write-Host "Installing app dependencies..."
-    Push-Location $frontend
-    pnpm install --frozen-lockfile
-    Pop-Location
-  }
+  Write-Host "Checking app dependencies..."
+  Push-Location $frontend
+  pnpm install --frozen-lockfile
+  $installExit = $LASTEXITCODE
+  Pop-Location
+  if ($installExit -ne 0) { throw "Could not install the app dependencies. See the output above." }
 
   if (Test-Url "http://localhost:8081/status") {
-    Write-Host "Reusing Metro on port 8081."
+    Write-Host "Reusing Metro on port 8081. If it was not started by startup.ps1, stop it and run startup.ps1 again so the app uses ${LanAddress}."
   } else {
     Write-Host "Starting Metro..."
-    $metro = Start-Logged "pnpm.cmd" @("exec", "expo", "start", "--dev-client", "--port", "8081") $frontend "frontend"
+    $metro = Start-Logged "pnpm.cmd" @("exec", "expo", "start", "--go", "--port", "8081") $frontend "frontend"
     $started += $metro.Process
     Wait-Url "http://localhost:8081/status" $metro.Process $metro.ErrorLog
   }
 
-  $device = $null
-  if (Get-Command adb -ErrorAction SilentlyContinue) {
-    $device = adb devices | Select-String -Pattern "\tdevice$" | Select-Object -First 1
-  }
-  if ($device) {
-    adb reverse tcp:8080 tcp:8080 | Out-Null
-    adb reverse tcp:8081 tcp:8081 | Out-Null
-    $installed = adb shell pm list packages $AppPackage
-    if (-not ("$installed" -match $AppPackage)) {
-      Write-Host "Building and installing the Android app (the first build takes several minutes)..."
-      Push-Location $frontend
-      pnpm exec expo run:android --no-bundler
-      $installExit = $LASTEXITCODE
-      Pop-Location
-      if ($installExit -ne 0) { throw "The Android build failed. See the output above." }
-    }
-    adb shell am start -a android.intent.action.VIEW `
-      -d "exp+campus-pickup://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081" | Out-Null
-    Write-Host "Opened the app on the Android device."
-  } else {
-    Write-Host "No Android phone or emulator found (adb). The API and Metro are running for development and tests."
-  }
-
   Write-Host ""
-  Write-Host "API: http://localhost:8080 | Metro: http://localhost:8081"
+  Write-Host "Open the app on your iPhone (on the same network as this computer):"
+  Write-Host "  in Expo Go, tap 'Enter URL manually' and enter exp://${LanAddress}:8081"
+  Write-Host ""
+  Write-Host "API: http://${LanAddress}:8080 | Metro: http://${LanAddress}:8081"
   Write-Host "Logs are in .startup.local\. Keep this window open; press Ctrl+C to stop."
   while ($true) {
     foreach ($process in $started) {

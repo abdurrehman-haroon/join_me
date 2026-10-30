@@ -1,6 +1,6 @@
 # Campus Pickup mobile app
 
-Expo SDK 57 / React Native, with a native MapLibre map and OpenFreeMap Liberty tiles. `index.ts` registers `src/NativeApp.tsx`; `src/MapScreen.tsx` owns the connected map. Only connected screens ship in the app: Map, Your events and You.
+Expo SDK 58 / React Native. The map tab draws the LUMS campus in 3D with three.js on expo-gl (MapLibre is still installed but no longer imported). `index.ts` registers `src/NativeApp.tsx`; `src/MapScreen.tsx` owns the connected map. Only connected screens ship in the app: Map, Your events and You.
 
 ## Run
 
@@ -10,7 +10,7 @@ Start the Go API and PostGIS database first (see `../backend/README.md`). With X
 pnpm run ios
 ```
 
-MapLibre requires a development build; Expo Go does not include its native module. After changing config plugins, run `pnpm exec expo prebuild --platform ios` before rebuilding. For later JavaScript updates, use `pnpm start`, then `i` to open the app or `r` to reload it.
+The app now imports only modules that Expo Go includes (MapLibre is installed but no longer imported), so on Windows `../startup.ps1` serves it to Expo Go on an iPhone. Native changes still need a development build from the Mac. After changing config plugins, run `pnpm exec expo prebuild --platform ios` before rebuilding. For later JavaScript updates, use `pnpm start`, then `i` to open the app or `r` to reload it.
 
 Configuration (Expo public environment variables, no secrets):
 

@@ -27,13 +27,13 @@ Before opening the app, the launcher fetches the iOS project manifest and compil
 
 ## Local startup on Windows
 
-iOS builds and the iPhone simulator need a Mac. On Windows you can work on all the code, run the API and tests, and run the app on an Android phone or emulator.
+Native iOS builds and the iPhone simulator need a Mac. On Windows you can work on all the code, run the API and tests, and open the app on an iPhone with Expo Go (free in the App Store). Expo Go only runs the newest Expo SDK, currently SDK 58, which this app uses. When Expo Go moves on, upgrade the app's SDK or use a development build from the Mac.
 
 Install once:
 
-1. [Git](https://git-scm.com/download/win), [Go 1.23+](https://go.dev/dl/), [Node.js 24 LTS](https://nodejs.org/) and pnpm (`npm install -g pnpm`).
+1. [Git](https://git-scm.com/download/win), [Go 1.23+](https://go.dev/dl/), [Node.js 24 LTS](https://nodejs.org/) and pnpm 12 (`npm install -g pnpm`; if `pnpm --version` still shows an older version from Corepack, also run `corepack install -g pnpm@12`).
 2. [Docker Desktop](https://www.docker.com/products/docker-desktop/) for the PostGIS database. Start it before running the scripts.
-3. Optional, to run the app: [Android Studio](https://developer.android.com/studio) with an emulator, or an Android phone with USB debugging on. Make sure `adb` is on your PATH.
+3. Expo Go on your iPhone. The iPhone and this computer must be on the same network.
 
 Then, from the repo root in PowerShell:
 
@@ -41,11 +41,11 @@ Then, from the repo root in PowerShell:
 powershell -ExecutionPolicy Bypass -File .\startup.ps1
 ```
 
-It starts the database in Docker (`backend/compose.yaml`), builds and starts the API on 8080 (migrations run on startup), loads `backend/seeds/demo.sql`, starts Metro on 8081 and, if `adb` sees an Android device, forwards its `localhost:8080`/`8081` to this computer, installs the app on the first run (`expo run:android`, several minutes) and opens it. Keep the window open; Ctrl+C stops the API and Metro, and the database keeps running. Set `JOINME_DB_PORT` if port 5432 is taken.
+It starts the database in Docker (`backend/compose.yaml`), builds and starts the API on 8080 (migrations run on startup), loads `backend/seeds/demo.sql` and starts Metro on 8081 for Expo Go, with `EXPO_PUBLIC_API_URL` set to this computer's LAN address. It prints an `exp://<LAN address>:8081` URL: in Expo Go, tap **Enter URL manually** and enter it (Expo Go then lists it under recently opened). If Expo Go is signed in to an Expo account, sign in to the same account on this computer first (`pnpm exec expo login` in `frontend/`), then run `startup.ps1` again. If `expo login` crashes while opening the browser (an Expo CLI bug with `&` in the link on Windows), run `$env:BROWSER = "none"` first and open the printed link yourself. The phone connects to ports 8080 and 8081, so when Windows Firewall asks, allow Node.js and `api.exe` on private networks only, and set your home network to Private in Windows settings: the API has no sign-in yet, so anyone who can reach it acts as the demo user. If the computer has several networks (for example a VPN), set `JOINME_LAN_ADDRESS` to the address the phone can reach. Keep the window open; Ctrl+C stops the API and Metro, and the database keeps running. Set `JOINME_DB_PORT` if port 5432 is taken (for example by another local PostgreSQL).
 
 `.\check.ps1` is the Windows equivalent of `make check`.
 
-The Windows scripts and the Android build have not yet been run on Windows or Android; the Docker database, migrations, demo seed and backend tests were verified with Docker on macOS.
+Verified on Windows 11 with Windows PowerShell 5.1: `startup.ps1`, `check.ps1`, and the Expo Go manifest and iOS bundle served on the LAN address.
 
 ## Run the backend
 
