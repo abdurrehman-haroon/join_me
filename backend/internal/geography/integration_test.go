@@ -53,7 +53,7 @@ func TestPostGISMapFlow(t *testing.T) {
 		t.Fatalf("second migration run: %v", err)
 	}
 	var versions int
-	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 12 {
+	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 13 {
 		t.Fatalf("migration count %d: %v", versions, err)
 	}
 
@@ -78,7 +78,7 @@ func TestPostGISMapFlow(t *testing.T) {
 		var users, events, participants, statuses int
 		err = pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM users), (SELECT count(*) FROM events),
             (SELECT count(*) FROM event_participants), (SELECT count(*) FROM status)`).Scan(&users, &events, &participants, &statuses)
-		if err != nil || users != 6 || events != 5 || participants != 11 || statuses != 3 {
+		if err != nil || users != 6 || events != 7 || participants != 14 || statuses != 3 {
 			t.Fatalf("demo counts: users=%d events=%d participants=%d statuses=%d: %v", users, events, participants, statuses, err)
 		}
 		var full bool
@@ -106,6 +106,9 @@ func TestPostGISMapFlow(t *testing.T) {
 		err = pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM event_participants WHERE event_id=$1 AND user_id=$2)`, event.ID, hostID).Scan(&hostJoined)
 		if err != nil || !hostJoined || !event.CreatedAt.Time.Equal(event.UpdatedAt.Time) {
 			t.Fatalf("atomic event and host creation: %v", err)
+		}
+		if _, err = pool.Exec(ctx, `UPDATE events SET type='padel' WHERE id=$1`, event.ID); err != nil {
+			t.Fatalf("padel event type: %v", err)
 		}
 		for _, check := range []struct{ statement, code string }{
 			{`INSERT INTO event_participants(event_id,user_id) SELECT event_id,user_id FROM event_participants LIMIT 1`, "23505"},
@@ -197,6 +200,7 @@ func TestPostGISMapFlow(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /areas/{id}", handler.GetArea)
 	mux.HandleFunc("GET /places", handler.ListPlaces)
+	mux.HandleFunc("GET /areas/{id}/children", handler.ListChildAreas)
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, httptest.NewRequest("GET", "/areas/00000000-0000-4000-8000-000000000001", nil))
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"name": "LUMS"`) {
@@ -206,6 +210,45 @@ func TestPostGISMapFlow(t *testing.T) {
 	mux.ServeHTTP(response, httptest.NewRequest("GET", "/areas/ffffffff-ffff-4fff-8fff-ffffffffffff", nil))
 	if response.Code != 404 {
 		t.Fatalf("missing area: %d", response.Code)
+	}
+
+	// DHA's phases: outlined ones carry their outline, Rahbar and EME are framed by their venues.
+	response = httptest.NewRecorder()
+	mux.ServeHTTP(response, httptest.NewRequest("GET", "/areas/00000000-0000-4000-8000-000000000100/children", nil))
+	var phases struct {
+		Type     string
+		Features []struct {
+			Geometry   json.RawMessage
+			Properties struct {
+				Name     string
+				ParentID string `json:"parent_id"`
+				Bbox     []float64
+			}
+		}
+	}
+	if err = json.Unmarshal(response.Body.Bytes(), &phases); err != nil || response.Code != 200 || phases.Type != "FeatureCollection" {
+		t.Fatalf("DHA phases: %d %s (%v)", response.Code, response.Body.String(), err)
+	}
+	outlined := map[string]bool{}
+	for _, phase := range phases.Features {
+		if phase.Properties.ParentID != "00000000-0000-4000-8000-000000000100" || len(phase.Properties.Bbox) != 4 {
+			t.Fatalf("DHA phase %q without parent or bounds: %+v", phase.Properties.Name, phase.Properties)
+		}
+		outlined[phase.Properties.Name] = string(phase.Geometry) != "null"
+	}
+	if len(phases.Features) != 12 || !outlined["Phase 5"] || outlined["Phase 11 (Rahbar)"] || !outlined["LUMS"] {
+		t.Fatalf("DHA phases: %v", outlined)
+	}
+	var phaseFiveVenues int
+	err = pool.QueryRow(ctx, `SELECT count(*) FROM places JOIN areas ON areas.id = places.area_id
+        WHERE areas.name = 'Phase 5' AND places.type = 'court'`).Scan(&phaseFiveVenues)
+	if err != nil || phaseFiveVenues != 20 {
+		t.Fatalf("Phase 5 padel venues %d: %v", phaseFiveVenues, err)
+	}
+	response = httptest.NewRecorder()
+	mux.ServeHTTP(response, httptest.NewRequest("GET", "/areas/ffffffff-ffff-4fff-8fff-ffffffffffff/children", nil))
+	if response.Code != 404 {
+		t.Fatalf("children of a missing area: %d", response.Code)
 	}
 
 	response = httptest.NewRecorder()

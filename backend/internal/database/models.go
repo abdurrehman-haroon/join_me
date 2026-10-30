@@ -249,6 +249,7 @@ type EventType string
 const (
 	EventTypeFootball EventType = "football"
 	EventTypeCricket  EventType = "cricket"
+	EventTypePadel    EventType = "padel"
 )
 
 func (e *EventType) Scan(src interface{}) error {

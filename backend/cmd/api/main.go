@@ -86,6 +86,7 @@ func main() {
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc("GET /areas/{id}", geographyHandler.GetArea)
+	mux.HandleFunc("GET /areas/{id}/children", geographyHandler.ListChildAreas)
 	mux.HandleFunc("GET /places", geographyHandler.ListPlaces)
 	mux.HandleFunc("GET /events", eventHandler.ListEvents)
 	mux.HandleFunc("GET /me/events", eventHandler.ListUserEvents)
