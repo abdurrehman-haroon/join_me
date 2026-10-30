@@ -9,6 +9,9 @@
     "ios": {
       "bundleIdentifier": "com.abdrhsteam.campuspickup"
     },
+    "android": {
+      "package": "com.abdrhsteam.campuspickup"
+    },
     "plugins": [
       [
         "expo-location",

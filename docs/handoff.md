@@ -2,6 +2,10 @@
 
 Updated: 2026-10-20
 
+## Windows startup (2026-10-29, uncommitted)
+
+New `startup.ps1` and `check.ps1` (see README "Local startup on Windows"): Docker PostGIS from `backend/compose.yaml` (host port now `JOINME_DB_PORT`, default 5432; scripts pass their own empty `--env-file` so Compose never reads a developer's `backend/.env`), API build/start, demo seed, Metro, and Android install/open via `adb reverse`. `frontend/app.json` gains `android.package` so `expo run:android` needs no prompt. Verified on macOS with Docker: fresh PostGIS, migrations, seed twice, `/events`, and `go test ./...` against a `joinme_test` database with PostGIS enabled (the tests need the extension pre-installed). Not run on Windows or Android yet.
+
 ## On a physical iPhone (2026-10-20)
 
 Release build installed on an iPhone 13 (iOS 18.6.2) with a free Personal Team signing set in the generated `ios/` project (not in git) and `EXPO_PUBLIC_API_URL` pointing at the Mac's LAN address. The owner reports the 3D story, pinch and explore feel smooth on the phone; the simulator's slowness is software rendering only. Device install steps: Xcode account + team in Signing & Capabilities, Developer Mode on, `EXPO_PUBLIC_API_URL=http://<mac-lan-ip>:8080 pnpm exec expo run:ios --device <udid> --configuration Release --no-bundler`, then trust the developer profile in Settings → General → VPN & Device Management.
