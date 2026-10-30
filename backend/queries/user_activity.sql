@@ -33,6 +33,7 @@ WITH report_periods AS (
         'eligible_joined', (SELECT count(*) FROM eligible_signups),
         'football_joined', (SELECT count(*) FROM eligible_signups WHERE type = 'football'),
         'cricket_joined', (SELECT count(*) FROM eligible_signups WHERE type = 'cricket'),
+        'padel_joined', (SELECT count(*) FROM eligible_signups WHERE type = 'padel'),
         'month_starts_at', month_start, 'month_ends_at', month_end,
         'month_joined', (SELECT count(*) FROM eligible_signups WHERE starts_at >= month_start AND starts_at < month_end),
         'previous_month_joined', (SELECT count(*) FROM eligible_signups WHERE starts_at >= previous_month_start AND starts_at < month_start),
