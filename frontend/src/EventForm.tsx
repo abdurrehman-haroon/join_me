@@ -1,22 +1,28 @@
-import { uuid } from "expo-modules-core";
+import { uuid } from "expo";
+import * as Haptics from "expo-haptics";
 import { useActivityInteraction } from "./ActivitiesProvider";
+import { sportNames, type Sport } from "./activities";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { colors, displayFont, minTouch, type as textStyles } from "./theme";
+import { PressableScale, SegmentedControl } from "./ui";
+
+const sports = ["football", "cricket", "padel"] as const;
 
 export default function EventForm({
   place,
   event,
+  defaultType = "football",
   apiURL,
   onClose,
   onSaved,
@@ -25,11 +31,13 @@ export default function EventForm({
   event?: {
     id: string;
     title: string;
-    type: "football" | "cricket";
+    type: Sport;
     starts_at: string;
     capacity: number;
     participant_count: number;
   };
+  // The sport a new event starts with, e.g. padel at a padel venue.
+  defaultType?: Sport;
   apiURL: string;
   onClose: () => void;
   onSaved: () => void;
@@ -42,9 +50,7 @@ export default function EventForm({
     return start;
   });
   const [title, setTitle] = useState(event?.title ?? "");
-  const [type, setType] = useState<"football" | "cricket">(
-    event?.type ?? "football",
-  );
+  const [type, setType] = useState<Sport>(event?.type ?? defaultType);
   const [date, setDate] = useState(
     () =>
       `${initialStart.getFullYear()}-${String(initialStart.getMonth() + 1).padStart(2, "0")}-${String(initialStart.getDate()).padStart(2, "0")}`,
@@ -53,7 +59,10 @@ export default function EventForm({
     () =>
       `${String(initialStart.getHours()).padStart(2, "0")}:${String(initialStart.getMinutes()).padStart(2, "0")}`,
   );
-  const [capacity, setCapacity] = useState(String(event?.capacity ?? 10));
+  // Padel is doubles: four players including the host.
+  const [capacity, setCapacity] = useState(
+    String(event?.capacity ?? (type === "padel" ? 4 : 10)),
+  );
   const [shown, setShown] = useState(false);
   const interaction = useActivityInteraction({
     enabled: !event && shown,
@@ -188,6 +197,7 @@ export default function EventForm({
         return;
       }
       interaction.current?.close("completed");
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSaved();
     } catch {
       if (!event) setUncertainCreation(true);
@@ -222,14 +232,14 @@ export default function EventForm({
           <Text style={styles.kicker}>
             {event ? "EDIT EVENT" : "NEW EVENT"}
           </Text>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             disabled={submitting}
             onPress={onClose}
             style={styles.close}
           >
             <Text style={styles.action}>Cancel</Text>
-          </Pressable>
+          </PressableScale>
         </View>
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -245,8 +255,8 @@ export default function EventForm({
           <Text style={styles.label}>Title</Text>
           <TextInput
             accessibilityLabel="Event title"
-            placeholder="Evening football"
-            placeholderTextColor="#6C786E"
+            placeholder={`Evening ${sportNames[type].toLowerCase()}`}
+            placeholderTextColor={colors.secondary}
             value={title}
             onChangeText={setTitle}
             editable={!submitting && !uncertainCreation}
@@ -255,28 +265,23 @@ export default function EventForm({
           <Text style={styles.label}>Event type</Text>
           {event ? (
             <Text style={styles.body}>
-              {type === "football" ? "Football" : "Cricket"} · fixed for this
-              event
+              {sportNames[type]} · fixed for this event
             </Text>
           ) : (
-            <View style={styles.types}>
-              {(["football", "cricket"] as const).map((option) => (
-                <Pressable
-                  key={option}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: type === option }}
-                  disabled={submitting || uncertainCreation}
-                  onPress={() => setType(option)}
-                  style={[styles.type, type === option && styles.selectedType]}
-                >
-                  <Text
-                    style={[styles.action, type === option && styles.white]}
-                  >
-                    {option === "football" ? "Football" : "Cricket"}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <SegmentedControl
+              accessibilityLabel="Event type"
+              values={sports.map((option) => sportNames[option])}
+              selectedIndex={sports.indexOf(type)}
+              enabled={!submitting && !uncertainCreation}
+              onChange={(change) => {
+                const option = sports[change.nativeEvent.selectedSegmentIndex];
+                if (option) setType(option);
+              }}
+              appearance="light"
+              fontStyle={{ color: colors.ink, fontSize: 15, fontWeight: "500" }}
+              activeFontStyle={{ color: colors.ink, fontSize: 15, fontWeight: "600" }}
+              style={styles.types}
+            />
           )}
           <Text style={styles.label}>Date · YYYY-MM-DD</Text>
           <TextInput
@@ -313,7 +318,7 @@ export default function EventForm({
               {error}
             </Text>
           )}
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             disabled={submitting}
             onPress={() => void submit()}
@@ -324,13 +329,13 @@ export default function EventForm({
             ) : (
               <Text style={styles.submitText}>
                 {event
-                  ? "Save changes"
+                  ? "Save Changes"
                   : uncertainCreation
-                    ? "Confirm creation"
-                    : "Create event"}
+                    ? "Confirm Creation"
+                    : "Create Event"}
               </Text>
             )}
-          </Pressable>
+          </PressableScale>
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
@@ -338,47 +343,54 @@ export default function EventForm({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0", paddingTop: 24 },
+  root: { flex: 1, backgroundColor: colors.chalk, paddingTop: 12 },
   heading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 22,
+    paddingLeft: 20,
+    paddingRight: 8,
   },
   kicker: {
-    color: "#1D5B3A",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.3,
+    ...textStyles.footnote,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    color: colors.tint,
   },
-  close: { padding: 14 },
-  action: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
-  content: { padding: 24, paddingBottom: 60, gap: 12 },
-  title: { fontFamily: "BigShoulders", fontSize: 46, color: "#15201B" },
-  body: { color: "#15201B", fontSize: 16, lineHeight: 24 },
-  muted: { color: "#6C786E", fontSize: 13 },
-  label: { color: "#15201B", fontSize: 14, fontWeight: "700", marginTop: 12 },
+  close: { minHeight: minTouch, justifyContent: "center", paddingHorizontal: 12 },
+  action: { ...textStyles.body, fontWeight: "600", color: colors.tint },
+  content: { padding: 20, paddingBottom: 60, gap: 8 },
+  title: { fontFamily: displayFont, fontSize: 44, lineHeight: 48, color: colors.ink },
+  body: { ...textStyles.body, color: colors.ink },
+  muted: { ...textStyles.footnote, color: colors.secondary },
+  label: {
+    ...textStyles.footnote,
+    fontWeight: "600",
+    color: colors.secondary,
+    textTransform: "uppercase",
+    marginTop: 16,
+    marginLeft: 4,
+  },
   input: {
-    backgroundColor: "#FFFFFF",
-    color: "#15201B",
-    padding: 16,
-    borderRadius: 14,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#DEE3D8",
+    ...textStyles.body,
+    minHeight: 50,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderCurve: "continuous",
   },
-  types: { flexDirection: "row", gap: 10 },
-  type: { backgroundColor: "#E5E9DF", padding: 14, borderRadius: 20 },
-  selectedType: { backgroundColor: "#1D5B3A" },
-  white: { color: "#FFFFFF" },
-  error: { color: "#B51E2C", fontSize: 14, lineHeight: 21 },
+  types: { height: 36 },
+  error: { ...textStyles.subheadline, color: colors.signal },
   submit: {
-    backgroundColor: "#1D5B3A",
-    padding: 18,
-    borderRadius: 20,
+    backgroundColor: colors.tint,
+    minHeight: 50,
+    borderRadius: 25,
     alignItems: "center",
-    marginTop: 12,
+    justifyContent: "center",
+    marginTop: 20,
   },
-  submitText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  submitText: { ...textStyles.headline, color: colors.surface },
   disabled: { opacity: 0.6 },
 });

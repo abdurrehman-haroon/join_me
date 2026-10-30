@@ -1,7 +1,7 @@
 import { useActivityInteraction } from "./ActivitiesProvider";
 import { compareSequence, validSequence } from "./realtime";
 import { useRealtimeTarget, liveStatusText } from "./RealtimeProvider";
-import { uuid } from "expo-modules-core";
+import { uuid } from "expo";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -376,7 +376,6 @@ export default function EventChat({
               if (nearBottom.current) setNewMessages(false);
             }}
             scrollEventThrottle={100}
-            ListHeaderComponent={null}
             ListEmptyComponent={
               <Text style={styles.notice}>
                 No messages yet. Say hello to your group.
@@ -390,7 +389,7 @@ export default function EventChat({
                 >
                   <Text style={styles.action}>Load older messages</Text>
                 </Pressable>
-              ) : null
+              ) : undefined
             }
             renderItem={({ item }) => {
               const saved = "created_at" in item;

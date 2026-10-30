@@ -1,20 +1,10 @@
-import {
-  Camera,
-  GeoJSONSource,
-  Layer,
-  Map,
-  type CameraRef,
-  type GeoJSONSourceRef,
-  type LngLatBounds,
-} from "@maplibre/maplibre-react-native";
-import { useEffect, useRef, useState } from "react";
+import type * as GeoJSON from "geojson";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
   Alert,
   Linking,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -22,12 +12,26 @@ import {
 import EventDetails, { type EventSummary } from "./EventDetails";
 import EventForm from "./EventForm";
 import useDeviceLocation from "./useDeviceLocation";
-import { uuid } from "expo-modules-core";
+import PlaceFeed, { type CameraFrame, type FeedPage, type FeedPlace } from "./PlaceFeed";
+import TopBar, { TopBarButton } from "./TopBar";
+import { colors, margin, type } from "./theme";
+import { Glass, PressableScale } from "./ui";
+import CampusScene, {
+  type CampusSceneHandle,
+  type SceneLabel,
+  type ScenePin,
+} from "./CampusScene";
+import { layoutCourts, toScene, type SceneArea, type ScenePlace } from "./campusModel";
+import useReduceMotion from "./useReduceMotion";
+import { uuid } from "expo";
 import { useActivities, useActivityInteraction } from "./ActivitiesProvider";
-import { DiscoveryTracker, type SportFilter } from "./activities";
+import { DiscoveryTracker, sportNames } from "./activities";
 
+// West, south, east, north.
+type LngLatBounds = [number, number, number, number];
 type Area = {
   id: string;
+  parent_id: string | null;
   name: string;
   type: string;
   boundary: GeoJSON.MultiPolygon | null;
@@ -35,6 +39,11 @@ type Area = {
   created_at: string;
   updated_at: string;
 };
+// The areas inside the district (DHA's phases, and the campus), from /areas/{id}/children.
+type ChildArea = GeoJSON.Feature<
+  GeoJSON.MultiPolygon | null,
+  { id: string; parent_id: string; name: string; type: string; bbox: LngLatBounds | null }
+>;
 type PlaceProperties = {
   id: string;
   area_id: string;
@@ -53,19 +62,63 @@ type EventList = {
   place_counts: Record<string, number>;
   truncated: boolean;
 };
+// Which feed is showing: the district (DHA) and its places, or the places inside the campus.
+type FeedLevel = "district" | "campus";
+// What the district feed is about.
+type FeedTab = "all" | "padel" | "campus";
+// A place in a feed, before it becomes a page.
+type Stop = {
+  place: FeedPlace;
+  point: { x: number; z: number };
+  kicker: string;
+  canGoInside: boolean;
+  frame: CameraFrame;
+};
 
 const apiURL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 const initialAreaID =
   process.env.EXPO_PUBLIC_INITIAL_AREA_ID ??
   "00000000-0000-4000-8000-000000000001";
-const mapStyle =
-  process.env.EXPO_PUBLIC_MAP_STYLE_URL ??
-  "https://tiles.openfreemap.org/styles/liberty";
 const emptyPlaces: Places = {
   type: "FeatureCollection",
   features: [],
   truncated: false,
 };
+// The camera always faces the same way, so the map never spins between places.
+const facing = 0.22;
+const campusView = { distance: 96, tilt: 0.62 };
+const groundView = { distance: 30, tilt: 0.98 };
+const districtView = { distance: 240, tilt: 0.95 };
+const courtView = { distance: 18, tilt: 0.98 };
+// A place counts as viewed once the feed has rested on it this long, so places flown past
+// in a quick run of swipes are not recorded as visits.
+const viewDelay = 700;
+const districtTabs: { key: FeedTab; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "padel", label: "Padel" },
+  { key: "campus", label: "Campus" },
+];
+
+// Visits stops in route order: each next stop is the nearest one not yet visited, starting
+// from `start`, so every swipe is a short hop.
+function routeFrom(start: { x: number; z: number }, stops: Stop[]): Stop[] {
+  const left = [...stops];
+  const route: Stop[] = [];
+  let here = start;
+  while (left.length) {
+    let nearest = 0;
+    for (let i = 1; i < left.length; i++)
+      if (
+        Math.hypot(left[i].point.x - here.x, left[i].point.z - here.z) <
+        Math.hypot(left[nearest].point.x - here.x, left[nearest].point.z - here.z)
+      )
+        nearest = i;
+    const [next] = left.splice(nearest, 1);
+    route.push(next);
+    here = next.point;
+  }
+  return route;
+}
 
 export default function MapScreen() {
   const { queue, sessionID } = useActivities();
@@ -82,57 +135,53 @@ export default function MapScreen() {
   );
   const [loadedQuery, setLoadedQuery] = useState<string | null>(null);
   const [eventReferrer, setEventReferrer] = useState<string | undefined>(undefined);
-  const camera = useRef<CameraRef>(null);
+  const campusScene = useRef<CampusSceneHandle>(null);
   const deviceLocation = useDeviceLocation();
   const centreOnNextLocation = useRef(false);
-  const placeSource = useRef<GeoJSONSourceRef>(null);
   const [area, setArea] = useState<Area | null>(null);
+  // The district around the campus (DHA) and its phases, when the campus has a parent area.
+  const [district, setDistrict] = useState<Area | null>(null);
+  const [districtAreas, setDistrictAreas] = useState<ChildArea[]>([]);
   const [bounds, setBounds] = useState<LngLatBounds | null>(null);
   const [places, setPlaces] = useState<Places>(emptyPlaces);
+  // Every upcoming game in the district (or the campus without one), for all feeds.
   const [events, setEvents] = useState<EventList>({
     events: [],
     place_counts: {},
     truncated: false,
   });
-  const [eventType, setEventType] = useState<"" | "football" | "cricket">("");
   const [eventID, setEventID] = useState<string | null>(null);
-  const [creationPlace, setCreationPlace] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [creationPlace, setCreationPlace] = useState<FeedPlace | null>(null);
   const [eventRefresh, setEventRefresh] = useState(0);
-  const [createdAtPlace, setCreatedAtPlace] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Place | null>(null);
   const [areaError, setAreaError] = useState("");
   const [placesError, setPlacesError] = useState("");
   const [loadingPlaces, setLoadingPlaces] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapError, setMapError] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [mapVersion, setMapVersion] = useState(0);
-  const mapPlaces = {
-    ...places,
-    features: places.features.map((place) => ({
-      ...place,
-      properties: {
-        ...place.properties,
-        event_count: events.place_counts[place.properties.id] ?? 0,
-      },
-    })),
-  };
-  const placeEvents = events.events.filter(
-    (event) => event.place.id === selected?.properties.id,
-  );
-  const sport: SportFilter = eventType || "all";
-  const queryKey = bounds ? `${bounds.join(",")}|${eventType}` : null;
+  const reduceMotion = useReduceMotion();
+  const [level, setLevel] = useState<FeedLevel>("district");
+  const [tab, setTab] = useState<FeedTab>("all");
+  // Where a feed opens: a place to land on (or its overview), and a counter so the feed
+  // starts afresh even when asked for the same place again.
+  const [feedStart, setFeedStart] = useState<{ placeID: string | null; nonce: number }>({
+    placeID: null,
+    nonce: 0,
+  });
+  const [activePage, setActivePage] = useState(0);
+  const [viewedPlaceID, setViewedPlaceID] = useState<string | null>(null);
+  // Map mode: drag, pinch and tap the 3D map freely; tapping a place returns to the feed.
+  const [mapMode, setMapMode] = useState(false);
+  const [offCampus, setOffCampus] = useState(false);
+  // Location problems are only shown after the user asks for their location.
+  const [locationAsked, setLocationAsked] = useState(false);
+  const queryKey = bounds ? bounds.join(",") : null;
   const discoveryVisible = foreground && !eventID && !creationPlace;
   const placeInteraction = useActivityInteraction({
-    enabled: Boolean(selected),
+    enabled: Boolean(viewedPlaceID) && !mapMode,
     visible: !eventID && !creationPlace,
-    target: { type: "place", id: selected?.properties.id ?? "" },
+    target: { type: "place", id: viewedPlaceID ?? "" },
     source: "map",
     startAction: "place_viewed",
-    details: { sport, referrer_interaction_id: discovery.id },
+    details: { sport: "all", referrer_interaction_id: discovery.id },
   });
 
   useEffect(() => {
@@ -142,28 +191,184 @@ export default function MapScreen() {
     return () => subscription.remove();
   }, []);
 
+  // The 3D map is laid out around the centre of the campus bounding box.
+  const origin: [number, number] | null = area?.bbox
+    ? [(area.bbox[0] + area.bbox[2]) / 2, (area.bbox[1] + area.bbox[3]) / 2]
+    : null;
+
+  // Places on the campus have outlines and are drawn as grounds. The other places in the
+  // district are, for now, all padel venues, each drawn as a padel court.
+  const campusPlaces = places.features.filter((place) => place.properties.area_id === area?.id);
+  const venues = places.features.filter((place) => place.properties.area_id !== area?.id);
+  // Where each court is drawn (nudged apart where venues are close), so the camera frames
+  // the court the user sees. Worked out again only when the venues change, not on every
+  // render, because the layout compares every pair of courts.
+  const venueKey = venues.map((venue) => venue.properties.id).join();
+  const courtSpots = useMemo(
+    () =>
+      origin
+        ? layoutCourts(
+            venues.map((venue) => ({
+              id: venue.properties.id,
+              name: venue.properties.name,
+              type: venue.properties.type,
+              coordinates: venue.geometry.coordinates as [number, number],
+              boundary: null,
+            })),
+            origin,
+          )
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [venueKey, origin?.[0], origin?.[1]],
+  );
+  const median = (values: number[]) =>
+    values.length ? values.slice().sort((a, b) => a - b)[Math.floor(values.length / 2)] : 0;
+  // The campus overview looks between the middle of the campus and its grounds; the DHA
+  // overview at the middle of the courts (the median, so the far-off courts in Rahbar and
+  // EME do not pull it away from the Phase 5 strip).
+  const groundPoints = origin
+    ? campusPlaces.map((place) => toScene(place.geometry.coordinates as [number, number], origin))
+    : [];
+  const campusMiddle = groundPoints.length
+    ? {
+        x: groundPoints.reduce((sum, point) => sum + point.x, 0) / groundPoints.length / 2,
+        z: groundPoints.reduce((sum, point) => sum + point.z, 0) / groundPoints.length / 2,
+      }
+    : { x: 0, z: 0 };
+  const districtMiddle = {
+    x: median(courtSpots.map((spot) => spot.x)),
+    z: median(courtSpots.map((spot) => spot.z)),
+  };
+
+  // Looks slightly past a place, towards the camera, so it sits above the card at the
+  // bottom of the screen.
+  function closeUp(point: { x: number; z: number }, view: { distance: number; tilt: number }): CameraFrame {
+    const ahead = view.distance * 0.12;
+    return {
+      x: point.x + Math.sin(facing) * ahead,
+      z: point.z + Math.cos(facing) * ahead,
+      distance: view.distance,
+      tilt: view.tilt,
+      turn: facing,
+    };
+  }
+
+  const gamesAt = (placeID: string) => events.events.filter((event) => event.place.id === placeID);
+  const campusName = area?.name ?? "LUMS";
+  const districtName = district?.name ?? "DHA";
+  const campusGames = events.events.filter((event) =>
+    campusPlaces.some((place) => place.properties.id === event.place.id),
+  );
+  const phaseName = (areaID: string) =>
+    districtAreas.find((child) => child.properties.id === areaID)?.properties.name ?? districtName;
+
+  // The feed's stops: in the district, the campus and every padel court; inside the
+  // campus, its grounds. The tab picks which district stops are in the feed.
+  const campusStop: Stop = {
+    place: { id: area?.id ?? "campus", name: campusName, sport: "football" },
+    point: campusMiddle,
+    kicker: `Campus · ${campusPlaces.length} grounds`,
+    canGoInside: true,
+    frame: { ...campusMiddle, ...campusView, turn: facing },
+  };
+  const courtStops: Stop[] = courtSpots.flatMap((spot) => {
+    const venue = venues.find((item) => item.properties.id === spot.placeID);
+    if (!venue) return [];
+    return [
+      {
+        place: { id: venue.properties.id, name: venue.properties.name, sport: "padel" },
+        point: spot,
+        kicker: `Padel · ${phaseName(venue.properties.area_id)}`,
+        canGoInside: false,
+        frame: closeUp(spot, courtView),
+      },
+    ];
+  });
+  const groundStops: Stop[] = campusPlaces.map((place) => {
+    const point = toScene(place.geometry.coordinates as [number, number], origin ?? [0, 0]);
+    return {
+      place: { id: place.properties.id, name: place.properties.name, sport: "football" },
+      point,
+      kicker: `${campusName} · ${place.properties.type}`,
+      canGoInside: false,
+      frame: closeUp(point, groundView),
+    };
+  });
+  const showingDistrict = level === "district" && Boolean(district);
+  const stops = showingDistrict
+    ? routeFrom(
+        campusMiddle,
+        tab === "padel" ? courtStops : tab === "campus" ? [campusStop] : [campusStop, ...courtStops],
+      )
+    : routeFrom(campusMiddle, groundStops);
+  const feedGames = showingDistrict
+    ? tab === "campus"
+      ? campusGames
+      : tab === "padel"
+        ? events.events.filter((event) => event.type === "padel")
+        : events.events
+    : campusGames;
+  const overviewFrame: CameraFrame = showingDistrict
+    ? { ...districtMiddle, ...districtView, turn: facing }
+    : { ...campusMiddle, ...campusView, turn: facing };
+  const feedName = showingDistrict ? districtName : campusName;
+  const gamesLabel = `${feedGames.length} game${feedGames.length === 1 ? "" : "s"} coming up`;
+  const pages: FeedPage[] = [
+    {
+      kind: "overview",
+      key: "overview",
+      kicker: showingDistrict ? "Around" : "Inside",
+      title: feedName.toUpperCase(),
+      subtitle: showingDistrict
+        ? tab === "padel"
+          ? `${courtStops.length} padel courts · ${gamesLabel}`
+          : tab === "campus"
+            ? `${campusName} · ${gamesLabel}`
+            : `${campusName} and ${courtStops.length} padel courts · ${gamesLabel}`
+        : `${groundStops.length} grounds · ${gamesLabel}`,
+      frame: overviewFrame,
+    },
+    ...stops.map(
+      (stop): FeedPage => ({
+        kind: "place",
+        key: stop.place.id,
+        place: stop.place,
+        kicker: stop.kicker,
+        games:
+          stop.place.id === area?.id ? campusGames : gamesAt(stop.place.id),
+        canGoInside: stop.canGoInside,
+        frame: stop.frame,
+      }),
+    ),
+    {
+      kind: "end",
+      key: "end",
+      title: `That's all ${stops.length} ${stops.length === 1 ? "place" : "places"}`,
+      body: `Nothing at your time? Go back to any of them and tap Start. Your game shows up for everyone around ${feedName}.`,
+      frame: overviewFrame,
+    },
+  ];
+  const startIndex = Math.max(
+    0,
+    pages.findIndex((page) => page.kind === "place" && page.place.id === feedStart.placeID),
+  );
+  const activePlace = pages[activePage]?.kind === "place" ? pages[activePage] : null;
+  const focusPlaceID = activePlace?.kind === "place" ? activePlace.place.id : null;
+
+  // A place counts as viewed after the feed rests on it (see viewDelay). The campus's own
+  // page is an area, not a map place, so it is not recorded as a place view.
   useEffect(() => {
-    // Only count an impression of the successful query currently shown, never stale/loading/error data.
-    if (
-      !discoveryVisible ||
-      !queryKey ||
-      loadedQuery !== queryKey ||
-      !mapLoaded ||
-      loadingPlaces ||
-      areaError ||
-      placesError ||
-      mapError
-    )
+    const viewed = focusPlaceID === area?.id ? null : focusPlaceID;
+    const timer = setTimeout(() => setViewedPlaceID(viewed), viewDelay);
+    return () => clearTimeout(timer);
+  }, [focusPlaceID, area?.id]);
+
+  // Discovery impressions: in map mode, the map's results; in the feed, whether the place
+  // being viewed has no games. Only the successful query currently shown counts.
+  useEffect(() => {
+    if (!discoveryVisible || !queryKey || loadedQuery !== queryKey || loadingPlaces || areaError || placesError)
       return;
-    if (selected) {
-      if (placeInteraction.current)
-        discovery.observePlaceResults(
-          placeInteraction.current,
-          sport,
-          !events.truncated &&
-            (events.place_counts[selected.properties.id] ?? 0) === 0,
-        );
-    } else {
+    if (mapMode) {
       const emptyKind =
         places.truncated || events.truncated
           ? null
@@ -174,52 +379,53 @@ export default function MapScreen() {
               : null;
       // Coordinate-based fingerprints are local deduplication only, not activity data.
       const viewKey = bounds?.map((value) => value.toFixed(5)).join(",") ?? "";
-      discovery.observeMapResults(viewKey, sport, emptyKind);
+      discovery.observeMapResults(viewKey, "all", emptyKind);
+    } else if (viewedPlaceID && placeInteraction.current) {
+      discovery.observePlaceResults(
+        placeInteraction.current,
+        "all",
+        !events.truncated && (events.place_counts[viewedPlaceID] ?? 0) === 0,
+      );
     }
   }, [
     discovery,
     discoveryVisible,
     queryKey,
     loadedQuery,
-    mapLoaded,
+    mapMode,
     loadingPlaces,
     areaError,
     placesError,
-    mapError,
-    selected,
+    viewedPlaceID,
     events,
     places,
-    sport,
     bounds,
     placeInteraction,
   ]);
 
   const coordinates = deviceLocation.position?.coords;
-  // MapLibre uses a 512-pixel world at zoom zero; convert GPS metres to pixels.
-  const accuracyAtZoomZero = coordinates
-    ? (coordinates.accuracy ?? 0) /
-      (78271.51696 *
-        Math.cos(
-          (Math.min(85, Math.abs(coordinates.latitude)) * Math.PI) / 180,
-        ))
-    : 0;
+  const you: [number, number] | null = coordinates
+    ? [coordinates.longitude, coordinates.latitude]
+    : null;
 
   useEffect(() => {
-    if (!deviceLocation.position || !mapLoaded || !centreOnNextLocation.current)
-      return;
+    if (!you || !origin || !centreOnNextLocation.current) return;
     centreOnNextLocation.current = false;
-    camera.current?.easeTo({
-      center: [
-        deviceLocation.position.coords.longitude,
-        deviceLocation.position.coords.latitude,
-      ],
-      zoom: 16,
-      duration: 0,
-    });
-  }, [deviceLocation.position, mapLoaded]);
+    const point = toScene(you, origin);
+    // The map covers the district's bounds (or the campus's without a district).
+    const box = district?.bbox ?? area?.bbox;
+    const away = box
+      ? you[0] < box[0] || you[0] > box[2] || you[1] < box[1] || you[1] > box[3]
+      : false;
+    setOffCampus(away);
+    if (!away) campusScene.current?.moveTo(closeUp(point, { distance: 40, tilt: 0.9 }), { slow: true });
+    // `you` changes identity every render; its coordinates are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coordinates?.latitude, coordinates?.longitude, origin?.[0], origin?.[1]]);
 
   function showMyLocation() {
-    setSelected(null);
+    setLocationAsked(true);
+    setOffCampus(false);
     centreOnNextLocation.current = true;
     deviceLocation.locate();
   }
@@ -240,15 +446,51 @@ export default function MapScreen() {
           if (active) setAreaError("This area has no mapped grounds yet.");
           return;
         }
+        // The campus's parent area (DHA) is the district the feed opens on. Its venues
+        // belong to its phases, so its bounds are the union of the phases' bounds. The
+        // campus still works on its own if this fails; Try again reloads both.
+        let loadedDistrict: Area | null = null;
+        let loadedChildren: ChildArea[] = [];
+        if (loadedArea.parent_id) {
+          try {
+            const [districtResponse, childrenResponse] = await Promise.all([
+              fetch(`${apiURL}/areas/${loadedArea.parent_id}`, { signal: controller.signal }),
+              fetch(`${apiURL}/areas/${loadedArea.parent_id}/children`, {
+                signal: controller.signal,
+              }),
+            ]);
+            if (districtResponse.ok && childrenResponse.ok) {
+              loadedDistrict = await districtResponse.json();
+              loadedChildren = (await childrenResponse.json()).features;
+            }
+          } catch {
+            // Leave the district out; the campus loads on its own.
+          }
+        }
+        const childBoxes = loadedChildren.flatMap((child) =>
+          child.properties.bbox ? [child.properties.bbox] : [],
+        );
+        const districtBounds: LngLatBounds | null = childBoxes.length
+          ? [
+              Math.min(...childBoxes.map((box) => box[0])),
+              Math.min(...childBoxes.map((box) => box[1])),
+              Math.max(...childBoxes.map((box) => box[2])),
+              Math.max(...childBoxes.map((box) => box[3])),
+            ]
+          : null;
         if (active) {
           setAreaError("");
           setArea(loadedArea);
-          setBounds(loadedArea.bbox);
+          setDistrict(
+            loadedDistrict && districtBounds ? { ...loadedDistrict, bbox: districtBounds } : null,
+          );
+          setDistrictAreas(loadedChildren);
+          setBounds(districtBounds ?? loadedArea.bbox);
         }
       } catch {
         if (active)
           setAreaError(
-            "Could not load the campus. Check your connection and try again.",
+            "Could not load the map. Check your connection and try again.",
           );
       } finally {
         clearTimeout(timeout);
@@ -262,22 +504,24 @@ export default function MapScreen() {
     };
   }, [retry]);
 
+  // Places and every upcoming game for the whole district, in one load. It reloads on
+  // open, after this user creates, joins or cancels (eventRefresh), on Try again, and
+  // when the app returns to the foreground; the last results stay visible meanwhile.
+  // No live updates: map-wide realtime is separate work in plan.md.
   useEffect(() => {
-    if (!bounds) return;
+    if (!bounds || !foreground) return;
     let active = true;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
-    // Query after the camera settles; cancel superseded requests to avoid stale pins.
-    const debounce = setTimeout(async () => {
+    async function loadPlacesAndEvents() {
       setLoadingPlaces(true);
-      setEvents({ events: [], place_counts: {}, truncated: false });
       setPlacesError("");
       try {
         const [placesResponse, eventsResponse] = await Promise.all([
-          fetch(`${apiURL}/places?bbox=${bounds.join(",")}`, {
+          fetch(`${apiURL}/places?bbox=${bounds!.join(",")}`, {
             signal: controller.signal,
           }),
-          fetch(`${apiURL}/events?bbox=${bounds.join(",")}&type=${eventType}`, {
+          fetch(`${apiURL}/events?bbox=${bounds!.join(",")}&type=`, {
             signal: controller.signal,
           }),
         ]);
@@ -288,348 +532,225 @@ export default function MapScreen() {
         if (active) {
           setPlaces(loadedPlaces);
           setEvents(loadedEvents);
-          setLoadedQuery(`${bounds!.join(",")}|${eventType}`);
-          setSelected((current) =>
-            current
-              ? (loadedPlaces.features.find(
-                  (place) => place.id === current.id,
-                ) ?? null)
-              : null,
-          );
+          setLoadedQuery(bounds!.join(","));
         }
       } catch {
         if (active)
-          setPlacesError("Could not refresh places and events. Try again.");
+          setPlacesError("Could not refresh places and games. Try again.");
       } finally {
         clearTimeout(timeout);
         if (active) setLoadingPlaces(false);
       }
-    }, 250);
+    }
+    void loadPlacesAndEvents();
     return () => {
       active = false;
-      clearTimeout(debounce);
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [bounds, retry, eventType, eventRefresh]);
+  }, [bounds, retry, eventRefresh, foreground]);
 
-  useEffect(() => {
-    if (!area || mapLoaded || mapError) return;
-    const timeout = setTimeout(() => setMapError(true), 20000);
-    return () => clearTimeout(timeout);
-  }, [area, mapLoaded, mapError, mapVersion]);
-
-  function recentre() {
-    centreOnNextLocation.current = false;
-    setSelected(null);
-    if (area?.bbox)
-      camera.current?.fitBounds(area.bbox, {
-        duration: 0,
-        padding: { top: 120, right: 40, bottom: 130, left: 40 },
-      });
+  // Opens a feed, landing on a place in it or on its overview.
+  function openFeed(nextLevel: FeedLevel, nextTab: FeedTab, placeID: string | null) {
+    setLevel(nextLevel);
+    setTab(nextTab);
+    setFeedStart((current) => ({ placeID, nonce: current.nonce + 1 }));
   }
+
+  // Inside the campus, back returns to the district's feed, landing on the campus.
+  const backOutOfCampus =
+    level === "campus" && district ? () => openFeed("district", "all", area?.id ?? null) : null;
+
+  // Map mode's back button: return to the feed, at the place it was showing.
+  function leaveMapMode() {
+    setMapMode(false);
+    setLocationAsked(false);
+    openFeed(level, tab, focusPlaceID);
+  }
+
+  // A tap on the map in map mode: back to the feed, at the place tapped.
+  function showPlaceInFeed(placeID: string | null) {
+    if (!placeID) return;
+    setMapMode(false);
+    setLocationAsked(false);
+    const onCampus = campusPlaces.some((place) => place.properties.id === placeID);
+    if (onCampus || !district) openFeed("campus", "all", placeID);
+    else openFeed("district", tab === "campus" ? "all" : tab, placeID);
+  }
+
+  const ready = Boolean(area?.boundary && origin && loadedQuery !== null && !areaError);
+  const toScenePlace = (place: Place): ScenePlace => ({
+    id: place.properties.id,
+    name: place.properties.name,
+    type: place.properties.type,
+    coordinates: place.geometry.coordinates as [number, number],
+    boundary: place.properties.boundary ?? null,
+  });
+  const scenePlaces = campusPlaces.map(toScenePlace);
+  const sceneDistrict = district
+    ? {
+        areas: districtAreas.map(
+          (child): SceneArea => ({
+            id: child.properties.id,
+            name: child.properties.name,
+            type: child.properties.type,
+            boundary: child.geometry,
+          }),
+        ),
+        courts: courtSpots,
+      }
+    : null;
+  // One ball per place with games, labelled with its next game.
+  const scenePins: ScenePin[] = [];
+  for (const event of events.events) {
+    if (scenePins.some((pin) => pin.placeID === event.place.id)) continue;
+    scenePins.push({
+      placeID: event.place.id,
+      sport: event.type,
+      full: event.is_full,
+      headline: event.is_full ? "Full" : `${event.available_spots} left`,
+      detail: `${event.type === "cricket" ? "Tape-ball" : sportNames[event.type]}, ${new Date(
+        event.starts_at,
+      ).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
+    });
+  }
+  // Names on the map: each venue without a game, and each phase with its number of courts.
+  const sceneLabels: SceneLabel[] = [
+    ...venues
+      .filter((venue) => !scenePins.some((pin) => pin.placeID === venue.properties.id))
+      .map(
+        (venue): SceneLabel => ({
+          id: `venue:${venue.properties.id}`,
+          kind: "venue",
+          placeID: venue.properties.id,
+          coordinates: venue.geometry.coordinates as [number, number],
+          text: venue.properties.name,
+        }),
+      ),
+    ...districtAreas.flatMap((child): SceneLabel[] => {
+      const box = child.properties.bbox;
+      if (!box) return [];
+      const courtCount = venues.filter(
+        (venue) => venue.properties.area_id === child.properties.id,
+      ).length;
+      return [
+        {
+          id: `area:${child.properties.id}`,
+          kind: "area",
+          placeID: null,
+          coordinates: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2],
+          text: courtCount
+            ? `${child.properties.name} · ${courtCount} padel`
+            : child.properties.name,
+        },
+      ];
+    }),
+  ];
+  // The map shows the real time of day; it is not changed by swiping.
+  const now = new Date();
+  const sceneHour = now.getHours() + now.getMinutes() / 60;
+  const path = showingDistrict
+    ? ["Lahore", districtName]
+    : district
+      ? ["Lahore", districtName, campusName]
+      : ["Lahore", campusName];
 
   return (
     <View style={styles.root}>
-      {area?.bbox && (
-        <Map
-          key={mapVersion}
-          mapStyle={mapStyle}
-          style={StyleSheet.absoluteFill}
-          attributionPosition={{ bottom: 8, left: 8 }}
-          logoPosition={{ bottom: 8, right: 8 }}
-          onPress={() => setSelected(null)}
-          onRegionDidChange={(event) => setBounds(event.nativeEvent.bounds)}
-          onDidFinishLoadingStyle={() => {
-            setMapLoaded(true);
-            setMapError(false);
+      {/* One scene for the feed and map mode, so it is never rebuilt. */}
+      {ready && area?.boundary && origin && (
+        <CampusScene
+          ref={campusScene}
+          boundary={area.boundary}
+          origin={origin}
+          places={scenePlaces}
+          district={sceneDistrict}
+          pins={scenePins}
+          labels={sceneLabels}
+          focusPlaceID={mapMode ? null : focusPlaceID}
+          hour={sceneHour}
+          initialFrame={pages[startIndex].frame}
+          reduceMotion={reduceMotion}
+          interactive={mapMode}
+          onPlacePress={showPlaceInFeed}
+          you={you}
+        />
+      )}
+      {ready && !mapMode && (
+        <PlaceFeed
+          key={`${level}:${tab}:${feedStart.nonce}`}
+          pages={pages}
+          initialIndex={startIndex}
+          tabs={showingDistrict ? districtTabs : []}
+          activeTab={tab}
+          reduceMotion={reduceMotion}
+          onTabChange={(key) => openFeed("district", key as FeedTab, null)}
+          onCameraFrame={(frame, arriving) =>
+            campusScene.current?.moveTo(frame, { slow: arriving })
+          }
+          onPageChange={setActivePage}
+          onGoInside={(place) => {
+            if (place.id === area?.id) openFeed("campus", "all", null);
           }}
-          onDidFinishLoadingMap={() => {
-            setMapLoaded(true);
-            setMapError(false);
+          onBack={backOutOfCampus}
+          onOpenEvent={(event) => {
+            setEventReferrer(placeInteraction.current?.id ?? discovery.id);
+            setEventID(event.id);
           }}
-          onDidFailLoadingMap={() => {
-            setMapLoaded(false);
-            setMapError(true);
-          }}
-        >
-          <Camera
-            ref={camera}
-            initialViewState={{
-              bounds: area.bbox,
-              padding: { top: 120, right: 40, bottom: 130, left: 40 },
-            }}
-          />
-          {area.boundary && (
-            <GeoJSONSource
-              id="campus-outline"
-              data={{
-                type: "Feature",
-                properties: {},
-                geometry: area.boundary,
-              }}
-            >
-              <Layer
-                id="campus-fill"
-                type="fill"
-                paint={{ "fill-color": "#1D5B3A", "fill-opacity": 0.06 }}
+          // The campus is not one place to play at, so Start there means picking a ground.
+          onStartGame={(place) =>
+            place.id === area?.id ? openFeed("campus", "all", null) : setCreationPlace(place)
+          }
+          onOpenMap={() => setMapMode(true)}
+        />
+      )}
+      {ready && mapMode && (
+        <Glass style={styles.hint}>
+          <Text style={styles.hintText}>
+            {offCampus
+              ? `You’re outside ${feedName}, so the view stays where it is.`
+              : "Drag to turn · Pinch to zoom · Tap a court or ground"}
+          </Text>
+        </Glass>
+      )}
+      {/* One top bar for the feed and map mode, so it never jumps between them. */}
+      {ready && (
+        <TopBar
+          path={mapMode ? [...path, "Map"] : path}
+          onBack={mapMode ? leaveMapMode : backOutOfCampus}
+          backLabel={mapMode ? "the feed" : districtName}
+          tabs={showingDistrict && !mapMode ? districtTabs : []}
+          activeTab={tab}
+          onTabChange={(key) => openFeed("district", key as FeedTab, null)}
+          trailing={
+            mapMode ? (
+              <TopBarButton
+                symbol="location.fill"
+                fallback="◎"
+                label={deviceLocation.finding ? "Finding…" : "My Location"}
+                accessibilityLabel={deviceLocation.finding ? "Finding your location" : "Show my location"}
+                busy={deviceLocation.finding}
+                onPress={showMyLocation}
               />
-              <Layer
-                id="campus-line"
-                type="line"
-                paint={{
-                  "line-color": "#1D5B3A",
-                  "line-width": 2,
-                  "line-dasharray": [3, 2],
-                }}
+            ) : (
+              <TopBarButton
+                symbol="map"
+                fallback="◇"
+                label="Map"
+                accessibilityLabel="Open the map"
+                onPress={() => setMapMode(true)}
               />
-            </GeoJSONSource>
-          )}
-          {selected?.properties.boundary && (
-            <GeoJSONSource
-              id="selected-outline"
-              data={{
-                type: "Feature",
-                properties: {},
-                geometry: selected.properties.boundary,
-              }}
-            >
-              <Layer
-                id="selected-fill"
-                type="fill"
-                paint={{ "fill-color": "#E3342F", "fill-opacity": 0.18 }}
-              />
-              <Layer
-                id="selected-line"
-                type="line"
-                paint={{ "line-color": "#E3342F", "line-width": 2 }}
-              />
-            </GeoJSONSource>
-          )}
-          <GeoJSONSource
-            ref={placeSource}
-            id="places"
-            data={mapPlaces}
-            cluster
-            clusterRadius={42}
-            clusterMaxZoom={15}
-            onPress={async (event) => {
-              event.stopPropagation();
-              const feature = event.nativeEvent.features[0];
-              if (!feature) return;
-              if (
-                feature.properties?.cluster &&
-                feature.geometry.type === "Point"
-              ) {
-                const zoom = await placeSource.current?.getClusterExpansionZoom(
-                  feature.properties.cluster_id,
-                );
-                if (zoom !== undefined)
-                  camera.current?.easeTo({
-                    center: feature.geometry.coordinates as [number, number],
-                    zoom,
-                    duration: 250,
-                  });
-              } else {
-                setSelected(
-                  places.features.find((place) => place.id === feature.id) ??
-                    null,
-                );
-              }
-            }}
-          >
-            <Layer
-              id="clusters"
-              type="circle"
-              filter={["has", "point_count"]}
-              paint={{
-                "circle-radius": 24,
-                "circle-color": "#1D5B3A",
-                "circle-stroke-color": "#F4F5F0",
-                "circle-stroke-width": 3,
-              }}
-            />
-            <Layer
-              id="cluster-count"
-              type="symbol"
-              filter={["has", "point_count"]}
-              layout={{
-                "text-field": [
-                  "concat",
-                  ["to-string", ["get", "point_count_abbreviated"]],
-                  "\nplaces",
-                ],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 11,
-              }}
-              paint={{ "text-color": "#FFFFFF" }}
-            />
-            <Layer
-              id="ground-pins"
-              type="circle"
-              filter={["!", ["has", "point_count"]]}
-              paint={{
-                "circle-radius": [
-                  "case",
-                  ["==", ["get", "id"], selected?.properties.id ?? ""],
-                  16,
-                  13,
-                ],
-                "circle-color": [
-                  "case",
-                  ["==", ["get", "id"], selected?.properties.id ?? ""],
-                  "#E3342F",
-                  "#1D5B3A",
-                ],
-                "circle-stroke-color": "#FFFFFF",
-                "circle-stroke-width": 3,
-              }}
-            />
-            <Layer
-              id="event-counts"
-              type="symbol"
-              filter={["!", ["has", "point_count"]]}
-              layout={{
-                "text-field":
-                  loadingPlaces || placesError
-                    ? "…"
-                    : ["to-string", ["get", "event_count"]],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 12,
-              }}
-              paint={{ "text-color": "#FFFFFF" }}
-            />
-            <Layer
-              id="ground-labels"
-              type="symbol"
-              minzoom={16}
-              filter={["!", ["has", "point_count"]]}
-              layout={{
-                "text-field": ["get", "name"],
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 12,
-                "text-anchor": "top",
-                "text-offset": [0, 1.2],
-              }}
-              paint={{
-                "text-color": "#15201B",
-                "text-halo-color": "#FFFFFF",
-                "text-halo-width": 2,
-              }}
-            />
-          </GeoJSONSource>
-          {coordinates && (
-            <GeoJSONSource
-              id="device-location"
-              data={{
-                type: "Feature",
-                properties: {},
-                geometry: {
-                  type: "Point",
-                  coordinates: [coordinates.longitude, coordinates.latitude],
-                },
-              }}
-            >
-              <Layer
-                id="location-accuracy"
-                type="circle"
-                paint={{
-                  "circle-radius": [
-                    "interpolate",
-                    ["exponential", 2],
-                    ["zoom"],
-                    0,
-                    accuracyAtZoomZero,
-                    24,
-                    accuracyAtZoomZero * 2 ** 24,
-                  ],
-                  "circle-color": "#2678D8",
-                  "circle-opacity": 0.14,
-                  "circle-stroke-color": "#2678D8",
-                  "circle-stroke-width": 1,
-                  "circle-stroke-opacity": 0.3,
-                  "circle-pitch-alignment": "map",
-                }}
-              />
-              <Layer
-                id="location-dot"
-                type="circle"
-                paint={{
-                  "circle-radius": 8,
-                  "circle-color": "#2678D8",
-                  "circle-stroke-color": "#FFFFFF",
-                  "circle-stroke-width": 3,
-                }}
-              />
-            </GeoJSONSource>
-          )}
-        </Map>
+            )
+          }
+        />
       )}
 
-      <View style={styles.header}>
-        <Text style={styles.kicker}>CAMPUS PICKUP</Text>
-        <Text style={styles.title}>{area?.name ?? "LUMS"}</Text>
-        <Text style={styles.subtitle}>Find a place. See what’s happening.</Text>
-        <View style={styles.filters}>
-          {(["", "football", "cricket"] as const).map((type) => (
-            <Pressable
-              key={type}
-              accessibilityRole="button"
-              accessibilityState={{ selected: eventType === type }}
-              onPress={() => {
-                if (discovery.selectSport(type || "all")) setEventType(type);
-              }}
-              style={[styles.filter, eventType === type && styles.activeFilter]}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  eventType === type && styles.activeFilterText,
-                ]}
-              >
-                {type ? type[0].toUpperCase() + type.slice(1) : "All"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-      <View style={styles.mapControls}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Show my location"
-          accessibilityState={{
-            disabled: !mapLoaded || deviceLocation.finding,
-            busy: deviceLocation.finding,
-          }}
-          disabled={!mapLoaded || deviceLocation.finding}
-          onPress={showMyLocation}
-          style={styles.recentre}
-        >
-          {deviceLocation.finding ? (
-            <ActivityIndicator color="#2678D8" />
-          ) : null}
-          <Text style={styles.buttonText}>
-            {deviceLocation.finding
-              ? "Finding your location…"
-              : "◎ My location"}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Recentre on campus"
-          onPress={recentre}
-          style={styles.recentre}
-        >
-          <Text style={styles.buttonText}>↗ {area?.name ?? "Campus"}</Text>
-        </Pressable>
-      </View>
-
-      {deviceLocation.error && (
-        <View style={styles.locationStatus} accessibilityLiveRegion="polite">
+      {mapMode && locationAsked && deviceLocation.error && (
+        <View style={styles.status} accessibilityLiveRegion="polite">
           <Text style={styles.body}>{deviceLocation.error}</Text>
-          <View style={styles.locationActions}>
+          <View style={styles.statusActions}>
             {deviceLocation.settingsRequired && (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 onPress={() => {
                   void Linking.openSettings().catch(() => {
@@ -639,169 +760,36 @@ export default function MapScreen() {
                     );
                   });
                 }}
-                style={styles.retry}
+                style={styles.statusButton}
               >
-                <Text style={styles.buttonText}>Open Settings</Text>
-              </Pressable>
+                <Text style={styles.statusButtonText}>Open Settings</Text>
+              </PressableScale>
             )}
-            <Pressable
-              accessibilityRole="button"
-              onPress={showMyLocation}
-              style={styles.retry}
-            >
-              <Text style={styles.buttonText}>Try location again</Text>
-            </Pressable>
+            <PressableScale accessibilityRole="button" onPress={showMyLocation} style={styles.statusButton}>
+              <Text style={styles.statusButtonText}>Try Again</Text>
+            </PressableScale>
           </View>
         </View>
       )}
 
-      {areaError || placesError || mapError ? (
+      {areaError || (placesError && !ready) ? (
         <View style={styles.status}>
-          <Text style={styles.body}>
-            {areaError ||
-              (mapError
-                ? "The map could not load. Check your connection and try again."
-                : placesError)}
-          </Text>
-          <Pressable
+          <Text style={styles.body}>{areaError || placesError}</Text>
+          <PressableScale
             accessibilityRole="button"
-            onPress={() => {
-              setRetry((value) => value + 1);
-              if (mapError) {
-                setMapError(false);
-                setMapLoaded(false);
-                setMapVersion((value) => value + 1);
-              }
-            }}
-            style={styles.retry}
+            onPress={() => setRetry((value) => value + 1)}
+            style={styles.statusButton}
           >
-            <Text style={styles.buttonText}>Try again</Text>
-          </Pressable>
+            <Text style={styles.statusButtonText}>Try Again</Text>
+          </PressableScale>
         </View>
-      ) : !area || !mapLoaded || loadingPlaces ? (
+      ) : !ready ? (
         <View style={styles.loading}>
-          <ActivityIndicator color="#1D5B3A" />
-          <Text style={styles.body}>
-            {!area
-              ? "Loading campus…"
-              : !mapLoaded
-                ? "Loading map…"
-                : "Loading places and events…"}
-          </Text>
+          <ActivityIndicator color={colors.tint} />
+          <Text style={styles.body}>Loading the map…</Text>
         </View>
       ) : null}
 
-      {selected ? (
-        <View style={styles.sheet}>
-          <View style={styles.sheetHeading}>
-            <Text style={styles.kicker}>
-              {selected.properties.type.toUpperCase()}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close place details"
-              onPress={() => setSelected(null)}
-            >
-              <Text style={styles.buttonText}>Close</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.placeName}>{selected.properties.name}</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              setCreatedAtPlace(null);
-              setCreationPlace({
-                id: selected.properties.id,
-                name: selected.properties.name,
-              });
-            }}
-            style={styles.createButton}
-          >
-            <Text style={styles.createText}>+ Create event here</Text>
-          </Pressable>
-          {createdAtPlace === selected.properties.id && (
-            <Text style={styles.body}>
-              Event created. You’re on the participant list.
-            </Text>
-          )}
-          <ScrollView style={styles.eventList}>
-            {loadingPlaces ? (
-              <Text style={styles.body}>Loading upcoming events…</Text>
-            ) : placesError ? (
-              <Text style={styles.body}>
-                Events unavailable. Use Try again above.
-              </Text>
-            ) : (
-              <>
-                <Text style={styles.body}>
-                  {events.place_counts[selected.properties.id] ?? 0} upcoming
-                  events
-                </Text>
-                {placeEvents.map((event) => (
-                  <Pressable
-                    key={event.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`View ${event.title}`}
-                    onPress={() => {
-                      setEventReferrer(placeInteraction.current?.id);
-                      setEventID(event.id);
-                    }}
-                    style={styles.eventCard}
-                  >
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    <Text style={styles.body}>
-                      {new Date(event.starts_at).toLocaleString([], {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </Text>
-                    <Text style={styles.source}>
-                      {event.type.toUpperCase()} · {event.participant_count}/
-                      {event.capacity} going ·{" "}
-                      {event.is_full
-                        ? "Full"
-                        : `${event.available_spots} spots left`}
-                    </Text>
-                  </Pressable>
-                ))}
-                {!placeEvents.length && !events.truncated && (
-                  <Text style={styles.body}>
-                    No upcoming {eventType || ""} events here yet.
-                  </Text>
-                )}
-                {events.truncated && (
-                  <Text style={styles.body}>
-                    Zoom in to load all events at this place.
-                  </Text>
-                )}
-              </>
-            )}
-          </ScrollView>
-          <Text style={styles.source}>
-            Community-mapped location · OpenStreetMap
-          </Text>
-        </View>
-      ) : area &&
-        mapLoaded &&
-        !loadingPlaces &&
-        !placesError &&
-        !areaError &&
-        !mapError ? (
-        <View style={styles.hint}>
-          <Text style={styles.body}>
-            {places.truncated || events.truncated
-              ? "Zoom in to see all places and events."
-              : places.features.length
-                ? events.events.length
-                  ? "Zoom into clusters. Place markers show event counts."
-                  : "No upcoming events in this view. Tap a place to explore."
-                : "No places mapped in this view yet."}
-          </Text>
-        </View>
-      ) : null}
       {eventID && (
         <EventDetails
           key={eventID}
@@ -815,16 +803,14 @@ export default function MapScreen() {
       {creationPlace && (
         <EventForm
           place={creationPlace}
+          defaultType={creationPlace.sport}
           apiURL={apiURL}
           onClose={() => {
             setCreationPlace(null);
             setEventRefresh((value) => value + 1);
           }}
           onSaved={() => {
-            setCreatedAtPlace(creationPlace.id);
             setCreationPlace(null);
-            discovery.resetSport();
-            setEventType("");
             setEventRefresh((value) => value + 1);
           }}
         />
@@ -833,125 +819,58 @@ export default function MapScreen() {
   );
 }
 
+// Messages (loading, errors) sit on solid cards: they are content, not floating controls.
+const card = {
+  backgroundColor: colors.surface,
+  borderRadius: 24,
+  borderCurve: "continuous" as const,
+  shadowColor: "#000",
+  shadowOpacity: 0.16,
+  shadowRadius: 20,
+  shadowOffset: { width: 0, height: 8 },
+};
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0" },
-  createButton: {
-    backgroundColor: "#1D5B3A",
-    borderRadius: 18,
-    padding: 14,
-    alignItems: "center",
-  },
-  createText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
-  header: {
-    position: "absolute",
-    top: 62,
-    left: 16,
-    right: 75,
-    padding: 16,
-    borderRadius: 22,
-    backgroundColor: "#F4F5F0",
-  },
-  kicker: {
-    color: "#1D5B3A",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.5,
-  },
-  title: {
-    fontFamily: "BigShoulders",
-    fontSize: 48,
-    lineHeight: 52,
-    color: "#15201B",
-  },
-  subtitle: { fontSize: 13, color: "#6C786E" },
-  filters: { flexDirection: "row", gap: 6, marginTop: 12 },
-  filter: {
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    borderRadius: 18,
-    backgroundColor: "#E5E9DF",
-  },
-  activeFilter: { backgroundColor: "#1D5B3A" },
-  filterText: { color: "#1D5B3A", fontWeight: "700", fontSize: 12 },
-  activeFilterText: { color: "#FFFFFF" },
-  eventList: { maxHeight: 240 },
-  eventCard: {
-    paddingVertical: 14,
-    gap: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#DEE3D8",
-  },
-  eventTitle: { fontSize: 18, color: "#15201B", fontWeight: "700" },
-  mapControls: {
-    position: "absolute",
-    right: 16,
-    top: 245,
-    gap: 8,
-    alignItems: "flex-end",
-  },
-  recentre: {
-    backgroundColor: "#F4F5F0",
-    padding: 14,
-    borderRadius: 24,
-    flexDirection: "row",
-    gap: 8,
-  },
-  locationStatus: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    top: 440,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: "#F4F5F0",
-  },
-  locationActions: { flexDirection: "row", flexWrap: "wrap", gap: 20 },
-  buttonText: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
+  root: { flex: 1, backgroundColor: colors.chalk },
   loading: {
+    ...card,
     position: "absolute",
-    top: 365,
+    top: "45%",
     alignSelf: "center",
     flexDirection: "row",
+    alignItems: "center",
     gap: 10,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: "#F4F5F0",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   status: {
+    ...card,
     position: "absolute",
-    top: 365,
-    left: 16,
-    right: 16,
-    padding: 18,
-    borderRadius: 20,
-    backgroundColor: "#F4F5F0",
+    bottom: 24,
+    left: margin - 4,
+    right: margin - 4,
+    padding: 20,
     gap: 12,
   },
-  retry: { alignSelf: "flex-start", paddingVertical: 8 },
-  body: { color: "#15201B", fontSize: 14, lineHeight: 21 },
+  statusActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  statusButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    backgroundColor: colors.tintSoft,
+  },
+  statusButtonText: { ...type.headline, color: colors.tint },
+  body: { ...type.body, color: colors.ink },
   hint: {
     position: "absolute",
-    bottom: 40,
+    bottom: 24,
     alignSelf: "center",
-    padding: 14,
-    backgroundColor: "#F4F5F0",
-    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.6)",
   },
-  sheet: {
-    position: "absolute",
-    bottom: 40,
-    left: 12,
-    right: 12,
-    padding: 22,
-    borderRadius: 26,
-    backgroundColor: "#F4F5F0",
-    gap: 10,
-  },
-  sheetHeading: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  placeName: { fontFamily: "BigShoulders", fontSize: 34, color: "#15201B" },
-  source: { fontSize: 11, color: "#6C786E" },
+  hintText: { ...type.footnote, fontWeight: "600", color: colors.ink },
 });

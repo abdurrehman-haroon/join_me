@@ -1,0 +1,3 @@
+# The API checksums migration files byte for byte, so every checkout (including
+# Windows with core.autocrlf) must keep the repository's line endings.
+*.sql text eol=lf

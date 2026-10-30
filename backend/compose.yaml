@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: joinme
       POSTGRES_DB: joinme
     ports:
-      - "127.0.0.1:5432:5432"
+      # JOINME_DB_PORT changes the host port when 5432 is already taken.
+      - "127.0.0.1:${JOINME_DB_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:

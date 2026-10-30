@@ -83,7 +83,8 @@ else
 fi
 
 cd "$PROJECT_DIR/frontend"
-if [[ ! -d node_modules ]]; then pnpm install --frozen-lockfile; fi
+# Install every time so a pulled package change (such as an Expo SDK upgrade) is applied.
+pnpm install --frozen-lockfile
 simulator_info="$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
 runtime, name = sys.argv[1:]

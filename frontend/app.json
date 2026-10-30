@@ -9,6 +9,9 @@
     "ios": {
       "bundleIdentifier": "com.abdrhsteam.campuspickup"
     },
+    "android": {
+      "package": "com.abdrhsteam.campuspickup"
+    },
     "plugins": [
       [
         "expo-location",
@@ -16,15 +19,8 @@
           "locationWhenInUsePermission": "Campus Pickup uses your location to show where you are on the map."
         }
       ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "enableSceneSupport": true
-          }
-        }
-      ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-font"
     ]
   }
 }

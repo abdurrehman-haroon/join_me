@@ -37,6 +37,43 @@ func (q *Queries) GetArea(ctx context.Context, id pgtype.UUID) ([]byte, error) {
 	return area, err
 }
 
+const listChildAreas = `-- name: ListChildAreas :one
+SELECT jsonb_build_object(
+    'type', 'FeatureCollection',
+    'features', COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+            'type', 'Feature', 'id', child.id,
+            'geometry', ST_AsGeoJSON(child.boundary)::jsonb,
+            'properties', jsonb_build_object(
+                'id', child.id, 'parent_id', child.parent_id, 'name', child.name, 'type', child.type,
+                'bbox', CASE WHEN child.view_boundary IS NOT NULL THEN jsonb_build_array(
+                    ST_XMin(Box3D(child.view_boundary)), ST_YMin(Box3D(child.view_boundary)),
+                    ST_XMax(Box3D(child.view_boundary)), ST_YMax(Box3D(child.view_boundary))) ELSE NULL END,
+                'created_at', child.created_at, 'updated_at', child.updated_at)
+        ) ORDER BY child.name)
+        FROM (
+            -- Areas without a mapped outline, like Rahbar, are framed by their places.
+            SELECT areas.id, areas.parent_id, areas.name, areas.type, areas.boundary, areas.created_at, areas.updated_at, COALESCE(boundary, (
+                SELECT ST_Expand(ST_Extent(location)::geometry, 0.001)
+                FROM places WHERE area_id = areas.id
+            )) AS view_boundary
+            FROM areas WHERE areas.parent_id = parent.id
+        ) AS child
+    ), '[]'::jsonb)
+)::jsonb AS areas
+FROM areas AS parent
+WHERE parent.id = $1
+`
+
+// The areas inside an area (DHA's phases), with outlines for drawing them. Returns no row
+// when the parent area does not exist.
+func (q *Queries) ListChildAreas(ctx context.Context, id pgtype.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, listChildAreas, id)
+	var areas []byte
+	err := row.Scan(&areas)
+	return areas, err
+}
+
 const listPlacesInBounds = `-- name: ListPlacesInBounds :one
 WITH visible_places AS (
     SELECT id, area_id, name, type, location, boundary, created_at, updated_at FROM places
