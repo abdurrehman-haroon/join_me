@@ -95,9 +95,9 @@ func TestPersonalActivity(t *testing.T) {
 	exec(`INSERT INTO events(id,host_id,place_id,status_id,title,type,starts_at,capacity)
         SELECT ('30000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
             CASE WHEN n=1 THEN $1::uuid ELSE '20000000-0000-4000-8000-000000000002'::uuid END,
-            '00000000-0000-4000-8000-000000000003',
+            '00000000-0000-4000-8000-000000000100',
             CASE WHEN n IN (1,3) THEN '10000000-0000-4000-8000-000000000002'::uuid ELSE '10000000-0000-4000-8000-000000000001'::uuid END,
-            'Event '||n, CASE WHEN n=3 THEN 'cricket'::event_type ELSE 'football'::event_type END,
+            'Event '||n, CASE WHEN n=3 THEN 'cricket' ELSE 'football' END,
             now()+interval '1 day',10 FROM generate_series(1,5) n`, actor)
 	exec(`INSERT INTO event_participants(event_id,user_id) VALUES
         ('30000000-0000-4000-8000-000000000001',$1),
@@ -154,7 +154,7 @@ func TestPersonalActivity(t *testing.T) {
 		Joined, Hosted int
 	}
 	json.Unmarshal(all["sports"], &sports)
-	if len(sports) != 2 || sports[0].Type != "football" || sports[0].Joined != 2 || sports[0].Hosted != 1 || sports[1].Type != "cricket" || sports[1].Joined != 1 {
+	if len(sports) != 2 || sports[0].Type != "cricket" || sports[0].Joined != 1 || sports[1].Type != "football" || sports[1].Joined != 2 || sports[1].Hosted != 1 {
 		t.Fatalf("sports %s", all["sports"])
 	}
 	var grounds []struct{ Events int }

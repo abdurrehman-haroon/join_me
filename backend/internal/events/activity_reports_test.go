@@ -25,7 +25,7 @@ func testActivityReports(t *testing.T, pool *pgxpool.Pool) {
 	}
 	const event = "30000000-0000-4000-8000-000000000001"
 	const otherEvent = "30000000-0000-4000-8000-000000000002"
-	const place = "00000000-0000-4000-8000-000000000003"
+	const place = "00000000-0000-4000-8000-000000000100"
 	const actor = "20000000-0000-4000-8000-000000000001"
 	const otherActor = "20000000-0000-4000-8000-000000000002"
 	row := 0
@@ -115,7 +115,7 @@ func testActivityReports(t *testing.T, pool *pgxpool.Pool) {
 	expect(previous, "action", "event_creation_submitted", map[string]string{"elapsed_p50_ms": "90000", "active_p50_ms": "50000"})
 	discovery := run("discovery")
 	expect(discovery, "selected_filter", "football", map[string]string{"place_openings": "1", "filter_changes": "1", "map_no_events": "1", "map_no_places": "1", "place_no_events": "1"})
-	expect(discovery, "place_id", place, map[string]string{"place_visits": "1", "visitor_event_views": "2", "views_with_confirmed_join": "1"})
+	expect(discovery, "place_id", place, map[string]string{"place_visits": "1", "visitor_event_views": "3", "views_with_confirmed_join": "1"})
 	hosting := run("hosting")
 	expect(hosting, "edits", "3", map[string]string{"events_edited": "1", "title_edits": "2", "capacity_edits": "1", "reschedules": "2"})
 	expect(hosting, "full_cause", "join", map[string]string{"transitions_to_full": "1"})

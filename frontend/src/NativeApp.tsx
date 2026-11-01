@@ -1,5 +1,15 @@
+import {
+  BarlowCondensed_700Bold,
+  BarlowCondensed_800ExtraBold,
+} from "@expo-google-fonts/barlow-condensed";
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_700Bold,
+} from "@expo-google-fonts/dm-sans";
 import { useFonts } from "expo-font";
 import { useState } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,17 +19,23 @@ import {
 } from "react-native";
 import { ActivitiesProvider } from "./ActivitiesProvider";
 import { RealtimeProvider } from "./RealtimeProvider";
-import MapScreen from "./MapScreen";
+import ExploreScreen from "./ExploreScreen";
 import ProfileScreen from "./ProfileScreen";
 import YourEvents from "./YourEvents";
 
-type Tab = "map" | "events" | "you";
+type Tab = "explore" | "events" | "you";
 
 export default function NativeApp() {
   const [loaded, fontError] = useFonts({
     BigShoulders: require("../assets/BigShouldersDisplayBlack.ttf"),
+    // The Lahore prototype's type, used by the Explore tab.
+    BarlowCondensed_700Bold,
+    BarlowCondensed_800ExtraBold,
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
   });
-  const [tab, setTab] = useState<Tab>("map");
+  const [tab, setTab] = useState<Tab>("explore");
   if (!loaded && !fontError)
     return (
       <View style={styles.loading}>
@@ -27,41 +43,45 @@ export default function NativeApp() {
       </View>
     );
   return (
-    <ActivitiesProvider>
-      <RealtimeProvider>
-        <View style={styles.root}>
-          {tab === "map" && <MapScreen />}
-          {tab === "events" && <YourEvents />}
-          {tab === "you" && <ProfileScreen />}
-          <View style={styles.tabBar} accessibilityRole="tablist">
-            {(
-              [
-                ["map", "◇", "Map"],
-                ["events", "▣", "Your events"],
-                ["you", "♙", "You"],
-              ] as const
-            ).map(([key, icon, label]) => (
-              <Pressable
-                key={key}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: tab === key }}
-                onPress={() => setTab(key)}
-                style={styles.tabButton}
-              >
-                <Text style={[styles.tabIcon, tab === key && styles.activeTab]}>
-                  {icon}
-                </Text>
-                <Text
-                  style={[styles.tabLabel, tab === key && styles.activeTab]}
+    <GestureHandlerRootView style={styles.root}>
+      <ActivitiesProvider>
+        <RealtimeProvider>
+          <View style={styles.root}>
+            {tab === "explore" && <ExploreScreen />}
+            {tab === "events" && <YourEvents />}
+            {tab === "you" && <ProfileScreen />}
+            <View style={styles.tabBar} accessibilityRole="tablist">
+              {(
+                [
+                  ["explore", "◇", "Explore"],
+                  ["events", "▣", "Your events"],
+                  ["you", "♙", "You"],
+                ] as const
+              ).map(([key, icon, label]) => (
+                <Pressable
+                  key={key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: tab === key }}
+                  onPress={() => setTab(key)}
+                  style={styles.tabButton}
                 >
-                  {label}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[styles.tabIcon, tab === key && styles.activeTab]}
+                  >
+                    {icon}
+                  </Text>
+                  <Text
+                    style={[styles.tabLabel, tab === key && styles.activeTab]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
-        </View>
-      </RealtimeProvider>
-    </ActivitiesProvider>
+        </RealtimeProvider>
+      </ActivitiesProvider>
+    </GestureHandlerRootView>
   );
 }
 

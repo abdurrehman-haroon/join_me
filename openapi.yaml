@@ -97,44 +97,69 @@ paths:
                   status:
                     type: string
                     enum: [ok]
-  /areas/{id}:
+  /cities/{city}/districts:
     get:
-      summary: Load an area and its optional map boundary
+      summary: List a city's districts for the explore feed
+      description: Public read-only endpoint. Districts are ordered by sort_order, then name. Counts include only scheduled events starting between now and window_ends_at (seven days ahead).
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - { $ref: '#/components/parameters/CitySlug' }
       responses:
         '200':
-          description: Area; bbox is west,south,east,north derived from its outline or directly attached places, or null when neither exists
+          description: City with its districts and their coming-up summaries
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Area' }
+              schema: { $ref: '#/components/schemas/CityDistricts' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404':
-          description: Area not found
+          description: City not found
           content:
             text/plain:
               schema: { type: string }
         '500': { $ref: '#/components/responses/ServerError' }
-  /places:
+  /cities/{city}/districts/{district}/places:
     get:
-      summary: Load mapped places in the visible viewport
-      description: Public read-only endpoint. Returns at most 1000 places ordered by ID. If truncated is true, zoom in. Antimeridian-crossing bounds are not supported in this first slice.
+      summary: List a district's places with their coming-up events
+      description: Public read-only endpoint. Places are ordered by sort_order, then name. Each place carries at most 20 scheduled events starting before window_ends_at, ordered by starts_at; upcoming_event_count stays exact.
       parameters:
-        - name: bbox
-          in: query
-          required: true
-          description: Four finite numbers in west,south,east,north order. Longitude within -180..180, latitude within -90..90; west must be less than east and south less than north.
-          schema: { type: string, example: '74.40,31.46,74.42,31.48' }
+        - { $ref: '#/components/parameters/CitySlug' }
+        - { $ref: '#/components/parameters/DistrictSlug' }
       responses:
         '200':
-          description: GeoJSON points with place metadata and optional outlines
+          description: District with its places
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Places' }
+              schema: { $ref: '#/components/schemas/DistrictPlaces' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: City or district not found, or the district belongs to another city
+          content:
+            text/plain:
+              schema: { type: string }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /cities/{city}/districts/{district}/places/{place}:
+    get:
+      summary: Load one place with its spots and coming-up events
+      description: Public read-only endpoint. Returns at most 100 scheduled events starting before window_ends_at; truncated is true when more exist. Spots are ordered by sort_order, then name.
+      parameters:
+        - { $ref: '#/components/parameters/CitySlug' }
+        - { $ref: '#/components/parameters/DistrictSlug' }
+        - name: place
+          in: path
+          required: true
+          description: Place slug, unique within its district.
+          schema: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', example: lums }
+      responses:
+        '200':
+          description: Place, spots and events
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlaceView' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: City, district or place not found, or the place belongs to another district
+          content:
+            text/plain:
+              schema: { type: string }
         '500': { $ref: '#/components/responses/ServerError' }
   /events:
     post:
@@ -154,8 +179,9 @@ paths:
               required: [place_id, title, type, starts_at, capacity]
               properties:
                 place_id: { type: string, format: uuid }
+                spot_id: { type: string, format: uuid, description: Optional spot inside the selected place. }
                 title: { type: string, minLength: 1, maxLength: 200, description: Trimmed; whitespace-only titles are rejected. }
-                type: { type: string, enum: [football, cricket] }
+                type: { type: string, minLength: 1, maxLength: 50, description: User-entered, trimmed event type. }
                 starts_at: { type: string, format: date-time, description: Future RFC3339 timestamp with explicit offset or Z. }
                 capacity: { type: integer, minimum: 1, maximum: 2147483647, description: Includes the host. }
       responses:
@@ -184,39 +210,6 @@ paths:
           content:
             text/plain:
               schema: { type: string }
-        '500': { $ref: '#/components/responses/ServerError' }
-    get:
-      summary: Browse upcoming scheduled events in the visible viewport
-      description: Public read-only. Ordered by starts_at then ID, with at most 1000 events. Exact place_counts include matching events beyond the limit; zoom in when truncated. Full events remain visible.
-      parameters:
-        - name: bbox
-          in: query
-          required: true
-          description: west,south,east,north, with the same finite ordered world bounds as /places.
-          schema: { type: string, example: '74.40,31.46,74.42,31.48' }
-        - name: type
-          in: query
-          description: Omit or leave empty for all event types.
-          schema: { type: string, enum: [football, cricket, ''] }
-      responses:
-        '200':
-          description: Upcoming scheduled events, exact counts per place, and truncation flag
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [events, place_counts, truncated]
-                properties:
-                  events:
-                    type: array
-                    maxItems: 1000
-                    items: { $ref: '#/components/schemas/EventSummary' }
-                  place_counts:
-                    type: object
-                    description: Place UUID to count of matching events, including results beyond the limit.
-                    additionalProperties: { type: integer, minimum: 0 }
-                  truncated: { type: boolean }
-        '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/ServerError' }
   /events/{id}:
     patch:
@@ -568,6 +561,18 @@ paths:
         '500': { $ref: '#/components/responses/ServerError' }
 components:
   parameters:
+    CitySlug:
+      name: city
+      in: path
+      required: true
+      description: City slug.
+      schema: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', example: lahore }
+    DistrictSlug:
+      name: district
+      in: path
+      required: true
+      description: District slug, unique within its city.
+      schema: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', example: dha-phase-5 }
     ActivityID:
       name: X-Activity-ID
       in: header
@@ -597,24 +602,22 @@ components:
       type: object
       additionalProperties: false
       required: [id, action, session_id, interaction_id, interaction_step, trackable_type, trackable_id, source, occurred_at, details]
-      description: Session, discovery, creation/join and chat client contract; other catalogue actions remain disabled. Session starts require id=session_id, null interaction_id/interaction_step/source/trackable_type/trackable_id and empty details. All screen actions require a nonzero interaction_id, positive interaction_step and a source. Creation actions target a place from event_form. Views target an event from place_details/your_events/profile. Join attempts target an event from event_details. Chat openings target an event from event_details with step 1 and zero timing. Chat lifecycle rows target an event from event_chat. Other lifecycle rows target a place from event_form/place_details or an event from event_details. Timed starts/views must be step 1 with zero durations; timed continuations need step >=2. Sport selections and map empties have a null trackable pair and any positive step. Place views target a place from map and require sport, referrer_interaction_id and zero timing. Empty results require sport/empty_kind; map empties have no timing, place empties require timing and empty_kind=no_events. Referrer IDs are correlation context, not trusted proof of attribution. See docs/activities.md for exact action/detail combinations.
+      description: Session, Explore, creation/join and chat client contract; other catalogue actions remain disabled. Session starts require id=session_id, null interaction_id/interaction_step/source/trackable_type/trackable_id and empty details. All screen actions require a nonzero interaction_id, positive interaction_step and a source. Creation actions target a place from event_form. Views target an event from place_details/your_events/profile/explore. Join attempts target an event from event_details. Chat openings target an event from event_details with step 1 and zero timing. Chat lifecycle rows target an event from event_chat. Other lifecycle rows target a place from event_form/place_details or an event from event_details. Timed starts/views must be step 1 with zero durations; timed continuations need step >=2. Place views target a place from explore and require referrer_interaction_id and zero timing. Area views target a city or district from explore at step 1 with empty details; clients send at most one per session for each area. Referrer IDs are correlation context, not trusted proof of attribution. See docs/activities.md for exact action/detail combinations.
       properties:
         id: { type: string, format: uuid }
-        action: { type: string, enum: [session_started, sport_filter_selected, place_viewed, empty_results_viewed, event_creation_started, event_creation_submitted, event_viewed, join_attempted, chat_opened, interaction_paused, interaction_resumed, interaction_closed] }
+        action: { type: string, enum: [session_started, place_viewed, area_viewed, event_creation_started, event_creation_submitted, event_viewed, join_attempted, chat_opened, interaction_paused, interaction_resumed, interaction_closed] }
         session_id: { type: string, format: uuid }
         interaction_id: { type: string, format: uuid, nullable: true }
         interaction_step: { type: integer, minimum: 1, maximum: 2147483647, nullable: true }
-        trackable_type: { type: string, enum: [event, place], nullable: true }
+        trackable_type: { type: string, enum: [event, place, area], nullable: true }
         trackable_id: { type: string, format: uuid, nullable: true }
-        source: { type: string, enum: [map, event_form, event_details, event_chat, place_details, your_events, profile], nullable: true }
+        source: { type: string, enum: [event_form, event_details, event_chat, place_details, your_events, profile, explore], nullable: true }
         occurred_at: { type: string, format: date-time }
         details:
           type: object
           additionalProperties: false
-          description: Session starts require an empty object. Timed activities require elapsed_ms and active_ms with active_ms <= elapsed_ms. Untimed map discovery actions prohibit timing fields. attempt_number required only for submission/join_attempted. snapshot/viewer_role required only for event_viewed. reason required only for pause/close. All other combinations and explicit nulls are rejected.
+          description: Session starts require an empty object. Timed activities require elapsed_ms and active_ms with active_ms <= elapsed_ms. attempt_number required only for submission/join_attempted. snapshot/viewer_role required only for event_viewed. reason required only for pause/close. All other combinations and explicit nulls are rejected.
           properties:
-            sport: { type: string, enum: [all, football, cricket], description: Selected discovery filter; required only on discovery actions }
-            empty_kind: { type: string, enum: [no_events, no_places], description: Required only on empty_results_viewed; no_places is map-only }
             referrer_interaction_id: { type: string, format: uuid, description: Required on place_viewed, optional on event_viewed; distinct from the current interaction }
             elapsed_ms: { type: integer, minimum: 0, maximum: 9007199254740991 }
             active_ms: { type: integer, minimum: 0, maximum: 9007199254740991 }
@@ -701,7 +704,7 @@ components:
             type: object
             required: [type, joined, hosted]
             properties:
-              type: { type: string, enum: [football, cricket] }
+              type: { type: string }
               joined: { type: integer, minimum: 0 }
               hosted: { type: integer, minimum: 0 }
         grounds:
@@ -726,7 +729,7 @@ components:
               event_id: { type: string, format: uuid }
               occurred_at: { type: string, format: date-time }
               title: { type: string }
-              type: { type: string, enum: [football, cricket] }
+              type: { type: string }
               place_name: { type: string }
               event_status: { type: string, enum: [scheduled, cancelled, completed] }
         next_offset: { type: integer, nullable: true, minimum: 0 }
@@ -769,60 +772,133 @@ components:
                 minItems: 2
                 maxItems: 2
                 items: { type: number }
-    Area:
+    Coordinates:
+      type: array
+      description: Longitude then latitude.
+      minItems: 2
+      maxItems: 2
+      items: { type: number }
+    Bbox:
+      type: array
+      nullable: true
+      description: west,south,east,north from the area's outline or its places, or null when neither exists.
+      minItems: 4
+      maxItems: 4
+      items: { type: number }
+    AreaReference:
       type: object
-      required: [id, parent_id, name, type, boundary, bbox, created_at, updated_at]
+      required: [id, name, slug]
       properties:
         id: { type: string, format: uuid }
-        parent_id: { type: string, format: uuid, nullable: true }
         name: { type: string }
-        type: { type: string, enum: [city, district, campus] }
-        boundary: { $ref: '#/components/schemas/Boundary' }
-        bbox:
-          type: array
-          nullable: true
-          minItems: 4
-          maxItems: 4
-          items: { type: number }
-        created_at: { type: string, format: date-time, readOnly: true }
-        updated_at: { type: string, format: date-time, readOnly: true }
-    Place:
+        slug: { type: string }
+    CityDistricts:
       type: object
-      required: [type, id, geometry, properties]
+      required: [city, window_ends_at, districts]
       properties:
-        type: { type: string, enum: [Feature] }
-        id: { type: string, format: uuid }
-        geometry:
+        city:
           type: object
-          required: [type, coordinates]
-          properties:
-            type: { type: string, enum: [Point] }
-            coordinates:
-              type: array
-              minItems: 2
-              maxItems: 2
-              items: { type: number }
-        properties:
-          type: object
-          required: [id, area_id, name, type, boundary, created_at, updated_at]
+          required: [id, name, slug, bbox]
           properties:
             id: { type: string, format: uuid }
-            area_id: { type: string, format: uuid }
             name: { type: string }
-            type: { type: string, enum: [ground, court, cafe, park] }
-            boundary: { $ref: '#/components/schemas/Boundary' }
-            created_at: { type: string, format: date-time, readOnly: true }
-            updated_at: { type: string, format: date-time, readOnly: true }
-    Places:
-      type: object
-      required: [type, features, truncated]
-      properties:
-        type: { type: string, enum: [FeatureCollection] }
-        truncated: { type: boolean }
-        features:
+            slug: { type: string }
+            bbox: { $ref: '#/components/schemas/Bbox' }
+        window_ends_at: { type: string, format: date-time, description: Events counted as coming up start before this time. }
+        districts:
           type: array
-          maxItems: 1000
-          items: { $ref: '#/components/schemas/Place' }
+          items:
+            type: object
+            required: [id, name, slug, sort_order, boundary, bbox, place_count, upcoming_event_count, first_up]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              slug: { type: string }
+              sort_order: { type: integer, minimum: 0 }
+              boundary: { $ref: '#/components/schemas/Boundary' }
+              bbox: { $ref: '#/components/schemas/Bbox' }
+              place_count: { type: integer, minimum: 0 }
+              upcoming_event_count: { type: integer, minimum: 0 }
+              first_up:
+                type: object
+                nullable: true
+                description: The earliest coming-up event in the district, or null when there is none.
+                required: [place, event]
+                properties:
+                  place: { $ref: '#/components/schemas/AreaReference' }
+                  event:
+                    type: object
+                    required: [id, title, starts_at]
+                    properties:
+                      id: { type: string, format: uuid }
+                      title: { type: string }
+                      starts_at: { type: string, format: date-time }
+    DistrictPlaces:
+      type: object
+      required: [district, window_ends_at, places]
+      properties:
+        district:
+          type: object
+          required: [id, name, slug, boundary, city, bbox]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            slug: { type: string }
+            boundary: { $ref: '#/components/schemas/Boundary' }
+            city: { $ref: '#/components/schemas/AreaReference' }
+            bbox: { $ref: '#/components/schemas/Bbox' }
+        window_ends_at: { type: string, format: date-time, description: Events counted as coming up start before this time. }
+        places:
+          type: array
+          items:
+            type: object
+            required: [id, name, slug, type, sort_order, coordinates, upcoming_event_count, events]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              slug: { type: string }
+              type: { type: string, enum: [campus, cafe, restaurant, park, mall, sports_club, stadium, culture, heritage, hotel, exhibition, community] }
+              sort_order: { type: integer, minimum: 0 }
+              coordinates: { $ref: '#/components/schemas/Coordinates' }
+              upcoming_event_count: { type: integer, minimum: 0 }
+              events:
+                type: array
+                maxItems: 20
+                items: { $ref: '#/components/schemas/EventSummary' }
+    PlaceView:
+      type: object
+      required: [place, spots, window_ends_at, truncated, events]
+      properties:
+        place:
+          type: object
+          required: [id, name, slug, type, coordinates, boundary, district, city]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            slug: { type: string }
+            type: { type: string, enum: [campus, cafe, restaurant, park, mall, sports_club, stadium, culture, heritage, hotel, exhibition, community] }
+            coordinates: { $ref: '#/components/schemas/Coordinates' }
+            boundary: { $ref: '#/components/schemas/Boundary' }
+            district: { $ref: '#/components/schemas/AreaReference' }
+            city: { $ref: '#/components/schemas/AreaReference' }
+        spots:
+          type: array
+          items:
+            type: object
+            required: [id, name, slug, type, coordinates, boundary]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              slug: { type: string }
+              type: { type: string, enum: [ground, court, pool, hall, room, other] }
+              coordinates: { $ref: '#/components/schemas/Coordinates' }
+              boundary: { $ref: '#/components/schemas/Boundary' }
+        window_ends_at: { type: string, format: date-time, description: Events listed start before this time. }
+        truncated: { type: boolean }
+        events:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/EventSummary' }
     Person:
       type: object
       required: [id, display_name]
@@ -831,15 +907,28 @@ components:
         display_name: { type: string }
     EventSummary:
       type: object
-      required: [id, title, type, starts_at, capacity, host, place, status, participant_count, available_spots, is_full, created_at, updated_at]
+      required: [id, title, type, starts_at, capacity, host, place, spot, status, participant_count, available_spots, is_full, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
-        type: { type: string, enum: [football, cricket] }
+        type: { type: string, minLength: 1, maxLength: 50 }
         starts_at: { type: string, format: date-time }
         capacity: { type: integer, minimum: 1, description: Includes the host. }
         host: { $ref: '#/components/schemas/Person' }
         place:
+          type: object
+          required: [id, name, coordinates]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            coordinates:
+              type: array
+              description: Longitude then latitude.
+              minItems: 2
+              maxItems: 2
+              items: { type: number }
+        spot:
+          nullable: true
           type: object
           required: [id, name, coordinates]
           properties:
