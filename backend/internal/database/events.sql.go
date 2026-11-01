@@ -27,24 +27,25 @@ func (q *Queries) CancelEvent(ctx context.Context, arg CancelEventParams) error 
 
 const createEvent = `-- name: CreateEvent :one
 WITH created_event AS (
-    INSERT INTO events (host_id, place_id, status_id, title, type, starts_at, capacity)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id
+    INSERT INTO events (host_id, place_id, spot_id, status_id, title, type, starts_at, capacity)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id, spot_id
 ), added_host AS (
     INSERT INTO event_participants (event_id, user_id)
     SELECT id, host_id FROM created_event
     RETURNING event_id
 )
-SELECT created_event.id, created_event.host_id, created_event.type, created_event.starts_at, created_event.capacity, created_event.created_at, created_event.updated_at, created_event.title, created_event.place_id, created_event.status_id FROM created_event
+SELECT created_event.id, created_event.host_id, created_event.type, created_event.starts_at, created_event.capacity, created_event.created_at, created_event.updated_at, created_event.title, created_event.place_id, created_event.status_id, created_event.spot_id FROM created_event
 JOIN added_host ON added_host.event_id = created_event.id
 `
 
 type CreateEventParams struct {
 	HostID   pgtype.UUID
 	PlaceID  pgtype.UUID
+	SpotID   pgtype.UUID
 	StatusID pgtype.UUID
 	Title    string
-	Type     EventType
+	Type     string
 	StartsAt pgtype.Timestamptz
 	Capacity int32
 }
@@ -52,7 +53,7 @@ type CreateEventParams struct {
 type CreateEventRow struct {
 	ID        pgtype.UUID
 	HostID    pgtype.UUID
-	Type      EventType
+	Type      string
 	StartsAt  pgtype.Timestamptz
 	Capacity  int32
 	CreatedAt pgtype.Timestamptz
@@ -60,6 +61,7 @@ type CreateEventRow struct {
 	Title     string
 	PlaceID   pgtype.UUID
 	StatusID  pgtype.UUID
+	SpotID    pgtype.UUID
 }
 
 // Creating the host membership in the same statement keeps creation atomic.
@@ -67,6 +69,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Creat
 	row := q.db.QueryRow(ctx, createEvent,
 		arg.HostID,
 		arg.PlaceID,
+		arg.SpotID,
 		arg.StatusID,
 		arg.Title,
 		arg.Type,
@@ -85,6 +88,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Creat
 		&i.Title,
 		&i.PlaceID,
 		&i.StatusID,
+		&i.SpotID,
 	)
 	return i, err
 }
@@ -113,13 +117,15 @@ func (q *Queries) GetCancelledEventStatus(ctx context.Context) (pgtype.UUID, err
 
 const getEvent = `-- name: GetEvent :one
 WITH event_detail AS (
-    SELECT events.id, events.host_id, events.type, events.starts_at, events.capacity, events.created_at, events.updated_at, events.title, events.place_id, events.status_id, places.name AS place_name, places.location,
+    SELECT events.id, events.host_id, events.type, events.starts_at, events.capacity, events.created_at, events.updated_at, events.title, events.place_id, events.status_id, events.spot_id, places.name AS place_name, places.location,
+        place_spots.name AS spot_name, place_spots.location AS spot_location,
         users.display_name AS host_name, status.name AS status_name, status.slug AS status_slug,
         COALESCE((SELECT jsonb_agg(jsonb_build_object('id', participants.id,
             'display_name', participants.display_name) ORDER BY membership.created_at, participants.id)
             FROM event_participants AS membership JOIN users AS participants ON participants.id = membership.user_id
             WHERE membership.event_id = events.id), '[]'::jsonb) AS participants
     FROM events JOIN places ON places.id = events.place_id
+    LEFT JOIN place_spots ON place_spots.id = events.spot_id
     JOIN users ON users.id = events.host_id JOIN status ON status.id = events.status_id
     WHERE events.id = $2 AND status.statusable_type = 'event'
 )
@@ -128,6 +134,9 @@ SELECT jsonb_build_object(
     'host', jsonb_build_object('id', host_id, 'display_name', host_name),
     'place', jsonb_build_object('id', place_id, 'name', place_name,
         'coordinates', ST_AsGeoJSON(location)::jsonb->'coordinates'),
+    'spot', CASE WHEN spot_id IS NULL THEN NULL ELSE jsonb_build_object(
+        'id', spot_id, 'name', spot_name,
+        'coordinates', ST_AsGeoJSON(spot_location)::jsonb->'coordinates') END,
     'status', jsonb_build_object('id', status_id, 'name', status_name, 'slug', status_slug),
     'viewer', jsonb_build_object('id', $1::uuid,
         'is_host', COALESCE(host_id = $1::uuid, false),
@@ -232,73 +241,14 @@ func (q *Queries) LeaveEvent(ctx context.Context, arg LeaveEventParams) (int64, 
 	return result.RowsAffected(), nil
 }
 
-const listEventsInBounds = `-- name: ListEventsInBounds :one
-WITH matching_events AS (
-    SELECT events.id, events.host_id, events.type, events.starts_at, events.capacity, events.created_at, events.updated_at, events.title, events.place_id, events.status_id, places.name AS place_name, places.location,
-        users.display_name AS host_name, status.name AS status_name, status.slug AS status_slug
-    FROM events
-    JOIN places ON places.id = events.place_id
-    JOIN users ON users.id = events.host_id
-    JOIN status ON status.id = events.status_id
-    WHERE places.location && ST_MakeEnvelope(
-        $1::float8, $2::float8,
-        $3::float8, $4::float8, 4326)
-        AND starts_at > statement_timestamp()
-        AND status.statusable_type = 'event' AND status.slug = 'scheduled'
-        AND ($5::text = '' OR events.type::text = $5::text)
-), limited_events AS (
-    SELECT id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id, place_name, location, host_name, status_name, status_slug, row_number() OVER (ORDER BY starts_at, id) AS position
-    FROM matching_events ORDER BY starts_at, id LIMIT 1001
-), event_summaries AS (
-    SELECT limited_events.id, limited_events.host_id, limited_events.type, limited_events.starts_at, limited_events.capacity, limited_events.created_at, limited_events.updated_at, limited_events.title, limited_events.place_id, limited_events.status_id, limited_events.place_name, limited_events.location, limited_events.host_name, limited_events.status_name, limited_events.status_slug, limited_events.position, (SELECT count(*) FROM event_participants
-        WHERE event_id = limited_events.id) AS participant_count
-    FROM limited_events
-)
-SELECT jsonb_build_object(
-    'truncated', (SELECT count(*) > 1000 FROM limited_events),
-    'place_counts', COALESCE((SELECT jsonb_object_agg(place_id, event_count) FROM (
-        SELECT place_id, count(*) AS event_count FROM matching_events GROUP BY place_id
-    ) AS counts), '{}'::jsonb),
-    'events', COALESCE(jsonb_agg(jsonb_build_object(
-        'id', id, 'title', title, 'type', type, 'starts_at', starts_at, 'capacity', capacity,
-        'host', jsonb_build_object('id', host_id, 'display_name', host_name),
-        'place', jsonb_build_object('id', place_id, 'name', place_name,
-            'coordinates', ST_AsGeoJSON(location)::jsonb->'coordinates'),
-        'status', jsonb_build_object('id', status_id, 'name', status_name, 'slug', status_slug),
-        'participant_count', participant_count, 'available_spots', GREATEST(capacity - participant_count, 0),
-        'is_full', participant_count >= capacity, 'created_at', created_at, 'updated_at', updated_at
-    ) ORDER BY starts_at, id) FILTER (WHERE position <= 1000), '[]'::jsonb)
-)::jsonb AS events
-FROM event_summaries
-`
-
-type ListEventsInBoundsParams struct {
-	West        float64
-	South       float64
-	East        float64
-	North       float64
-	EventFilter string
-}
-
-func (q *Queries) ListEventsInBounds(ctx context.Context, arg ListEventsInBoundsParams) ([]byte, error) {
-	row := q.db.QueryRow(ctx, listEventsInBounds,
-		arg.West,
-		arg.South,
-		arg.East,
-		arg.North,
-		arg.EventFilter,
-	)
-	var events []byte
-	err := row.Scan(&events)
-	return events, err
-}
-
 const listUserEvents = `-- name: ListUserEvents :one
 WITH matching_events AS (
-    SELECT events.id, events.host_id, events.type, events.starts_at, events.capacity, events.created_at, events.updated_at, events.title, events.place_id, events.status_id, places.name AS place_name, places.location,
+    SELECT events.id, events.host_id, events.type, events.starts_at, events.capacity, events.created_at, events.updated_at, events.title, events.place_id, events.status_id, events.spot_id, places.name AS place_name, places.location,
+        place_spots.name AS spot_name, place_spots.location AS spot_location,
         users.display_name AS host_name, status.name AS status_name, status.slug AS status_slug
     FROM events
     JOIN places ON places.id = events.place_id
+    LEFT JOIN place_spots ON place_spots.id = events.spot_id
     JOIN users ON users.id = events.host_id
     JOIN status ON status.id = events.status_id
     WHERE status.statusable_type = 'event'
@@ -306,12 +256,12 @@ WITH matching_events AS (
             SELECT 1 FROM event_participants WHERE event_id = events.id AND user_id = $2::uuid))
         AND ((status.slug = 'scheduled' AND starts_at > statement_timestamp()) = ($3::text = 'upcoming'))
 ), limited_events AS (
-    SELECT id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id, place_name, location, host_name, status_name, status_slug, row_number() OVER (ORDER BY
+    SELECT id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id, spot_id, place_name, location, spot_name, spot_location, host_name, status_name, status_slug, row_number() OVER (ORDER BY
         CASE WHEN $3::text = 'upcoming' THEN starts_at END ASC,
         CASE WHEN $3::text = 'past' THEN starts_at END DESC, id) AS position
     FROM matching_events ORDER BY position LIMIT 51 OFFSET $1::int
 ), event_summaries AS (
-    SELECT limited_events.id, limited_events.host_id, limited_events.type, limited_events.starts_at, limited_events.capacity, limited_events.created_at, limited_events.updated_at, limited_events.title, limited_events.place_id, limited_events.status_id, limited_events.place_name, limited_events.location, limited_events.host_name, limited_events.status_name, limited_events.status_slug, limited_events.position, (SELECT count(*) FROM event_participants
+    SELECT limited_events.id, limited_events.host_id, limited_events.type, limited_events.starts_at, limited_events.capacity, limited_events.created_at, limited_events.updated_at, limited_events.title, limited_events.place_id, limited_events.status_id, limited_events.spot_id, limited_events.place_name, limited_events.location, limited_events.spot_name, limited_events.spot_location, limited_events.host_name, limited_events.status_name, limited_events.status_slug, limited_events.position, (SELECT count(*) FROM event_participants
         WHERE event_id = limited_events.id) AS participant_count
     FROM limited_events
 )
@@ -322,6 +272,9 @@ SELECT jsonb_build_object(
         'host', jsonb_build_object('id', host_id, 'display_name', host_name),
         'place', jsonb_build_object('id', place_id, 'name', place_name,
             'coordinates', ST_AsGeoJSON(location)::jsonb->'coordinates'),
+        'spot', CASE WHEN spot_id IS NULL THEN NULL ELSE jsonb_build_object(
+            'id', spot_id, 'name', spot_name,
+            'coordinates', ST_AsGeoJSON(spot_location)::jsonb->'coordinates') END,
         'status', jsonb_build_object('id', status_id, 'name', status_name, 'slug', status_slug),
         'participant_count', participant_count, 'available_spots', GREATEST(capacity - participant_count, 0),
         'is_full', participant_count >= capacity, 'created_at', created_at, 'updated_at', updated_at

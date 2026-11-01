@@ -147,7 +147,7 @@ curl -fsS --max-time 180 "$bundle_url" -o /dev/null
 
 if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.campuspickup app >/dev/null 2>&1; then
   echo "Installing the iOS development build (first run may take a few minutes)…"
-  pnpm exec expo run:ios --no-bundler --device "$simulator_id" --port 8081
+  pnpm exec expo run:ios --no-bundler --device "$simulator_id"
 fi
 xcrun simctl openurl "$simulator_id" 'exp+campus-pickup://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
 echo "Backend: http://localhost:8080 | Metro: http://localhost:8081"

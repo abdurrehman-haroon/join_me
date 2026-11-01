@@ -54,7 +54,7 @@ func testSignupInsights(t *testing.T, pool *pgxpool.Pool, host, player pgtype.UU
 		var id string
 		var createdAt time.Time
 		err := pool.QueryRow(ctx, `INSERT INTO events(host_id,place_id,status_id,title,type,starts_at,capacity)
-            VALUES ($1,'00000000-0000-4000-8000-000000000003','10000000-0000-4000-8000-000000000001',
+            VALUES ($1,'00000000-0000-4000-8000-000000000100','10000000-0000-4000-8000-000000000001',
                 'Signup insights test','football',now()+interval '1 day',$2) RETURNING id::text,created_at`, host, capacity).Scan(&id, &createdAt)
 		if err != nil {
 			t.Fatal(err)

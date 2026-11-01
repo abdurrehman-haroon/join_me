@@ -16,12 +16,14 @@ import {
 
 export default function EventForm({
   place,
+  spots = [],
   event,
   apiURL,
   onClose,
   onSaved,
 }: {
   place: { id: string; name: string };
+  spots?: { id: string; name: string }[];
   event?: {
     id: string;
     title: string;
@@ -54,6 +56,7 @@ export default function EventForm({
       `${String(initialStart.getHours()).padStart(2, "0")}:${String(initialStart.getMinutes()).padStart(2, "0")}`,
   );
   const [capacity, setCapacity] = useState(String(event?.capacity ?? 10));
+  const [spotID, setSpotID] = useState("");
   const [shown, setShown] = useState(false);
   const interaction = useActivityInteraction({
     enabled: !event && shown,
@@ -135,6 +138,7 @@ export default function EventForm({
     if (!event && !uncertainCreation) {
       const body = JSON.stringify({
         place_id: place.id,
+        ...(spotID && { spot_id: spotID }),
         type,
         title: title.trim(),
         starts_at: startsAt.toISOString(),
@@ -278,6 +282,35 @@ export default function EventForm({
               ))}
             </View>
           )}
+          {!event && spots.length > 0 && (
+            <>
+              <Text style={styles.label}>Where at {place.name}</Text>
+              <View style={styles.types}>
+                {[{ id: "", name: "Anywhere" }, ...spots].map((spot) => (
+                  <Pressable
+                    key={spot.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: spotID === spot.id }}
+                    disabled={submitting || uncertainCreation}
+                    onPress={() => setSpotID(spot.id)}
+                    style={[
+                      styles.type,
+                      spotID === spot.id && styles.selectedType,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.action,
+                        spotID === spot.id && styles.white,
+                      ]}
+                    >
+                      {spot.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
           <Text style={styles.label}>Date · YYYY-MM-DD</Text>
           <TextInput
             accessibilityLabel="Event date YYYY-MM-DD"
@@ -367,7 +400,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#DEE3D8",
   },
-  types: { flexDirection: "row", gap: 10 },
+  types: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   type: { backgroundColor: "#E5E9DF", padding: 14, borderRadius: 20 },
   selectedType: { backgroundColor: "#1D5B3A" },
   white: { color: "#FFFFFF" },

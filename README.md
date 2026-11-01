@@ -27,7 +27,7 @@ Before opening the app, the launcher fetches the iOS project manifest and compil
 
 ## Run the backend
 
-Install Go 1.23+ and PostgreSQL/PostGIS. See [backend setup](backend/README.md) for the database connection and migration instructions. With `DATABASE_URL` set, `make api` starts the API on port 8080. It serves health, area details, and viewport places.
+Install Go 1.23+ and PostgreSQL/PostGIS. See [backend setup](backend/README.md) for the database connection and migration instructions. With `DATABASE_URL` set, `make api` starts the API on port 8080. It serves health, the City -> District -> Place explore feed, events, chat, realtime updates and profile/activity data.
 
 ## Run the mobile app
 

@@ -22,24 +22,31 @@ go run ./cmd/api
 
 The API defaults to port 8080. Startup applies embedded forward-only migrations, serialized with a database advisory lock. Each version and SHA-256 checksum is recorded in `schema_migrations`; changed applied files are rejected. An existing database with manually applied, untracked tables needs its history reconciled before using this runner; it is not silently baselined.
 
-## Map endpoints
+## Health
 
 - `GET /healthz`
-- `GET /areas/{uuid}`: area, optional GeoJSON boundary, and view bounds. Bounds fall back to that area's directly attached places when its outline is absent; null means there is no view data yet.
-- `GET /places?bbox=west,south,east,north`: GeoJSON place points with metadata and optional outlines. Returns at most 1000; `truncated: true` asks the client to zoom in. Bounds cannot cross the antimeridian yet.
 
-These map endpoints are public and read-only. No identity/session or verification is implemented. Event creation uses a temporary demo host. MapLibre loads background tiles directly from OpenFreeMap; the API serves our places independently.
+The public Explore endpoints below provide geography and upcoming events. No identity/session or verification is implemented. Event creation uses a temporary demo host. MapLibre loads background tiles directly from OpenFreeMap.
 
-## Event browsing endpoints
+## Event details
 
-- `GET /events?bbox=west,south,east,north&type=football`: scheduled future events in viewport, optional football/cricket filter (omit or empty for all), ordered by starts_at then ID. Returns at most 1000 summaries, `truncated`, and exact `place_counts` even beyond that limit. Full events remain visible. Client should zoom in if truncated.
 - `GET /events/{uuid}`: event with host, place, shared status, participants, count, available spots and fullness. Cancelled, completed and elapsed events remain accessible by ID. Missing UUID returns 404; malformed UUID/bounds/type returns 400.
 
-Both are public read-only and specified in `../openapi.yaml`. Participant counts include the host. Event creation is described below; no identity endpoints are exposed.
+This endpoint is public read-only and specified in `../openapi.yaml`. Participant counts include the host. Event creation is described below; no identity endpoints are exposed.
+
+## Explore endpoints
+
+Public read-only feed for the City -> District -> Place pages, addressed by slugs:
+
+- `GET /cities/{city}/districts`: districts ordered by sort_order, each with `bbox` (outline or places extent), `place_count`, `upcoming_event_count` and `first_up` (earliest coming-up event and its place, or null).
+- `GET /cities/{city}/districts/{district}/places`: places ordered by sort_order, each with coordinates, exact `upcoming_event_count` and at most 20 event summaries.
+- `GET /cities/{city}/districts/{district}/places/{place}`: place with district/city references, its spots and at most 100 event summaries (`truncated` when more exist).
+
+"Coming up" means scheduled events starting within the next seven days (`exploreWindow` in `internal/geography`); every response returns `window_ends_at`. Unknown slugs, or a district/place under the wrong parent, return 404; malformed slugs return 400.
 
 ## Event creation
 
-`POST /events` accepts `{place_id,title,type,starts_at,capacity}`. Title is trimmed and must have 1–200 characters; type is football/cricket; starts_at is a future RFC3339 time with offset or Z; capacity is a positive int32 including the host. Unknown fields, malformed/extra JSON and bodies over 16 KiB are rejected with 400. Missing place returns 404. The server assigns the shared scheduled status and demo host, then creates the event and host membership atomically. Returns 201 with `{id}` and Location `/events/{id}`.
+`POST /events` accepts `{place_id,spot_id?,title,type,starts_at,capacity}`. Title is trimmed to 1–200 characters and the user-entered type to 1–50 characters. A supplied spot must belong to the selected place. Start is a future RFC3339 timestamp and capacity is a positive int32 including the host. The server assigns status/host and creates host membership atomically.
 
 `DEMO_USER_ID` defaults to `20000000-0000-4000-8000-000000000001` (Demo Ali). Load `seeds/demo.sql` before creating events, or configure an existing user ID. Missing demo user or scheduled status returns 503. The request cannot choose a host or status. This is temporary shared demo identity until sign-in is implemented. Optional X-Activity-ID, X-Activity-Session and X-Activity-Interaction UUID headers are required together. Reuse them and the original body to confirm the same creation after uncertainty: concurrent identical deliveries return the original 201/id, while changed reuse returns 409. Without headers creation remains non-idempotent; check the event list before resubmitting. Do not automatically replay business requests from the activity queue.
 
@@ -55,13 +62,13 @@ Event details include `viewer: {id,is_host,is_participant}` for the configured d
 
 Migration 000006 simplifies `users` to a generated UUID, required nonblank `display_name`, and automatic timestamps. Email, campus and verification fields are removed; existing user IDs/references are retained with placeholder display name `User`. Profile endpoints and frontend are deferred.
 
-Migration 000003 seeds the LUMS campus and six community-mapped sports places from OpenStreetMap, retrieved 2026-10-11. Each source way is linked in the migration. These names/outlines are not campus-verified; points are calculated inside their outlines with `ST_PointOnSurface`. Data attribution/license: [OpenStreetMap contributors, ODbL](https://www.openstreetmap.org/copyright). No prototype coordinates are used.
+Migration 000013 converts geography to City -> District -> Place, makes LUMS a place in DHA Phase 5, and migrates its six community-mapped sports locations to `place_spots`. It also adds stable slugs/order and optional event spots. `seeds/lahore_catalog.sql` loads the replaceable Lahore development catalog: 13 districts, 26 places (17 at OpenStreetMap locations with footprints) and illustrative district outlines built from the places plus OSM outlines where available (ODbL). Optional `seeds/lahore_sample_events.sql` (after the catalog and demo seeds) adds 40 fictional events across the catalog; rerunning it moves them back into the coming week.
 
-LUMS area ID: `00000000-0000-4000-8000-000000000001`. Additional areas/places are database records; there is no LUMS filter in viewport queries. Parent area relationships are currently managed through reviewed data changes; no administrative write API exists yet. Events reference places through place_id.
+Lahore area ID is `00000000-0000-4000-8000-000000000101`; DHA Phase 5 is `00000000-0000-4000-8000-000000000102`; LUMS place is `00000000-0000-4000-8000-000000000100`.
 
 ## Events and optional demo data
 
-Migration 000007 replaces `pins`/`pin_members` with `events`/`event_participants` and renames `messages.pin_id` to `event_id`, preserving foreign keys. Shared `status` rows have unique slugs and the `statusable_type` enum (initially event), without a target-record ID. `events.status_id` references a shared status. Initial statuses are scheduled, cancelled and completed. Event types are PostgreSQL enum football/cricket. All new tables have automatic timestamps.
+Migration 000007 introduced events and shared statuses. Migration 000013 converts the former football/cricket enum to trimmed free text so users may enter any event type. All application tables retain database-managed timestamps.
 
 Legacy pins retain IDs, hosts and participants. Their locations become places under an existing campus with the matching legacy campus name, or a new campus area; expired pins become completed. Legacy visibility and expiry fields are removed under the approved minimal schema. The local legacy tables were empty.
 
@@ -83,7 +90,7 @@ TEST_DATABASE_URL="$DATABASE_URL" go test ./... -count=1
 sqlc generate
 ```
 
-The integration test uses a fresh schema in the supplied database, then removes only its own schema. It checks migrations, timestamp ownership, viewport filtering, missing areas, and bounded results. Run it against a dedicated development database with PostGIS installed in `public`. sqlc 1.31.1 generates `internal/database` from `queries/` and the migrations. Never edit generated files or applied migrations.
+The integration test uses a fresh schema in the supplied database, then removes only its own schema. It checks migrations, timestamp ownership, hierarchy/explore responses and event behavior. Run it against a dedicated development database with PostGIS installed in `public`. sqlc 1.31.1 generates `internal/database` from `queries/` and the migrations. Never edit generated files or applied migrations.
 
 Your events uses `GET /me/events?section=upcoming|past&offset=0` (50 events/page, nullable `next_offset`). Hosted and joined events are included independently of map bounds. Past includes cancelled/completed/elapsed events. `PUT /events/{id}/cancellation` lets only the configured demo host cancel upcoming scheduled events; repeat cancellation succeeds. The roster is retained, and cancellation locks the same event row as participation. Native details require confirmation, reconcile after changes, and refresh Your events/map. No notification delivery or schema migration is added.
 
@@ -93,7 +100,7 @@ Migration 000008 consolidates message timestamps into automatic created_at/updat
 
 GET /events/{id}/messages returns the latest 50 messages oldest first, has_more, can_send and viewer_id. Pass before=<first cursor> for older history or after=<last cursor> to catch up; continue after pages while has_more. POST accepts {id,body}, where id is a client UUID reused on retries and body trims to 1–2000 Unicode characters. Identical accepted retries return 204; changed content with the same ID returns 409. Both endpoints require current demo membership; leaving returns 403 without deleting history. Cancelled/completed chats are read-only; scheduled chat allows messages after kickoff. Chat access and writes share the participation/cancellation event lock. See openapi.yaml for the full contract.
 
-Reporting is deferred. Migration 000009 drops the unused reports table and removes moderation_log.report_id, retaining the moderation log itself. Earlier migration files are unchanged.
+Reporting and moderation are deferred. Migration 000009 drops the unused reports table and detaches `moderation_log`; migration 000014 removes that empty table after confirming no application code ever read or wrote it. Earlier migration files are unchanged.
 
 ## Basic profile
 
@@ -111,7 +118,7 @@ Migration 000010 adds the frozen streams/outbox schema and ordered message posit
 
 Migration 000011 adds activities, typed action/source/trackable enums, interaction ordering and automatic timestamps. POST /activities accepts bounded batches of client creation/view/join/lifecycle observations with strict per-action details; backend-only outcomes cannot be posted. actor_id must match the configured demo identity. Matching delivery retries are accepted unchanged, conflicting IDs/steps are terminal conflicts, and rejected siblings do not block valid rows. See ../openapi.yaml and ../docs/activities.md for limits and contracts.
 
-Creation, actual participation changes and full/closed rejections record server activities in their existing transactions. Three optional correlation headers link them to frontend attempts; backend steps stay null. Creation receipts include a request hash so retries cannot produce duplicate events. Receipt rows must survive any future retention cleanup. Discovery actions (sport filters, place views and map/place empty results) are now also tracked; successful host edits/cancellations are tracked transactionally; chat openings/lifecycle and message_sent are also tracked.
+Creation, actual participation changes and full/closed rejections record server activities in their existing transactions. Three optional correlation headers link them to frontend attempts; backend steps stay null. Creation receipts include a request hash so retries cannot produce duplicate events. Receipt rows must survive any future retention cleanup. Explore records area/place/event views; the retired Map screen's sport-filter and empty-result actions remain accepted only for historical compatibility. Successful host edits/cancellations are tracked transactionally; chat openings/lifecycle and message_sent are also tracked.
 
 From this directory, run internal reports with psql "$DATABASE_URL" -v from='2026-10-18T00:00:00Z' -v until='2026-10-19T00:00:00Z' -f reports/activities.sql. Cohorts use UTC, a half-open start window and 24-hour follow-up. No public reports API or personal statistics UI is added. Use separate demo/development/production databases; local demo activity is not real-person retention data.
 

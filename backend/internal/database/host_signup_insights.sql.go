@@ -13,7 +13,7 @@ import (
 
 const getHostSignupInsights = `-- name: GetHostSignupInsights :one
 WITH hosted_event AS (
-    SELECT id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id FROM events
+    SELECT id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id, spot_id FROM events
     WHERE events.id = $1 AND events.host_id = $2
 ), event_actions AS (
     SELECT activities.id, activities.action, activities.user_id, activities.session_id, activities.interaction_id, activities.interaction_step, activities.trackable_type, activities.trackable_id, activities.source, activities.occurred_at, activities.details, activities.created_at, activities.updated_at FROM activities JOIN hosted_event ON hosted_event.id = trackable_id

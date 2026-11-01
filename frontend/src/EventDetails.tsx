@@ -31,6 +31,7 @@ export type EventSummary = {
   is_full: boolean;
   host: Person;
   place: { id: string; name: string; coordinates: [number, number] };
+  spot: { id: string; name: string; coordinates: [number, number] } | null;
   status: { id: string; name: string; slug: string };
   created_at: string;
   updated_at: string;
@@ -58,16 +59,16 @@ export default function EventDetails({
   id,
   apiURL,
   onClose,
-  closeLabel = "Back to map",
-  source = "place_details",
+  closeLabel,
+  source,
   referrerInteractionID,
   onEventChanged,
 }: {
   id: string | null;
   apiURL: string;
   onClose: () => void;
-  closeLabel?: string;
-  source?: ActivitySource;
+  closeLabel: string;
+  source: ActivitySource;
   referrerInteractionID?: string;
   onEventChanged: () => void;
 }) {
