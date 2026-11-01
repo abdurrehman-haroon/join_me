@@ -19,18 +19,19 @@ import (
 
 func TestInvalidEventCreation(t *testing.T) {
 	future := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
-	valid := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000003","title":"Football","type":"football","starts_at":%q,"capacity":10}`, future)
+	valid := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000100","title":"Football","type":"football","starts_at":%q,"capacity":10}`, future)
 	for _, body := range []string{
 		`{`, `null`, valid + `{}`, strings.Replace(valid, `"Football"`, `"  "`, 1),
 		strings.Replace(valid, `"Football"`, `"`+strings.Repeat("a", 201)+`"`, 1),
-		strings.Replace(valid, `"football"`, `"tennis"`, 1),
+		strings.Replace(valid, `"football"`, `"  "`, 1),
+		strings.Replace(valid, `"football"`, `"`+strings.Repeat("a", 51)+`"`, 1),
 		strings.Replace(valid, future, "2000-01-01T00:00:00Z", 1),
 		strings.Replace(valid, future, "2026-02-30T12:00:00Z", 1),
 		strings.Replace(valid, future, "2030-01-01T12:00:00", 1),
 		strings.Replace(valid, `"capacity":10`, `"capacity":0`, 1),
 		strings.Replace(valid, `"capacity":10`, `"capacity":1.5`, 1),
 		strings.Replace(valid, `"capacity":10`, `"capacity":2147483648`, 1),
-		strings.Replace(valid, "00000000-0000-4000-8000-000000000003", "bad-id", 1),
+		strings.Replace(valid, "00000000-0000-4000-8000-000000000100", "bad-id", 1),
 		strings.Replace(valid, `"capacity":10`, `"capacity":10,"host_id":"someone"`, 1),
 		strings.Replace(valid, `"capacity":10`, `"capacity":10,"status_id":"cancelled"`, 1),
 		strings.Replace(valid, `"Football"`, `"`+strings.Repeat("a", 17000)+`"`, 1),
@@ -46,10 +47,9 @@ func TestInvalidEventCreation(t *testing.T) {
 func TestInvalidEventRequests(t *testing.T) {
 	handler := Handler{}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /events", handler.ListEvents)
 	mux.HandleFunc("GET /events/{id}", handler.GetEvent)
 	mux.HandleFunc("PUT /events/{id}/participation", handler.ChangeParticipation)
-	for _, path := range []string{"/events", "/events?bbox=NaN,0,1,1", "/events?bbox=0,0,1,1&type=tennis", "/events/bad-id"} {
+	for _, path := range []string{"/events/bad-id"} {
 		response := httptest.NewRecorder()
 		mux.ServeHTTP(response, httptest.NewRequest("GET", path, nil))
 		if response.Code != 400 {
@@ -104,13 +104,13 @@ func TestEventBrowsing(t *testing.T) {
 		var host, attendee, place, status pgtype.UUID
 		host.Scan("20000000-0000-4000-8000-000000000001")
 		attendee.Scan("20000000-0000-4000-8000-000000000002")
-		place.Scan("00000000-0000-4000-8000-000000000003")
+		place.Scan("00000000-0000-4000-8000-000000000100")
 		queries := database.New(pool)
 		status, err = queries.GetScheduledEventStatus(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		created, err := queries.CreateEvent(ctx, database.CreateEventParams{HostID: host, PlaceID: place, StatusID: status, Title: "Before editing", Type: database.EventTypeFootball, StartsAt: pgtype.Timestamptz{Time: time.Now().Add(3 * time.Hour), Valid: true}, Capacity: 3})
+		created, err := queries.CreateEvent(ctx, database.CreateEventParams{HostID: host, PlaceID: place, StatusID: status, Title: "Before editing", Type: "football", StartsAt: pgtype.Timestamptz{Time: time.Now().Add(3 * time.Hour), Valid: true}, Capacity: 3})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -175,53 +175,7 @@ func TestEventBrowsing(t *testing.T) {
 		}
 	})
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /events", handler.ListEvents)
 	mux.HandleFunc("GET /events/{id}", handler.GetEvent)
-	for _, check := range []struct {
-		query     string
-		count     int
-		eventType string
-	}{
-		{"bbox=74.40,31.46,74.42,31.48", 3, ""},
-		{"bbox=74.40,31.46,74.42,31.48&type=football", 1, "football"},
-		{"bbox=74.40,31.46,74.42,31.48&type=cricket", 2, "cricket"},
-		{"bbox=0,0,1,1", 0, ""},
-	} {
-		response := httptest.NewRecorder()
-		mux.ServeHTTP(response, httptest.NewRequest("GET", "/events?"+check.query, nil))
-		var list struct {
-			Events []struct {
-				ID       string
-				Type     string
-				StartsAt time.Time `json:"starts_at"`
-				Full     bool      `json:"is_full"`
-				Spots    int       `json:"available_spots"`
-			}
-			PlaceCounts map[string]int `json:"place_counts"`
-			Truncated   bool
-		}
-		if err = json.Unmarshal(response.Body.Bytes(), &list); err != nil || response.Code != 200 || len(list.Events) != check.count || list.Truncated {
-			t.Fatalf("%s: %d %s (%v)", check.query, response.Code, response.Body.String(), err)
-		}
-		count := 0
-		for _, amount := range list.PlaceCounts {
-			count += amount
-		}
-		if count != check.count {
-			t.Fatalf("place counts: %v", list.PlaceCounts)
-		}
-		for index, event := range list.Events {
-			if check.eventType != "" && event.Type != check.eventType {
-				t.Fatal("type filter ignored")
-			}
-			if index > 0 && event.StartsAt.Before(list.Events[index-1].StartsAt) {
-				t.Fatal("events out of order")
-			}
-			if event.ID == "30000000-0000-4000-8000-000000000002" && (!event.Full || event.Spots != 0) {
-				t.Fatal("full event capacity incorrect")
-			}
-		}
-	}
 	for _, check := range []struct {
 		id, slug           string
 		code, participants int
@@ -252,32 +206,6 @@ func TestEventBrowsing(t *testing.T) {
 			t.Fatalf("detail: %s (%v)", response.Body.String(), err)
 		}
 	}
-	// An elapsed scheduled event must disappear without a status mutation.
-	if _, err = pool.Exec(ctx, `UPDATE events SET starts_at=statement_timestamp()-interval '1 minute' WHERE id='30000000-0000-4000-8000-000000000001'`); err != nil {
-		t.Fatal(err)
-	}
-	response := httptest.NewRecorder()
-	mux.ServeHTTP(response, httptest.NewRequest("GET", "/events?bbox=74.40,31.46,74.42,31.48&type=football", nil))
-	var list struct {
-		Events      []json.RawMessage
-		Truncated   bool
-		PlaceCounts map[string]int `json:"place_counts"`
-	}
-	if err = json.Unmarshal(response.Body.Bytes(), &list); err != nil || len(list.Events) != 0 {
-		t.Fatalf("elapsed event returned: %s", response.Body.String())
-	}
-	_, err = pool.Exec(ctx, `INSERT INTO events(host_id,place_id,status_id,title,type,starts_at,capacity)
-        SELECT '20000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000003',
-        '10000000-0000-4000-8000-000000000001','Extra '||number,'football',statement_timestamp()+interval '1 hour',10 FROM generate_series(1,1001) AS number`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response = httptest.NewRecorder()
-	mux.ServeHTTP(response, httptest.NewRequest("GET", "/events?bbox=74.40,31.46,74.42,31.48&type=football", nil))
-	if err = json.Unmarshal(response.Body.Bytes(), &list); err != nil || len(list.Events) != 1000 || !list.Truncated || list.PlaceCounts["00000000-0000-4000-8000-000000000003"] != 1001 {
-		t.Fatalf("bounded results and exact marker counts: %d %v (%v)", len(list.Events), list.PlaceCounts, err)
-	}
-
 	t.Run("participation and simultaneous last spot", func(t *testing.T) {
 		var hostID, firstID, secondID, placeID, statusID pgtype.UUID
 		for _, entry := range []struct {
@@ -287,7 +215,7 @@ func TestEventBrowsing(t *testing.T) {
 			{&hostID, "20000000-0000-4000-8000-000000000001"},
 			{&firstID, "20000000-0000-4000-8000-000000000002"},
 			{&secondID, "20000000-0000-4000-8000-000000000006"},
-			{&placeID, "00000000-0000-4000-8000-000000000003"},
+			{&placeID, "00000000-0000-4000-8000-000000000100"},
 			{&statusID, "10000000-0000-4000-8000-000000000001"},
 		} {
 			if err := entry.target.Scan(entry.value); err != nil {
@@ -295,7 +223,7 @@ func TestEventBrowsing(t *testing.T) {
 			}
 		}
 		created, err := database.New(pool).CreateEvent(ctx, database.CreateEventParams{
-			HostID: hostID, PlaceID: placeID, StatusID: statusID, Title: "Last spot", Type: database.EventTypeFootball,
+			HostID: hostID, PlaceID: placeID, StatusID: statusID, Title: "Last spot", Type: "football",
 			StartsAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true}, Capacity: 2,
 		})
 		if err != nil {
@@ -370,6 +298,9 @@ func TestEventBrowsing(t *testing.T) {
 		if err != nil || json.Unmarshal(detail, &payload) != nil || payload.Viewer.ID != loser.String() || !payload.Viewer.Joined || payload.Viewer.Host {
 			t.Fatalf("viewer participation: %s (%v)", detail, err)
 		}
+		if _, err = pool.Exec(ctx, `UPDATE events SET starts_at=statement_timestamp()-interval '1 minute' WHERE id='30000000-0000-4000-8000-000000000001'`); err != nil {
+			t.Fatal(err)
+		}
 		for _, eventID := range []string{
 			"30000000-0000-4000-8000-000000000002", // Full; Demo Ali is not a member.
 			"30000000-0000-4000-8000-000000000003", // Cancelled.
@@ -409,21 +340,25 @@ func TestEventBrowsing(t *testing.T) {
 		hostID.Scan("20000000-0000-4000-8000-000000000001")
 		attendeeID.Scan("20000000-0000-4000-8000-000000000002")
 		strangerID.Scan("20000000-0000-4000-8000-000000000006")
-		placeID.Scan("00000000-0000-4000-8000-000000000003")
+		placeID.Scan("00000000-0000-4000-8000-000000000100")
 		statusID.Scan("10000000-0000-4000-8000-000000000001")
 		queries := database.New(pool)
-		created, err := queries.CreateEvent(ctx, database.CreateEventParams{HostID: hostID, PlaceID: placeID, StatusID: statusID, Title: "Cancellation test", Type: database.EventTypeFootball, StartsAt: pgtype.Timestamptz{Time: time.Now().Add(2 * time.Hour), Valid: true}, Capacity: 3})
+		created, err := queries.CreateEvent(ctx, database.CreateEventParams{HostID: hostID, PlaceID: placeID, StatusID: statusID, Title: "Cancellation test", Type: "football", StartsAt: pgtype.Timestamptz{Time: time.Now().Add(2 * time.Hour), Valid: true}, Capacity: 3})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if _, err = queries.JoinEvent(ctx, database.JoinEventParams{EventID: created.ID, UserID: attendeeID}); err != nil {
 			t.Fatal(err)
 		}
+		if _, err = pool.Exec(ctx, `INSERT INTO events(host_id,place_id,status_id,title,type,starts_at,capacity)
+			SELECT $1,$2,$3,'Pagination '||number,'football',statement_timestamp()+interval '1 hour',10
+			FROM generate_series(1,100) AS number`, hostID, placeID, statusID); err != nil {
+			t.Fatal(err)
+		}
 		call := func(user pgtype.UUID, method, path string) *httptest.ResponseRecorder {
 			h := Handler{Queries: queries, Pool: pool, DemoUserID: user}
 			router := http.NewServeMux()
 			router.HandleFunc("GET /me/events", h.ListUserEvents)
-			router.HandleFunc("GET /events", h.ListEvents)
 			router.HandleFunc("PUT /events/{id}/cancellation", h.CancelEvent)
 			router.HandleFunc("PUT /events/{id}/participation", h.ChangeParticipation)
 			response := httptest.NewRecorder()
@@ -540,7 +475,7 @@ func TestEventBrowsing(t *testing.T) {
 			t.Fatal(err)
 		}
 		creator := Handler{Queries: database.New(pool), Pool: pool, DemoUserID: demoID}
-		body := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000003","title":"  Test creation  ","type":"cricket","starts_at":%q,"capacity":1}`, time.Now().Add(2*time.Hour).Format(time.RFC3339))
+		body := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000100","title":"  Test creation  ","type":"cricket","starts_at":%q,"capacity":1}`, time.Now().Add(2*time.Hour).Format(time.RFC3339))
 		response := httptest.NewRecorder()
 		creator.CreateEvent(response, httptest.NewRequest("POST", "/events", strings.NewReader(body)))
 		var created struct{ ID string }
@@ -562,7 +497,7 @@ func TestEventBrowsing(t *testing.T) {
 			t.Fatal(err)
 		}
 		response = httptest.NewRecorder()
-		creator.CreateEvent(response, httptest.NewRequest("POST", "/events", strings.NewReader(strings.Replace(body, "00000000-0000-4000-8000-000000000003", "ffffffff-ffff-4fff-8fff-ffffffffffff", 1))))
+		creator.CreateEvent(response, httptest.NewRequest("POST", "/events", strings.NewReader(strings.Replace(body, "00000000-0000-4000-8000-000000000100", "ffffffff-ffff-4fff-8fff-ffffffffffff", 1))))
 		if response.Code != 404 {
 			t.Fatalf("missing place: %d %s", response.Code, response.Body.String())
 		}

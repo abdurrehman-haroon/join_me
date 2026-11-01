@@ -3,10 +3,9 @@ package geography
 import (
 	"errors"
 	"log"
-	"math"
 	"net/http"
-	"strconv"
-	"strings"
+	"regexp"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,60 +14,81 @@ import (
 
 type Handler struct{ Queries *database.Queries }
 
-func (handler Handler) GetArea(w http.ResponseWriter, request *http.Request) {
-	var areaID pgtype.UUID
-	if err := areaID.Scan(request.PathValue("id")); err != nil || !areaID.Valid {
-		http.Error(w, "invalid area ID", http.StatusBadRequest)
+// Explore pages count events in the coming week, so "things happening" stays
+// meaningful without counting events months away. Responses echo the end time.
+const exploreWindow = 7 * 24 * time.Hour
+
+// Matches the slug format enforced by the areas, places and place_spots tables.
+var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
+func (handler Handler) ListCityDistricts(w http.ResponseWriter, request *http.Request) {
+	citySlug := request.PathValue("city")
+	if !slugPattern.MatchString(citySlug) {
+		http.Error(w, "invalid city slug", http.StatusBadRequest)
 		return
 	}
-	area, err := handler.Queries.GetArea(request.Context(), areaID)
+	districts, err := handler.Queries.ListCityDistricts(request.Context(), database.ListCityDistrictsParams{
+		CitySlug:     citySlug,
+		WindowEndsAt: pgtype.Timestamptz{Time: time.Now().Add(exploreWindow), Valid: true},
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		http.Error(w, "area not found", http.StatusNotFound)
+		http.Error(w, "city not found", http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		log.Printf("get area: %v", err)
-		http.Error(w, "could not load area", http.StatusInternalServerError)
+		log.Printf("list city districts: %v", err)
+		http.Error(w, "could not load districts", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(area)
+	w.Write(districts)
 }
 
-// ParseBounds accepts west,south,east,north without crossing the antimeridian.
-func ParseBounds(value string) (database.ListPlacesInBoundsParams, error) {
-	parts := strings.Split(value, ",")
-	if len(parts) != 4 {
-		return database.ListPlacesInBoundsParams{}, errors.New("bbox must be west,south,east,north")
-	}
-	var bounds [4]float64
-	for index, part := range parts {
-		number, err := strconv.ParseFloat(part, 64)
-		if err != nil || math.IsNaN(number) || math.IsInf(number, 0) {
-			return database.ListPlacesInBoundsParams{}, errors.New("bbox must contain four finite numbers")
-		}
-		bounds[index] = number
-	}
-	west, south, east, north := bounds[0], bounds[1], bounds[2], bounds[3]
-	if west < -180 || east > 180 || south < -90 || north > 90 || west >= east || south >= north {
-		return database.ListPlacesInBoundsParams{}, errors.New("bbox must have ordered longitude/latitude bounds within the world")
-	}
-	return database.ListPlacesInBoundsParams{West: west, South: south, East: east, North: north}, nil
-}
-
-func (handler Handler) ListPlaces(w http.ResponseWriter, request *http.Request) {
-	bounds, err := ParseBounds(request.URL.Query().Get("bbox"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+func (handler Handler) ListDistrictPlaces(w http.ResponseWriter, request *http.Request) {
+	citySlug, districtSlug := request.PathValue("city"), request.PathValue("district")
+	if !slugPattern.MatchString(citySlug) || !slugPattern.MatchString(districtSlug) {
+		http.Error(w, "invalid city or district slug", http.StatusBadRequest)
 		return
 	}
-	places, err := handler.Queries.ListPlacesInBounds(request.Context(), bounds)
+	places, err := handler.Queries.ListDistrictPlaces(request.Context(), database.ListDistrictPlacesParams{
+		CitySlug:     citySlug,
+		DistrictSlug: districtSlug,
+		WindowEndsAt: pgtype.Timestamptz{Time: time.Now().Add(exploreWindow), Valid: true},
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "district not found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
-		log.Printf("list places: %v", err)
+		log.Printf("list district places: %v", err)
 		http.Error(w, "could not load places", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	// SQL returns bounded GeoJSON; no geographic filtering happens in Go.
 	w.Write(places)
+}
+
+func (handler Handler) GetPlace(w http.ResponseWriter, request *http.Request) {
+	citySlug, districtSlug, placeSlug := request.PathValue("city"), request.PathValue("district"), request.PathValue("place")
+	if !slugPattern.MatchString(citySlug) || !slugPattern.MatchString(districtSlug) || !slugPattern.MatchString(placeSlug) {
+		http.Error(w, "invalid city, district or place slug", http.StatusBadRequest)
+		return
+	}
+	place, err := handler.Queries.GetPlaceBySlugs(request.Context(), database.GetPlaceBySlugsParams{
+		CitySlug:     citySlug,
+		DistrictSlug: districtSlug,
+		PlaceSlug:    placeSlug,
+		WindowEndsAt: pgtype.Timestamptz{Time: time.Now().Add(exploreWindow), Valid: true},
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "place not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("get place: %v", err)
+		http.Error(w, "could not load place", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(place)
 }

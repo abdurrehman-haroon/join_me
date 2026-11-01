@@ -33,6 +33,7 @@ const (
 	ActivityActionInteractionPaused      ActivityAction = "interaction_paused"
 	ActivityActionInteractionResumed     ActivityAction = "interaction_resumed"
 	ActivityActionInteractionClosed      ActivityAction = "interaction_closed"
+	ActivityActionAreaViewed             ActivityAction = "area_viewed"
 )
 
 func (e *ActivityAction) Scan(src interface{}) error {
@@ -80,6 +81,7 @@ const (
 	ActivitySourceEventChat    ActivitySource = "event_chat"
 	ActivitySourceYourEvents   ActivitySource = "your_events"
 	ActivitySourceProfile      ActivitySource = "profile"
+	ActivitySourceExplore      ActivitySource = "explore"
 )
 
 func (e *ActivitySource) Scan(src interface{}) error {
@@ -122,6 +124,7 @@ type ActivityTrackableType string
 const (
 	ActivityTrackableTypeEvent ActivityTrackableType = "event"
 	ActivityTrackableTypePlace ActivityTrackableType = "place"
+	ActivityTrackableTypeArea  ActivityTrackableType = "area"
 )
 
 func (e *ActivityTrackableType) Scan(src interface{}) error {
@@ -164,7 +167,6 @@ type AreaType string
 const (
 	AreaTypeCity     AreaType = "city"
 	AreaTypeDistrict AreaType = "district"
-	AreaTypeCampus   AreaType = "campus"
 )
 
 func (e *AreaType) Scan(src interface{}) error {
@@ -244,55 +246,21 @@ func (ns NullEventGoalPeriod) Value() (driver.Value, error) {
 	return string(ns.EventGoalPeriod), nil
 }
 
-type EventType string
-
-const (
-	EventTypeFootball EventType = "football"
-	EventTypeCricket  EventType = "cricket"
-)
-
-func (e *EventType) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = EventType(s)
-	case string:
-		*e = EventType(s)
-	default:
-		return fmt.Errorf("unsupported scan type for EventType: %T", src)
-	}
-	return nil
-}
-
-type NullEventType struct {
-	EventType EventType
-	Valid     bool // Valid is true if EventType is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullEventType) Scan(value interface{}) error {
-	if value == nil {
-		ns.EventType, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.EventType.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullEventType) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.EventType), nil
-}
-
 type PlaceType string
 
 const (
-	PlaceTypeGround PlaceType = "ground"
-	PlaceTypeCourt  PlaceType = "court"
-	PlaceTypeCafe   PlaceType = "cafe"
-	PlaceTypePark   PlaceType = "park"
+	PlaceTypeCampus     PlaceType = "campus"
+	PlaceTypeCafe       PlaceType = "cafe"
+	PlaceTypeRestaurant PlaceType = "restaurant"
+	PlaceTypePark       PlaceType = "park"
+	PlaceTypeMall       PlaceType = "mall"
+	PlaceTypeSportsClub PlaceType = "sports_club"
+	PlaceTypeStadium    PlaceType = "stadium"
+	PlaceTypeCulture    PlaceType = "culture"
+	PlaceTypeHeritage   PlaceType = "heritage"
+	PlaceTypeHotel      PlaceType = "hotel"
+	PlaceTypeExhibition PlaceType = "exhibition"
+	PlaceTypeCommunity  PlaceType = "community"
 )
 
 func (e *PlaceType) Scan(src interface{}) error {
@@ -372,6 +340,52 @@ func (ns NullRealtimeTargetType) Value() (driver.Value, error) {
 	return string(ns.RealtimeTargetType), nil
 }
 
+type SpotType string
+
+const (
+	SpotTypeGround SpotType = "ground"
+	SpotTypeCourt  SpotType = "court"
+	SpotTypePool   SpotType = "pool"
+	SpotTypeHall   SpotType = "hall"
+	SpotTypeRoom   SpotType = "room"
+	SpotTypeOther  SpotType = "other"
+)
+
+func (e *SpotType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SpotType(s)
+	case string:
+		*e = SpotType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SpotType: %T", src)
+	}
+	return nil
+}
+
+type NullSpotType struct {
+	SpotType SpotType
+	Valid    bool // Valid is true if SpotType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSpotType) Scan(value interface{}) error {
+	if value == nil {
+		ns.SpotType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SpotType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSpotType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SpotType), nil
+}
+
 type StatusableType string
 
 const (
@@ -437,12 +451,14 @@ type Area struct {
 	Boundary  interface{}
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+	Slug      string
+	SortOrder int32
 }
 
 type Event struct {
 	ID        pgtype.UUID
 	HostID    pgtype.UUID
-	Type      EventType
+	Type      string
 	StartsAt  pgtype.Timestamptz
 	Capacity  int32
 	CreatedAt pgtype.Timestamptz
@@ -450,6 +466,7 @@ type Event struct {
 	Title     string
 	PlaceID   pgtype.UUID
 	StatusID  pgtype.UUID
+	SpotID    pgtype.UUID
 }
 
 type EventParticipant struct {
@@ -469,14 +486,6 @@ type Message struct {
 	Sequence  int64
 }
 
-type ModerationLog struct {
-	ID        pgtype.UUID
-	EventType string
-	Details   []byte
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-}
-
 type Place struct {
 	ID        pgtype.UUID
 	AreaID    pgtype.UUID
@@ -484,6 +493,21 @@ type Place struct {
 	Type      PlaceType
 	Location  interface{}
 	Boundary  interface{}
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Slug      string
+	SortOrder int32
+}
+
+type PlaceSpot struct {
+	ID        pgtype.UUID
+	PlaceID   pgtype.UUID
+	Name      string
+	Slug      string
+	Type      SpotType
+	Location  interface{}
+	Boundary  interface{}
+	SortOrder int32
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 }
