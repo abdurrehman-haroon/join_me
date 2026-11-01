@@ -1,18 +1,16 @@
 export type ActivitySource =
-  | "map"
   | "place_details"
   | "event_details"
   | "event_form"
   | "event_chat"
   | "your_events"
-  | "profile";
-export type SportFilter = "all" | "football" | "cricket";
+  | "profile"
+  | "explore";
 export type ClientAction =
   | "session_started"
   | "chat_opened"
-  | "sport_filter_selected"
   | "place_viewed"
-  | "empty_results_viewed"
+  | "area_viewed"
   | "event_creation_started"
   | "event_creation_submitted"
   | "event_viewed"
@@ -26,7 +24,7 @@ export type Activity = {
   session_id: string;
   interaction_id: string | null;
   interaction_step: number | null;
-  trackable_type: "event" | "place" | null;
+  trackable_type: "event" | "place" | "area" | null;
   trackable_id: string | null;
   source: ActivitySource | null;
   occurred_at: string;
@@ -329,85 +327,5 @@ export class ActivityInteraction {
       "X-Activity-Session": this.sessionID,
       "X-Activity-Interaction": this.id,
     };
-  }
-}
-
-// One map visit groups discovery actions; query fingerprints never leave memory.
-export class DiscoveryTracker {
-  readonly id: string;
-  private step = 0;
-  private sport: SportFilter = "all";
-  private lastMapEmpty: string | null = null;
-  private lastPlaceEmpty: string | null = null;
-
-  constructor(
-    private sessionID: string,
-    private emit: (activity: Activity) => void,
-    private uuid: () => string,
-  ) {
-    this.id = uuid();
-  }
-
-  selectSport(sport: SportFilter): boolean {
-    if (sport === this.sport) return false;
-    this.sport = sport;
-    this.record("sport_filter_selected", { sport });
-    return true;
-  }
-
-  resetSport() {
-    this.sport = "all";
-  }
-
-  observeMapResults(
-    viewKey: string,
-    sport: SportFilter,
-    emptyKind: "no_events" | "no_places" | null,
-  ) {
-    if (!emptyKind) {
-      this.lastMapEmpty = null;
-      return;
-    }
-    const key = `${viewKey}|${sport}|${emptyKind}`;
-    if (this.lastMapEmpty === key) return;
-    this.lastMapEmpty = key;
-    this.record("empty_results_viewed", { sport, empty_kind: emptyKind });
-  }
-
-  observePlaceResults(
-    visit: ActivityInteraction,
-    sport: SportFilter,
-    empty: boolean,
-  ) {
-    if (!empty) {
-      this.lastPlaceEmpty = null;
-      return;
-    }
-    const key = `${visit.id}|${sport}`;
-    if (this.lastPlaceEmpty === key) return;
-    this.lastPlaceEmpty = key;
-    visit.record(
-      "empty_results_viewed",
-      { sport, empty_kind: "no_events" },
-      "place_details",
-    );
-  }
-
-  private record(
-    action: "sport_filter_selected" | "empty_results_viewed",
-    details: Record<string, unknown>,
-  ) {
-    this.emit({
-      id: this.uuid(),
-      action,
-      session_id: this.sessionID,
-      interaction_id: this.id,
-      interaction_step: ++this.step,
-      trackable_type: null,
-      trackable_id: null,
-      source: "map",
-      occurred_at: new Date().toISOString(),
-      details,
-    });
   }
 }

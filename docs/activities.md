@@ -28,9 +28,9 @@ Trackable type/ID must both be present or both null. The backend validates exist
 
 Migration 000011 creates these PostgreSQL enums and sqlc types. Extend through forward-only migrations when a feature needs another defined value. The table below is the full catalogue; only the actions listed in the implementation status and discovery/hosting/chat extensions are currently instrumented.
 
-`activity_trackable_type`: `event`, `place`.
+`activity_trackable_type`: `event`, `place`, `area`.
 
-`activity_source`: `map`, `place_details`, `event_details`, `event_form`, `event_chat`, `your_events`, `profile`.
+`activity_source`: `map`, `place_details`, `event_details`, `event_form`, `event_chat`, `your_events`, `profile`, `explore`.
 
 Source means the initiating surface: opening event details from personal activity history records `profile`; opening from Your events records `your_events`; tapping Join inside details records `event_details`. It is nullable when no UI source applies, such as session startup. It does not indicate client/server trust; recording ownership is fixed by action.
 
@@ -39,10 +39,11 @@ Source means the initiating surface: opening event details from personal activit
 | Value | Trackable | Recorder and trigger | Required details |
 |---|---|---|---|
 | session_started | None | Frontend, once per defined app visit | {} |
-| sport_filter_selected | None | Frontend, when user changes the filter | sport |
-| place_viewed | place | Frontend, when loaded place details become visible | sport, referrer_interaction_id, zero timing |
+| sport_filter_selected | None | Retired with the old Map screen; historical rows only | sport |
+| place_viewed | place | Frontend, when a loaded Explore place becomes visible | referrer_interaction_id, zero timing |
+| area_viewed | area | Frontend, when a loaded city or district explore page becomes visible; at most once per session per area | {} |
 | event_viewed | event | Frontend, when loaded event details become visible | snapshot, timing, viewer_role |
-| empty_results_viewed | place or none | Frontend, when a successful visible query displays no results | sport, empty_kind; timing for place visits |
+| empty_results_viewed | place or none | Retired with the old Map screen; historical rows only | sport, empty_kind; timing for place visits |
 | event_creation_started | place | Frontend, when creation form opens | timing (zero at start) |
 | event_creation_submitted | place | Frontend, locally valid form submitted | timing, attempt_number |
 | event_created | event | Backend, successful event creation | snapshot |
@@ -138,13 +139,13 @@ Reports use UTC and a 24-hour outcome follow-up window. Queue limits are defined
 
 Details must be a JSON object, never null or an array. Only the listed keys are accepted for each action; reject unknown keys, wrong types and invalid values. Empty contracts accept only `{}`. Do not dump request bodies, event objects or arbitrary metadata into this column.
 
-### Filter and empty results
+### Historical filter and empty results
 
 ```json
 {"sport": "cricket"}
 ```
 
-`sport` accepts `all`, `football` or `cricket`; these are validated JSON values, not additional table columns. The example above is a filter change. Empty-result details additionally require empty_kind (no_events or no_places); place empties also carry timings, as defined in the discovery extension. For map empty results, source is map and trackable is null; for place empty results, trackable is that place. Do not store GPS or viewport coordinates.
+These details describe rows recorded by the removed Map screen. New client ingestion rejects `sport_filter_selected`, `empty_results_viewed` and `place_viewed` with source `map`; the enum values and reports remain so historical rows stay readable. Do not store GPS or viewport coordinates.
 
 ### Historical event snapshot
 
@@ -240,13 +241,15 @@ Verification: database-backed make check and focused Go race tests pass; fronten
 
 ## Discovery tracking extension
 
+Retired 2026-11-02: the old Map screen that recorded `sport_filter_selected`, map/place `empty_results_viewed` and map-source `place_viewed` was removed. Client ingestion rejects those combinations. Their PostgreSQL enum values, existing rows and internal report remain unchanged so historical data stays readable. Explore-source `place_viewed` remains active without a sport field.
+
 Approved scope: sport filter changes, place views and visible empty results, linked to the existing view-to-join flow. These answer which sports people seek, which grounds attract interest and where discovery has no available games. Reuse migration 000011 and its existing enum values; no new table/column/migration is needed.
 
-Contracts:
+Historical contracts (not accepted for new ingestion):
 
 | Action | Source / trackable | Details |
 |---|---|---|
-| sport_filter_selected | map / null pair | sport: all, football or cricket |
+| sport_filter_selected | map / null pair | sport: all or a trimmed event type up to 50 characters |
 | place_viewed | map / place | sport at opening, referrer_interaction_id for the map visit, elapsed_ms: 0, active_ms: 0 |
 | empty_results_viewed | map / null pair | sport; empty_kind: no_events or no_places; no timing fields |
 | empty_results_viewed | place_details / place | sport; empty_kind: no_events; elapsed_ms and active_ms within that place visit |
@@ -282,3 +285,7 @@ The queue guards against repeated effect setup and does not start another sessio
 `backend/reports/sessions.sql` counts UTC daily starts and shows observed feature counts within each started actor/session, including actions delivered later or after the cohort's start window. It does not infer session end, duration, bounce or real-person retention; missing starts/late delivery mean incomplete coverage. The shared demo actor is not a distinct-user measurement. No public reports API or user-facing statistics UI is added.
 
 Verification includes strict null/empty-details validation, unchanged ingestion retries and actor checks, effect-replay/background deduplication, failed delivery/restart with old plus new sessions, and all five SQL report files against isolated fixtures. Native launch/background/relaunch results are recorded in handoff.md.
+
+## Explore tracking (2026-11-01)
+
+Question answered: which cities and districts people open when browsing, as the top of the explore funnel. `area_viewed` targets the city or district, uses source `explore`, its own interaction at step 1, and empty details. The client sends it once per session for each area; refreshes, returning to the page, scrolling and swiping record nothing. Ingestion checks the area exists. Place views opened from explore use `place_viewed` with source `explore`, no sport (explore has no filter), the district page interaction as referrer_interaction_id and zero timing; explore place pages keep the usual place_details pause/resume/close timing. Event views opened from explore cards use `event_viewed` with source `explore` and the place card or page interaction as optional referrer.
