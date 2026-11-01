@@ -20,7 +20,7 @@ type HistoryEntry = {
   event_id: string;
   occurred_at: string;
   title: string;
-  type: "football" | "cricket";
+  type: string;
   place_name: string;
   event_status: string;
 };
@@ -31,7 +31,7 @@ type ActivitySummary = {
   cancelled_joined: number;
   hosted: number;
   cancelled_hosted: number;
-  sports: { type: "football" | "cricket"; joined: number; hosted: number }[];
+  sports: { type: string; joined: number; hosted: number }[];
   grounds: { id: string; name: string; events: number }[];
   history: HistoryEntry[];
   next_offset: number | null;
@@ -43,6 +43,10 @@ const actionLabels = {
   participation_left: "Left",
   event_cancelled: "Cancelled",
 };
+
+function formatEventType(eventType: string) {
+  return eventType.charAt(0).toUpperCase() + eventType.slice(1);
+}
 
 export default function YourActivity() {
   const [period, setPeriod] = useState<"month" | "all">("month");
@@ -206,9 +210,7 @@ export default function YourActivity() {
           ) : (
             summary.sports.map((sport) => (
               <View key={sport.type} style={styles.line}>
-                <Text style={styles.label}>
-                  {sport.type === "football" ? "Football" : "Cricket"}
-                </Text>
+                <Text style={styles.label}>{formatEventType(sport.type)}</Text>
                 <Text style={styles.muted}>
                   {sport.joined} joined · {sport.hosted} hosted
                 </Text>
@@ -250,7 +252,7 @@ export default function YourActivity() {
             >
               <Text style={styles.action}>
                 {actionLabels[entry.action]} ·{" "}
-                {entry.type === "football" ? "Football" : "Cricket"}
+                {formatEventType(entry.type)}
               </Text>
               <Text style={styles.label}>{entry.title}</Text>
               <Text style={styles.muted}>

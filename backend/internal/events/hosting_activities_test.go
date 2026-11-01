@@ -18,7 +18,7 @@ import (
 func testHostingActivities(t *testing.T, pool *pgxpool.Pool, call func(string, string, string, string) *httptest.ResponseRecorder, attendee pgtype.UUID) {
 	ctx := context.Background()
 	start := time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second)
-	body := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000003","title":"Private original title","type":"football","starts_at":%q,"capacity":4}`, start.Format(time.RFC3339))
+	body := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000100","title":"Private original title","type":"football","starts_at":%q,"capacity":4}`, start.Format(time.RFC3339))
 	response := call("POST", "/events", body, "")
 	if response.Code != 201 {
 		t.Fatal(response.Body.String())

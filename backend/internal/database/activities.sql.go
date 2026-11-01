@@ -15,6 +15,7 @@ const activityTargetExists = `-- name: ActivityTargetExists :one
 SELECT CASE $1::activity_trackable_type
     WHEN 'event' THEN EXISTS(SELECT 1 FROM events WHERE events.id = $2)
     WHEN 'place' THEN EXISTS(SELECT 1 FROM places WHERE places.id = $2)
+    WHEN 'area' THEN EXISTS(SELECT 1 FROM areas WHERE areas.id = $2)
 END::boolean AS target_exists
 `
 

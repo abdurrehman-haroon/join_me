@@ -243,108 +243,31 @@ test("retention bounds queued history without dropping newly recorded rows", asy
   assert.equal(saved.entries.at(-1).activity.id, "new");
 });
 
-test("discovery filters count only real user changes, never automatic reset or repeated taps", () => {
-  const { DiscoveryTracker } = runtime();
-  let nextID = 0;
-  const rows = [];
-  const discovery = new DiscoveryTracker(
-    "session",
-    (row) => rows.push(row),
-    () => String(++nextID),
-  );
-  assert.equal(discovery.selectSport("all"), false);
-  assert.equal(discovery.selectSport("cricket"), true);
-  assert.equal(discovery.selectSport("cricket"), false);
-  discovery.resetSport();
-  assert.equal(discovery.selectSport("all"), false);
-  assert.equal(discovery.selectSport("football"), true);
-  assert.deepEqual(
-    rows.map((row) => row.details.sport),
-    ["cricket", "football"],
-  );
-  assert.ok(
-    rows.every(
-      (row) => row.trackable_type === null && row.trackable_id === null,
-    ),
-  );
-  assert.ok(rows.every((row) => row.interaction_id === discovery.id));
-});
-
-test("map empty impressions suppress refreshes but count changed searches and actual state changes", () => {
-  const { DiscoveryTracker } = runtime();
-  let nextID = 0;
-  const rows = [];
-  const discovery = new DiscoveryTracker(
-    "session",
-    (row) => rows.push(row),
-    () => String(++nextID),
-  );
-  discovery.observeMapResults("74.40,31.46,74.42,31.48", "all", "no_events");
-  discovery.observeMapResults("74.40,31.46,74.42,31.48", "all", "no_events");
-  discovery.observeMapResults(
-    "74.40,31.46,74.42,31.48",
-    "cricket",
-    "no_events",
-  );
-  discovery.observeMapResults("another view", "cricket", "no_places");
-  discovery.observeMapResults("another view", "cricket", "no_places");
-  discovery.observeMapResults("another view", "cricket", null);
-  discovery.observeMapResults("another view", "cricket", "no_places");
-  assert.equal(rows.length, 4);
-  assert.deepEqual(
-    rows.map((row) => row.interaction_step),
-    [1, 2, 3, 4],
-  );
-  assert.equal(
-    JSON.stringify(rows).includes("74.40"),
-    false,
-    "coordinates never enter queued data",
-  );
-  assert.ok(
-    rows.every((row) => !Object.hasOwn(row.details, "elapsed_ms")),
-    "instant map observations have no invented timer",
-  );
-});
-
 test("place refreshes preserve one view; overlays use place_details and reopens count separately", () => {
-  const { DiscoveryTracker, ActivityInteraction } = runtime();
+  const { ActivityInteraction } = runtime();
   let nextID = 0,
     now = 0;
   const rows = [];
   const uuid = () => String(++nextID);
-  const discovery = new DiscoveryTracker(
-    "session",
-    (row) => rows.push(row),
-    uuid,
-  );
   const open = () =>
     new ActivityInteraction(
       "session",
       { type: "place", id: "ground" },
-      "map",
+      "explore",
       "place_viewed",
-      { sport: "all", referrer_interaction_id: discovery.id },
+      {},
       (row) => rows.push(row),
       uuid,
       () => now,
     );
   const first = open();
-  discovery.observePlaceResults(first, "all", true);
-  discovery.observePlaceResults(first, "all", true);
   now = 10000;
   first.setState(false, true);
   now = 20000;
   first.setState(true, true);
-  discovery.observePlaceResults(first, "all", true);
-  discovery.observePlaceResults(first, "cricket", true);
   first.close("dismissed");
   const second = open();
-  discovery.observePlaceResults(second, "all", true);
   assert.equal(rows.filter((row) => row.action === "place_viewed").length, 2);
-  assert.equal(
-    rows.filter((row) => row.action === "empty_results_viewed").length,
-    3,
-  );
   const paused = rows.find((row) => row.action === "interaction_paused");
   const resumed = rows.find((row) => row.action === "interaction_resumed");
   assert.equal(paused.source, "place_details");

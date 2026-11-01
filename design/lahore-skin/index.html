@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,"><title>Join me — Lahore skin study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.css" rel="stylesheet"><link href="style.css" rel="stylesheet">
+</head>
+<body>
+<main>
+<div id="map" aria-label="Map following the current story"></div><div class="map-shade"></div>
+<header><a href="#lahore" class="brand">join me<span>.</span></a><button id="city">Lahore <span>⌄</span></button><span class="prototype">SKIN STUDY</span></header>
+<nav id="breadcrumbs" aria-label="Location breadcrumb"></nav>
+<div id="story" tabindex="0" aria-label="Scroll through places. Enter a place to see its own feed."></div>
+<div id="progress"><span id="counter">01 / 06</span><div id="dots"></div><span id="level-label">DISTRICTS</span></div>
+<nav class="level-controls" aria-label="Location level"><button id="zoom-in">See district ↗</button><span id="depth" aria-hidden="true"></span><button id="zoom-out">Back</button></nav>
+<footer><button id="explore">⌖ <span>Explore map</span></button><span class="scroll-help">SCROLL TO DISCOVER <span>↓</span></span><button id="restart" aria-label="Return to the start of this feed">↑</button></footer>
+<div class="demo-note">Real place names · 40 sample events · Pins approximate · District outlines illustrative</div>
+<div id="loading" role="status">Opening Lahore…</div>
+<div id="map-error" hidden>Map couldn’t load. Check your connection. <button onclick="location.reload()">Reload</button></div>
+<div id="toast" hidden role="status"></div>
+<dialog id="event-details" aria-labelledby="details-title">
+  <section class="details-content">
+    <div class="details-top"><span>Sample event</span><button id="close-details" aria-label="Close event details">Close ×</button></div>
+    <h2 id="details-title"></h2><p id="details-location"></p>
+    <dl><div><dt>When</dt><dd id="details-time"></dd></div><div><dt>Availability</dt><dd id="details-spots"></dd></div></dl>
+    <p class="details-description">This event is invented for the frontend prototype. The venue is real; the time, available spots and gathering are examples.</p>
+    <p class="details-description">Close this panel to return to the same event and map position.</p>
+    <button id="return-to-map" class="primary">Back to map <span>↩</span></button>
+  </section>
+</dialog>
+</main>
+<script src="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.js"></script><script src="skin.js"></script><script src="prototype.js"></script>
+</body></html>

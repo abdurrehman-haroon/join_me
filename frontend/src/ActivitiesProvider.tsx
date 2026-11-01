@@ -21,6 +21,9 @@ const apiURL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 const ActivitiesContext = createContext<{
   queue: ActivityQueue;
   sessionID: string;
+  // Area ID -> interaction ID of its one area_viewed row this session; place
+  // views opened from that area use the interaction ID as their referrer.
+  viewedAreas: Map<string, string>;
 } | null>(null);
 
 // Alternate complete snapshots: if termination interrupts one write, restore the other.
@@ -84,6 +87,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
   const [tracking] = useState(() => ({
     queue: new ActivityQueue(apiURL, queueStorage()),
     sessionID: uuid.v4(),
+    viewedAreas: new Map<string, string>(),
   }));
   useEffect(() => {
     tracking.queue.startSession(tracking.sessionID);

@@ -94,10 +94,10 @@ func testEventGoalProgress(t *testing.T, pool *pgxpool.Pool, actor pgtype.UUID) 
 	exec(`INSERT INTO events(id,host_id,place_id,status_id,title,type,starts_at,capacity)
         SELECT ('40000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
             CASE WHEN n=8 THEN $1::uuid ELSE '20000000-0000-4000-8000-000000000002'::uuid END,
-            CASE WHEN n%2=0 THEN '00000000-0000-4000-8000-000000000002'::uuid ELSE '00000000-0000-4000-8000-000000000003'::uuid END,
+            '00000000-0000-4000-8000-000000000100'::uuid,
             CASE WHEN n=7 THEN '10000000-0000-4000-8000-000000000002'::uuid
                 WHEN n=11 THEN '10000000-0000-4000-8000-000000000003'::uuid ELSE '10000000-0000-4000-8000-000000000001'::uuid END,
-            'Goal boundary test',CASE WHEN n%2=0 THEN 'football'::event_type ELSE 'cricket'::event_type END,
+            'Goal boundary test',CASE WHEN n%2=0 THEN 'football' ELSE 'cricket' END,
             CASE n WHEN 1 THEN '2026-03-09T03:59:59Z'::timestamptz
                 WHEN 2 THEN '2026-03-09T04:00:00Z'::timestamptz
                 WHEN 3 THEN '2026-03-16T03:59:59Z'::timestamptz
@@ -132,7 +132,7 @@ func testEventGoalProgress(t *testing.T, pool *pgxpool.Pool, actor pgtype.UUID) 
 		}
 	}
 	weekly := read()
-	for key, want := range map[string]string{"event_goal_target": "3", "event_goal_period": `"weekly"`, "goal_progress": "3", "month_joined": "5", "previous_month_joined": "1", "month_sports": "2", "month_grounds": "2", "month_hosted": "1", "eligible_joined": "9"} {
+	for key, want := range map[string]string{"event_goal_target": "3", "event_goal_period": `"weekly"`, "goal_progress": "3", "month_joined": "5", "previous_month_joined": "1", "month_sports": "2", "month_grounds": "1", "month_hosted": "1", "eligible_joined": "9"} {
 		assert(weekly, key, want)
 	}
 	for key, want := range map[string]time.Time{
