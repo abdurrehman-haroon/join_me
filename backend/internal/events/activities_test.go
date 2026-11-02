@@ -72,7 +72,7 @@ func TestActivitiesAndSafeCreation(t *testing.T) {
 		return response
 	}
 	key := "30000000-0000-4000-8000-000000000003"
-	body := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000003","title":"Tracked","type":"football","starts_at":%q,"capacity":2}`, time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
+	body := fmt.Sprintf(`{"place_id":"00000000-0000-4000-8000-000000000100","title":"Tracked","type":"football","starts_at":%q,"capacity":2}`, time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
 	responses := make(chan *httptest.ResponseRecorder, 2)
 	var wait sync.WaitGroup
 	for range 2 {
@@ -135,7 +135,7 @@ func TestActivitiesAndSafeCreation(t *testing.T) {
 	}
 
 	makeActivity := func(id string, step int, action, details string) string {
-		return fmt.Sprintf(`{"id":%q,"action":%q,"session_id":"40000000-0000-4000-8000-000000000001","interaction_id":"40000000-0000-4000-8000-000000000002","interaction_step":%d,"trackable_type":"place","trackable_id":"00000000-0000-4000-8000-000000000003","source":"event_form","occurred_at":%q,"details":%s}`,
+		return fmt.Sprintf(`{"id":%q,"action":%q,"session_id":"40000000-0000-4000-8000-000000000001","interaction_id":"40000000-0000-4000-8000-000000000002","interaction_step":%d,"trackable_type":"place","trackable_id":"00000000-0000-4000-8000-000000000100","source":"event_form","occurred_at":%q,"details":%s}`,
 			id, action, step, time.Now().UTC().Truncate(time.Millisecond).Format(time.RFC3339Nano), details)
 	}
 	first := makeActivity("40000000-0000-4000-8000-000000000003", 1, "event_creation_started", `{"elapsed_ms":0,"active_ms":0}`)
@@ -180,21 +180,16 @@ func TestActivitiesAndSafeCreation(t *testing.T) {
 	if !createdAt.Equal(updatedAt) {
 		t.Fatal("retry changed timestamps")
 	}
-	// Untargeted discovery rows use SQL NULLs and remain idempotent through ingestion.
-	discovery := fmt.Sprintf(`{"id":"70000000-0000-4000-8000-000000000001","action":"sport_filter_selected","session_id":"70000000-0000-4000-8000-000000000002","interaction_id":"70000000-0000-4000-8000-000000000003","interaction_step":1,"trackable_type":null,"trackable_id":null,"source":"map","occurred_at":%q,"details":{"sport":"cricket"}}`, time.Now().UTC().Truncate(time.Millisecond).Format(time.RFC3339Nano))
-	for range 2 {
-		response = ingest(host.String(), discovery)
-		if response.Code != 200 || !strings.Contains(response.Body.String(), `"accepted"`) {
-			t.Fatal(response.Body.String())
-		}
+	// Area views target an existing city or district from the explore pages.
+	areaView := fmt.Sprintf(`{"id":"70000000-0000-4000-8000-000000000011","action":"area_viewed","session_id":"70000000-0000-4000-8000-000000000002","interaction_id":"70000000-0000-4000-8000-000000000012","interaction_step":1,"trackable_type":"area","trackable_id":"00000000-0000-4000-8000-000000000101","source":"explore","occurred_at":%q,"details":{}}`, time.Now().UTC().Truncate(time.Millisecond).Format(time.RFC3339Nano))
+	if response = ingest(host.String(), areaView); !strings.Contains(response.Body.String(), `"accepted"`) {
+		t.Fatal(response.Body.String())
 	}
-	var untargeted bool
-	if err := pool.QueryRow(ctx, "SELECT trackable_type IS NULL AND trackable_id IS NULL FROM activities WHERE id='70000000-0000-4000-8000-000000000001'").Scan(&untargeted); err != nil || !untargeted {
-		t.Fatalf("discovery target: %v %v", untargeted, err)
-	}
-	response = ingest(host.String(), strings.Replace(discovery, `"sport":"cricket"`, `"sport":"football"`, 1))
-	if !strings.Contains(response.Body.String(), `"conflict"`) {
-		t.Fatal("discovery retry changed history")
+	missingArea := strings.NewReplacer("70000000-0000-4000-8000-000000000011", "70000000-0000-4000-8000-000000000013",
+		"70000000-0000-4000-8000-000000000012", "70000000-0000-4000-8000-000000000014",
+		"00000000-0000-4000-8000-000000000101", "ffffffff-ffff-4fff-8fff-ffffffffffff").Replace(areaView)
+	if response = ingest(host.String(), missingArea); !strings.Contains(response.Body.String(), `"target not found"`) {
+		t.Fatal(response.Body.String())
 	}
 
 	// Session starts have no invented screen interaction or entity, and reserve
