@@ -19,7 +19,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"joinme/backend/internal/activities"
 	"joinme/backend/internal/database"
-	"joinme/backend/internal/geography"
 )
 
 type Handler struct {
@@ -35,11 +34,12 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		return
 	}
 	var input struct {
-		PlaceID  string             `json:"place_id"`
-		Title    string             `json:"title"`
-		Type     database.EventType `json:"type"`
-		StartsAt time.Time          `json:"starts_at"`
-		Capacity int32              `json:"capacity"`
+		PlaceID  string    `json:"place_id"`
+		SpotID   string    `json:"spot_id"`
+		Title    string    `json:"title"`
+		Type     string    `json:"type"`
+		StartsAt time.Time `json:"starts_at"`
+		Capacity int32     `json:"capacity"`
 	}
 	request.Body = http.MaxBytesReader(w, request.Body, 16384)
 	decoder := json.NewDecoder(request.Body)
@@ -53,12 +53,13 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		return
 	}
 	input.Title = strings.TrimSpace(input.Title)
+	input.Type = strings.TrimSpace(input.Type)
 	if input.Title == "" || utf8.RuneCountInString(input.Title) > 200 {
 		http.Error(w, "title must contain 1 to 200 characters", http.StatusBadRequest)
 		return
 	}
-	if input.Type != database.EventTypeFootball && input.Type != database.EventTypeCricket {
-		http.Error(w, "type must be football or cricket", http.StatusBadRequest)
+	if input.Type == "" || utf8.RuneCountInString(input.Type) > 50 {
+		http.Error(w, "type must contain 1 to 50 characters", http.StatusBadRequest)
 		return
 	}
 	if !tracking.ID.Valid && !input.StartsAt.After(time.Now()) {
@@ -73,6 +74,13 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 	if err := placeID.Scan(input.PlaceID); err != nil || !placeID.Valid {
 		http.Error(w, "invalid place ID", http.StatusBadRequest)
 		return
+	}
+	var spotID pgtype.UUID
+	if input.SpotID != "" {
+		if err := spotID.Scan(input.SpotID); err != nil || !spotID.Valid {
+			http.Error(w, "invalid spot ID", http.StatusBadRequest)
+			return
+		}
 	}
 	// Host and initial status are server-owned; sign-in replaces this demo identity later.
 	if !handler.DemoUserID.Valid {
@@ -132,7 +140,7 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		return
 	}
 	event, err := queries.CreateEvent(request.Context(), database.CreateEventParams{
-		HostID: handler.DemoUserID, PlaceID: placeID, StatusID: statusID, Title: input.Title,
+		HostID: handler.DemoUserID, PlaceID: placeID, SpotID: spotID, StatusID: statusID, Title: input.Title,
 		Type: input.Type, StartsAt: pgtype.Timestamptz{Time: input.StartsAt, Valid: true}, Capacity: input.Capacity,
 	})
 	if err != nil {
@@ -141,6 +149,8 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 			switch postgresError.ConstraintName {
 			case "events_place_id_fkey":
 				http.Error(w, "place not found", http.StatusNotFound)
+			case "events_spot_place_fkey":
+				http.Error(w, "spot not found in selected place", http.StatusBadRequest)
 			case "pins_host_id_fkey":
 				http.Error(w, "demo user is unavailable; load the demo data", http.StatusServiceUnavailable)
 			default:
@@ -170,29 +180,6 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 	json.NewEncoder(w).Encode(struct {
 		ID pgtype.UUID `json:"id"`
 	}{ID: event.ID})
-}
-
-func (handler Handler) ListEvents(w http.ResponseWriter, request *http.Request) {
-	bounds, err := geography.ParseBounds(request.URL.Query().Get("bbox"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	eventType := request.URL.Query().Get("type")
-	if eventType != "" && eventType != string(database.EventTypeFootball) && eventType != string(database.EventTypeCricket) {
-		http.Error(w, "type must be football or cricket", http.StatusBadRequest)
-		return
-	}
-	events, err := handler.Queries.ListEventsInBounds(request.Context(), database.ListEventsInBoundsParams{
-		West: bounds.West, South: bounds.South, East: bounds.East, North: bounds.North, EventFilter: eventType,
-	})
-	if err != nil {
-		log.Printf("list events: %v", err)
-		http.Error(w, "could not load events", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(events)
 }
 
 func (handler Handler) GetEvent(w http.ResponseWriter, request *http.Request) {

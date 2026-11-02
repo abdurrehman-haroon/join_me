@@ -14,6 +14,7 @@ SELECT * FROM activities WHERE id = $1;
 SELECT CASE sqlc.arg(trackable_type)::activity_trackable_type
     WHEN 'event' THEN EXISTS(SELECT 1 FROM events WHERE events.id = sqlc.arg(trackable_id))
     WHEN 'place' THEN EXISTS(SELECT 1 FROM places WHERE places.id = sqlc.arg(trackable_id))
+    WHEN 'area' THEN EXISTS(SELECT 1 FROM areas WHERE areas.id = sqlc.arg(trackable_id))
 END::boolean AS target_exists;
 
 -- name: LockActivityRequest :exec

@@ -69,7 +69,7 @@ func TestClientActivityContract(t *testing.T) {
 	}
 }
 
-func TestDiscoveryActivityContract(t *testing.T) {
+func TestExploreActivityContract(t *testing.T) {
 	const placeID = "30000000-0000-4000-8000-000000000008"
 	const referrerID = "30000000-0000-4000-8000-000000000009"
 	cases := []struct {
@@ -77,22 +77,20 @@ func TestDiscoveryActivityContract(t *testing.T) {
 		step                                                int32
 		valid                                               bool
 	}{
-		{"filter", "sport_filter_selected", "map", "null", "null", `{"sport":"cricket"}`, 1, true},
-		{"map has no games", "empty_results_viewed", "map", "null", "null", `{"sport":"all","empty_kind":"no_events"}`, 2, true},
-		{"map has no places", "empty_results_viewed", "map", "null", "null", `{"sport":"football","empty_kind":"no_places"}`, 1, true},
-		{"place view", "place_viewed", "map", `"place"`, `"` + placeID + `"`, `{"sport":"all","referrer_interaction_id":"` + referrerID + `","elapsed_ms":0,"active_ms":0}`, 1, true},
-		{"place empty", "empty_results_viewed", "place_details", `"place"`, `"` + placeID + `"`, `{"sport":"cricket","empty_kind":"no_events","elapsed_ms":9000,"active_ms":8000}`, 2, true},
 		{"place overlay", "interaction_paused", "place_details", `"place"`, `"` + placeID + `"`, `{"reason":"screen_hidden","elapsed_ms":9000,"active_ms":8000}`, 3, true},
-		{"GPS rejected", "empty_results_viewed", "map", "null", "null", `{"sport":"all","empty_kind":"no_events","bbox":[74,31,75,32]}`, 2, false},
-		{"invalid filter", "sport_filter_selected", "map", "null", "null", `{"sport":"tennis"}`, 1, false},
-		{"filter has entity", "sport_filter_selected", "map", `"place"`, `"` + placeID + `"`, `{"sport":"all"}`, 1, false},
-		{"paired target", "sport_filter_selected", "map", "null", `"` + placeID + `"`, `{"sport":"all"}`, 1, false},
-		{"empty enum is not null", "sport_filter_selected", "map", `""`, "null", `{"sport":"all"}`, 1, false},
-		{"unknown type", "place_viewed", "map", `"campus"`, `"` + placeID + `"`, `{"sport":"all"}`, 1, false},
-		{"no places in place", "empty_results_viewed", "place_details", `"place"`, `"` + placeID + `"`, `{"sport":"all","empty_kind":"no_places","elapsed_ms":1,"active_ms":1}`, 2, false},
-		{"map timers rejected", "empty_results_viewed", "map", "null", "null", `{"sport":"all","empty_kind":"no_events","elapsed_ms":0,"active_ms":0}`, 1, false},
-		{"place referrer required", "place_viewed", "map", `"place"`, `"` + placeID + `"`, `{"sport":"all","elapsed_ms":0,"active_ms":0}`, 1, false},
-		{"place starts zero", "place_viewed", "map", `"place"`, `"` + placeID + `"`, `{"sport":"all","referrer_interaction_id":"` + referrerID + `","elapsed_ms":5,"active_ms":5}`, 1, false},
+		{"place view from explore", "place_viewed", "explore", `"place"`, `"` + placeID + `"`, `{"referrer_interaction_id":"` + referrerID + `","elapsed_ms":0,"active_ms":0}`, 1, true},
+		{"explore place view has no sport", "place_viewed", "explore", `"place"`, `"` + placeID + `"`, `{"sport":"all","referrer_interaction_id":"` + referrerID + `","elapsed_ms":0,"active_ms":0}`, 1, false},
+		{"map place view retired", "place_viewed", "map", `"place"`, `"` + placeID + `"`, `{"sport":"all","referrer_interaction_id":"` + referrerID + `","elapsed_ms":0,"active_ms":0}`, 1, false},
+		{"place referrer required", "place_viewed", "explore", `"place"`, `"` + placeID + `"`, `{"elapsed_ms":0,"active_ms":0}`, 1, false},
+		{"place starts at zero", "place_viewed", "explore", `"place"`, `"` + placeID + `"`, `{"referrer_interaction_id":"` + referrerID + `","elapsed_ms":5,"active_ms":5}`, 1, false},
+		{"place starts at step one", "place_viewed", "explore", `"place"`, `"` + placeID + `"`, `{"referrer_interaction_id":"` + referrerID + `","elapsed_ms":0,"active_ms":0}`, 2, false},
+		{"sport filter retired", "sport_filter_selected", "map", "null", "null", `{"sport":"cricket"}`, 1, false},
+		{"empty result retired", "empty_results_viewed", "map", "null", "null", `{"sport":"all","empty_kind":"no_events"}`, 1, false},
+		{"area view", "area_viewed", "explore", `"area"`, `"` + placeID + `"`, `{}`, 1, true},
+		{"area view needs explore", "area_viewed", "map", `"area"`, `"` + placeID + `"`, `{}`, 1, false},
+		{"area view targets area", "area_viewed", "explore", `"place"`, `"` + placeID + `"`, `{}`, 1, false},
+		{"area view starts at step one", "area_viewed", "explore", `"area"`, `"` + placeID + `"`, `{}`, 2, false},
+		{"area view has no details", "area_viewed", "explore", `"area"`, `"` + placeID + `"`, `{"sport":"all"}`, 1, false},
 	}
 	for _, example := range cases {
 		t.Run(example.name, func(t *testing.T) {
@@ -195,5 +193,16 @@ func TestProfileEventView(t *testing.T) {
 	viewed.Action = database.ActivityActionJoinAttempted
 	if viewed.validate(time.Now()) == nil {
 		t.Fatal("profile source accepted for join attempt")
+	}
+}
+
+func TestExploreEventView(t *testing.T) {
+	var viewed clientActivity
+	body := fmt.Sprintf(`{"id":"30000000-0000-4000-8000-000000000001","action":"event_viewed","session_id":"30000000-0000-4000-8000-000000000002","interaction_id":"30000000-0000-4000-8000-000000000003","interaction_step":1,"trackable_type":"event","trackable_id":"30000000-0000-4000-8000-000000000004","source":"explore","occurred_at":%q,"details":{"elapsed_ms":0,"active_ms":0,"viewer_role":"visitor","referrer_interaction_id":"30000000-0000-4000-8000-000000000005","snapshot":{"participant_count":2,"capacity":10,"starts_at":"2026-10-20T12:00:00Z","status":"scheduled"}}}`, time.Now().UTC().Format(time.RFC3339Nano))
+	if err := json.Unmarshal([]byte(body), &viewed); err != nil {
+		t.Fatal(err)
+	}
+	if err := viewed.validate(time.Now()); err != nil {
+		t.Fatal(err)
 	}
 }
