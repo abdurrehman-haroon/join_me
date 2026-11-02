@@ -69,7 +69,7 @@ Baseline status: rows were initially **unassessed individually**. Current map pr
 
 | ID | Feature | Agreed behavior | Status |
 | --- | --- | --- | --- |
-| F46 | My location | On-tap foreground permission; live on-device location dot/accuracy circle; centre once, allow free pan, retain Campus button; settings/retry states; stop updates off-map/background. | Implemented 2026-10-13; no schema/API changes. Verification in handoff.md. |
+| F46 | My location | On-tap foreground permission; live on-device location dot/accuracy circle; centre once, allow free pan, retain Campus button; settings/retry states; stop updates off-map/background. | Implemented 2026-10-13; removed 2026-11-02 with the old Map screen (`expo-location` dropped). |
 
 ## Shared acceptance requirements
 
@@ -111,7 +111,7 @@ For each feature discussion, record: ID, agreed user flow, business/access rules
 
 - 2026-10-12: F15 participant messaging implemented for the slim event flow: participant-only HTTP history/send, 50-message cursor pages, foreground polling, UUID retry and read-only cancelled/completed history. Expiry/moderation and push remain deferred; leaving removes access but retains messages.
 
-- 2026-10-12: F17 reporting explicitly skipped for now; migration 000009 removes the legacy reports table and its moderation-log reference. Revisit schema and frontend together if reporting returns.
+- 2026-10-12: F17 reporting explicitly skipped for now; migration 000009 removes the legacy reports table and its moderation-log reference. Migration 000014 removes the detached empty moderation table. Revisit schema and frontend together if reporting returns.
 
 ## Connected app scope (2026-10-12)
 

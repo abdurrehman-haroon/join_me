@@ -229,7 +229,7 @@ func (activity clientActivity) validate(now time.Time) error {
 	}
 	if (activity.TrackableType != nil) != activity.TrackableID.Valid ||
 		(activity.TrackableID.Valid && activity.TrackableID.Bytes == [16]byte{}) ||
-		(activity.TrackableType != nil && targetType != database.ActivityTrackableTypeEvent && targetType != database.ActivityTrackableTypePlace) {
+		(activity.TrackableType != nil && targetType != database.ActivityTrackableTypeEvent && targetType != database.ActivityTrackableTypePlace && targetType != database.ActivityTrackableTypeArea) {
 		return errors.New("trackable type and nonzero ID must both be supplied or null")
 	}
 	if activity.Action == database.ActivityActionSessionStarted {
@@ -246,8 +246,34 @@ func (activity clientActivity) validate(now time.Time) error {
 		return errors.New("screen activities require a nonzero interaction UUID, positive step and source")
 	}
 	step, source := *activity.InteractionStep, *activity.Source
-	if activity.Action == database.ActivityActionSportFilterSelected || activity.Action == database.ActivityActionPlaceViewed || activity.Action == database.ActivityActionEmptyResultsViewed {
-		return activity.validateDiscovery(targetType, source, step)
+	// Opening a city or district page is one instantaneous interaction; the client
+	// sends it at most once per session for each area.
+	if activity.Action == database.ActivityActionAreaViewed {
+		if targetType != database.ActivityTrackableTypeArea || source != database.ActivitySourceExplore || step != 1 {
+			return errors.New("area views target an area from explore at step one")
+		}
+		var details map[string]json.RawMessage
+		if err := json.Unmarshal(activity.Details, &details); err != nil || details == nil || len(details) != 0 {
+			return errors.New("area view details must be an empty object")
+		}
+		return nil
+	}
+	if activity.Action == database.ActivityActionPlaceViewed {
+		if targetType != database.ActivityTrackableTypePlace || source != database.ActivitySourceExplore || step != 1 {
+			return errors.New("place views target a place from explore at step one")
+		}
+		var details struct {
+			Referrer *pgtype.UUID `json:"referrer_interaction_id"`
+			Elapsed  *int64       `json:"elapsed_ms"`
+			Active   *int64       `json:"active_ms"`
+		}
+		decoder := json.NewDecoder(bytes.NewReader(activity.Details))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&details); err != nil || details.Referrer == nil || !details.Referrer.Valid || details.Referrer.Bytes == [16]byte{} || *details.Referrer == activity.InteractionID ||
+			details.Elapsed == nil || details.Active == nil || *details.Elapsed != 0 || *details.Active != 0 {
+			return errors.New("place views require a distinct referrer and zero timing")
+		}
+		return nil
 	}
 	if !activity.TrackableID.Valid {
 		return errors.New("this action requires a trackable")
@@ -281,7 +307,7 @@ func (activity clientActivity) validate(now time.Time) error {
 			return errors.New("creation targets a place from event_form")
 		}
 	case database.ActivityActionEventViewed:
-		if targetType != database.ActivityTrackableTypeEvent || (source != database.ActivitySourcePlaceDetails && source != database.ActivitySourceYourEvents && source != database.ActivitySourceProfile) {
+		if targetType != database.ActivityTrackableTypeEvent || (source != database.ActivitySourcePlaceDetails && source != database.ActivitySourceYourEvents && source != database.ActivitySourceProfile && source != database.ActivitySourceExplore) {
 			return errors.New("invalid event view target/source")
 		}
 	case database.ActivityActionChatOpened:
@@ -357,77 +383,6 @@ func (activity clientActivity) validate(now time.Time) error {
 	for key := range keys {
 		if !allowed[key] {
 			return fmt.Errorf("detail %s not allowed for action", key)
-		}
-	}
-	return nil
-}
-
-// Discovery observations have strict context, but only place visits carry timers.
-func (activity clientActivity) validateDiscovery(targetType database.ActivityTrackableType, source database.ActivitySource, step int32) error {
-	var details struct {
-		Sport     string       `json:"sport"`
-		EmptyKind string       `json:"empty_kind,omitempty"`
-		Referrer  *pgtype.UUID `json:"referrer_interaction_id,omitempty"`
-		Elapsed   *int64       `json:"elapsed_ms,omitempty"`
-		Active    *int64       `json:"active_ms,omitempty"`
-	}
-	decoder := json.NewDecoder(bytes.NewReader(activity.Details))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&details); err != nil {
-		return errors.New("invalid discovery details")
-	}
-	if details.Sport != "all" && details.Sport != "football" && details.Sport != "cricket" {
-		return errors.New("sport must be all, football or cricket")
-	}
-	allowed := map[string]bool{"sport": true}
-	timed := false
-	switch activity.Action {
-	case database.ActivityActionSportFilterSelected:
-		if activity.TrackableType != nil || source != database.ActivitySourceMap {
-			return errors.New("sport filters are untargeted map actions")
-		}
-	case database.ActivityActionPlaceViewed:
-		if targetType != database.ActivityTrackableTypePlace || source != database.ActivitySourceMap {
-			return errors.New("place views target a place from map")
-		}
-		timed = true
-		allowed["referrer_interaction_id"] = true
-		if details.Referrer == nil || !details.Referrer.Valid || details.Referrer.Bytes == [16]byte{} || *details.Referrer == activity.InteractionID {
-			return errors.New("place view needs a distinct referrer interaction ID")
-		}
-		if step != 1 {
-			return errors.New("place view must start at step one")
-		}
-	case database.ActivityActionEmptyResultsViewed:
-		allowed["empty_kind"] = true
-		if source == database.ActivitySourceMap {
-			if activity.TrackableType != nil || (details.EmptyKind != "no_events" && details.EmptyKind != "no_places") {
-				return errors.New("invalid map empty result")
-			}
-		} else if source == database.ActivitySourcePlaceDetails {
-			if targetType != database.ActivityTrackableTypePlace || details.EmptyKind != "no_events" || step < 2 {
-				return errors.New("invalid place empty result")
-			}
-			timed = true
-		} else {
-			return errors.New("empty results must come from map or place_details")
-		}
-	}
-	if timed {
-		allowed["elapsed_ms"] = true
-		allowed["active_ms"] = true
-		if details.Elapsed == nil || details.Active == nil || *details.Active < 0 || *details.Elapsed < *details.Active || *details.Elapsed > 9007199254740991 {
-			return errors.New("invalid discovery timing")
-		}
-		if activity.Action == database.ActivityActionPlaceViewed && (*details.Elapsed != 0 || *details.Active != 0) {
-			return errors.New("place view starts with zero timing")
-		}
-	}
-	var keys map[string]json.RawMessage
-	json.Unmarshal(activity.Details, &keys)
-	for key := range keys {
-		if !allowed[key] {
-			return fmt.Errorf("detail %s not allowed for discovery action", key)
 		}
 	}
 	return nil

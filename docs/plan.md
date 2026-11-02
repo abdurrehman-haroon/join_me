@@ -5,7 +5,7 @@
 
 LUMS first, expanding outwards. No sign-in or campus verification for now; keep a basic profile. Guest sessions are deferred. Always discuss schema first, then frontend mechanics, then implement each feature.
 
-1. **Real map foundation:** MapLibre + OpenFreeMap, areas/places in PostGIS, automatic timestamps, viewport API, selection sheets, clustering, recentring, and loading/error states. Implemented; review on device and confirm community-mapped LUMS data.
+1. **Real map foundation:** MapLibre + OpenFreeMap and areas/places in PostGIS are retained under Explore. The superseded viewport API, old Map screen, clustering, campus recentring and device-location flow were removed on 2026-11-02.
 2. **Basic users and events:** minimal users schema and basic profile viewing/name editing implemented without sign-in or schema changes. Reuse users, with sign-in later and no ownership tokens. Approved events/shared status/event_participants database schema implemented, replacing pins/pin_members; optional demo seed available. Read-only event APIs, viewport browsing, type filters, place event lists and participant details are connected. Creation from a selected place is implemented with a demo host, future start time, capacity validation and atomic host participation. Join/leave is implemented with event-row locking, transactional capacity checks, idempotent retries and host-leave protection. Your events and host cancellation are implemented without schema changes.
 3. **Pilot essentials:** participant chat, cancellation and kickoff notifications. Host cancellation and participant chat are implemented; notifications are deferred at user request. Reporting is skipped for now; its legacy table is removed by migration 000009. Discuss each schema and frontend flow before implementing.
 4. **Real student pilot:** review data, test poor networks and real devices, deploy, and observe whether organised games happen.
@@ -14,7 +14,7 @@ All tables require database-managed `created_at` and `updated_at`. New migration
 
 Participant messaging is implemented: automatic timestamps, participant-only history/send, cancelled/completed read-only history, cursor pagination, shared WebSocket delivery, drafts and UUID retry. Changes remain uncommitted for review.
 
-Device location (2026-10-13): approved frontend-only scope implemented with Expo Location, on-tap foreground permission, live dot/accuracy circle, My location recentring, Campus return, denied/services-off/timeout retry states and subscription cleanup. No schema/API change or background tracking. Simulator/device verification is recorded in handoff.md.
+Device location (2026-10-13) was removed with the old Map screen on 2026-11-02. No location data was persisted and the app no longer requests location permission.
 
 ## Realtime integration (2026-10-15)
 
@@ -26,11 +26,33 @@ The approved catalogue is complete: session starts; sport filters, place/event v
 
 [activities.md](activities.md) is the recording/schema/details contract; [handoff.md](handoff.md) owns verification results and remaining device coverage. Future features must explicitly assess tracking needs per ai.md. Personal statistics are implemented below; production identity, database retention/deletion and broader insights remain decisions.
 
+## Backlog (Join Me #1 discussion, 2026-10-31)
+
+Agreed direction from the product discussion; worked one item at a time in this order. Each item still follows the usual flow: discuss schema, then frontend mechanics, then implement, with a tracking assessment per ai.md. Mark items done here and record verification in handoff.md. Open questions are listed under Next decisions in project.md.
+
+1. **Commit the Lahore hierarchy:** migration 000013, `lahore_catalog.sql`, `design/lahore-skin/` and related changes, after review.
+2. **Fixed categories:** backend event `type` is free text, but `EventForm` and the map filter still hardcode football/cricket. Agree a fixed category list (e.g. Sports → Football, Cricket, Padel; Food & Drink → Coffee; Entertainment → Movies) and filter by category instead of free text.
+3. **Regional browsing:** replace free zoom with a district list (DHA Phase 1, 2, 3…) → district view listing its places and upcoming events, with category filter and search. Keep the map as a secondary view inside a district. Needs district and district-contents API endpoints in `openapi.yaml`.
+4. **Multiple events at one place:** swipe between events at the same place or spot (e.g. several padel time slots), showing each event's creator.
+5. **Sign-in and real profiles:** replace the configured `DEMO_USER_ID` with real accounts (sign-in method undecided); profile picture and optional bio. Blocks items 6–9.
+6. **Join requests:** joining becomes a request the host accepts or rejects; only accepted users become participants and get the event chat. Track the request lifecycle (requested, accepted, rejected, withdrawn) as activities.
+7. **Push notifications:** join requests, accept/reject decisions and event changes; Expo push via the existing outbox/realtime fanout.
+8. **Event duration and expiry:** add an end time or duration; mark ended events completed automatically; limit how far ahead events can be scheduled.
+9. **Creator trust:** show creator name, photo and events-hosted count on cards first; then attendee ratings after completed events and a creator score.
+10. **Privacy:** decide what stays hidden until a request is accepted (e.g. exact spot, exact time, chat).
+11. **Later:** optional ID verification (verified tag), business/venue creator profiles, featured events and longer scheduling as paid perks.
+
+Items 7 (notifications), 9 (scoring) and 11 (verification) supersede the matching entries in the deferred list below.
+
 ## Deferred
 
 Broader statistics/user-insight proposals remain in [statistics-and-insights.md](statistics-and-insights.md) and require feature-specific discussion before implementation.
 
-Notifications, Android/physical-device verification, moderation reporting (legacy table removed), full illustrated-v6 parity, 3D camera choreography, beyond-campus social features, restricted visibility, verification, Regulars, availability/matching, scoring, Hostel Cup, and campus expansion services. The geographic model supports more campuses/places without a LUMS-specific query. Expansion UI and services remain separate milestones.
+## Lahore hierarchy expansion (2026-10-29)
+
+Phase 1 backend foundation is implemented in migration 000013: exactly City -> District -> Place, with optional `place_spots` inside a place but outside navigation. Areas/places have stable slugs and story order; LUMS is a place in DHA Phase 5 and its existing grounds/courts migrate to spots without losing events. Event type is now trimmed free text rather than a fixed catalogue. The Lahore development catalog is in `backend/seeds/lahore_catalog.sql`. Phase 2 backend (2026-11-01) adds the explore API: slug-addressed city districts, district places and place views, a seven-day coming-up window returned as `window_ends_at`, `area_viewed` ingestion and a sample events seed. No schema change was needed. Freshness: fetch on page open/return and pull-to-refresh; no realtime for counts. The Explore tab frontend (2026-11-01) replaces the Map tab: a follow-camera map behind snapping cards for Lahore -> district -> place, right-to-left swipe to open and left-to-right to go back (react-native-gesture-handler), event rows, existing event details/creation with a spot picker, and the free map behind a Map button. Styling (palette, fonts, ripples) is deferred. District outlines are seeded and drawn (see handoff.md); three unconfirmed DHA place locations remain. District geometry remains replaceable catalog data; user-dropped pins (event-owned locations) are deferred for a later schema discussion.
+
+Notifications, Android/physical-device verification, moderation/reporting (unused legacy tables removed by migrations 000009 and 000014), full illustrated-v6 parity, 3D camera choreography, beyond-campus social features, restricted visibility, verification, Regulars, availability/matching, scoring, Hostel Cup, and campus expansion services. The geographic model supports more campuses/places without a LUMS-specific query. Expansion UI and services remain separate milestones.
 
 `feature-inventory.md` preserves all 45 v6 features and dated scope decisions for future prototype comparisons. `v6-fidelity-plan.md` and `prototype-integration.md` preserve earlier design/rollout references; this current scope takes precedence.
 
