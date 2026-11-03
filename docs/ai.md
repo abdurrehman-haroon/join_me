@@ -7,7 +7,7 @@
 
 Code quality, always: favor readable, explicit, domain-named code with the main flow visible. Avoid needless layers, helpers, hooks, interfaces, and unrelated refactors. Keep validation, authorization, errors, concurrency, SQL, and coordinates easy to trace; test behavior and review the diff for readability.
 
-Current user-approved starting scope in `docs/plan.md` supersedes the earlier all-v6 fidelity milestone: use a real MapLibre map with OpenFreeMap tiles and build the slim LUMS pickup flow first. Preserve Floodlight styling; keep simulated prototype behavior distinct from connected production behavior. Discuss schema with the user, then frontend mechanics, before implementing each feature. `design/prototype/index.html` and `docs/v6-fidelity-plan.md` remain references for deferred features.
+Current user-approved scope is in `docs/plan.md`: a real MapLibre map with OpenFreeMap tiles. Preserve Floodlight styling; keep simulated prototype behavior distinct from connected production behavior. Discuss schema with the user, then frontend mechanics, before implementing each feature. `design/lahore-skin/` is the current visual reference for Explore.
 
 Before writing or reviewing code, read all of `docs/code-practice.md` and apply it. Documentation-only tasks can use the summary above.
 

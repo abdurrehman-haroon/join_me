@@ -54,7 +54,7 @@ Phase 1 backend foundation is implemented in migration 000013: exactly City -> D
 
 Notifications, Android/physical-device verification, moderation/reporting (unused legacy tables removed by migrations 000009 and 000014), full illustrated-v6 parity, 3D camera choreography, beyond-campus social features, restricted visibility, verification, Regulars, availability/matching, scoring, Hostel Cup, and campus expansion services. The geographic model supports more campuses/places without a LUMS-specific query. Expansion UI and services remain separate milestones.
 
-`feature-inventory.md` preserves all 45 v6 features and dated scope decisions for future prototype comparisons. `v6-fidelity-plan.md` and `prototype-integration.md` preserve earlier design/rollout references; this current scope takes precedence.
+The earlier v6 prototype, its feature inventory and fidelity/rollout plans were removed on 2026-11-04; `design/lahore-skin/` is the current visual reference.
 
 Only connected UI ships: Map, Your events and basic You profile. Hostel Cup, fixture game/chat/Game Day/campus sheets, fake player stats and unsupported settings were removed. Prototype references remain in design/.
 

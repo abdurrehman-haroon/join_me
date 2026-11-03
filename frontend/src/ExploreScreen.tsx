@@ -100,7 +100,6 @@ type PlaceView = {
     city: AreaReference;
   };
   spots: Spot[];
-  truncated: boolean;
   events: EventSummary[];
 };
 // Cards on a level: the hero introduces it, its children follow, the end card
@@ -1591,9 +1590,9 @@ const CityOutlines = memo(function CityOutlines({
   );
 });
 
-// The prototype's focus marker: a name tag over a pin. It used to ripple when
-// focus arrived; the ripple redrew the whole window on every frame of a level
-// change's camera flight, so it was removed.
+// The prototype's focus marker: a name tag over a pin. It does not animate: an
+// animated marker redraws the whole screen every frame (see
+// docs/explore-performance.md).
 function FocusPin({ name }: { name: string | null }) {
   return (
     <View style={styles.focusPin}>
@@ -1639,17 +1638,6 @@ const styles = StyleSheet.create({
     color: explore.ink,
   },
   logoDot: { color: explore.red },
-  cityPicker: {
-    backgroundColor: explore.paper,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  cityPickerText: {
-    fontFamily: explore.bodyBold,
-    fontSize: 14,
-    color: explore.ink,
-  },
   breadcrumbs: {
     position: "absolute",
     top: 102,
