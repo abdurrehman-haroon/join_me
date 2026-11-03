@@ -91,20 +91,10 @@ export function boundsCentre(bounds: LngLatBounds): Coordinates {
   return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
 }
 
-export function outlineBounds(outline: GeoJSON.MultiPolygon): LngLatBounds {
-  const positions = outline.coordinates.flat(2);
-  const longitudes = positions.map((position) => position[0]);
-  const latitudes = positions.map((position) => position[1]);
-  return [
-    Math.min(...longitudes),
-    Math.min(...latitudes),
-    Math.max(...longitudes),
-    Math.max(...latitudes),
-  ];
-}
-
 // The prototype moves the camera with the scroll: a smoothstep blend between the
-// card being left and the card being approached.
+// card being left and the card being approached. Like MapLibre's flyTo, the
+// camera rises mid-way and lands again, higher the more screens apart the two
+// targets are, so moving between places reads as travel rather than a slide.
 export function blendCamera(
   from: CameraTarget,
   to: CameraTarget,
@@ -113,12 +103,19 @@ export function blendCamera(
   const amount = progress * progress * (3 - 2 * progress);
   const between = (start: number, end: number) =>
     start + (end - start) * amount;
+  const screensApart =
+    (Math.hypot(to.center[0] - from.center[0], to.center[1] - from.center[1]) /
+      360) *
+    512 *
+    2 ** Math.min(from.zoom, to.zoom) /
+    400;
+  const rise = Math.min(1.4, 0.5 * Math.log2(1 + screensApart));
   return {
     center: [
       between(from.center[0], to.center[0]),
       between(from.center[1], to.center[1]),
     ],
-    zoom: between(from.zoom, to.zoom),
+    zoom: between(from.zoom, to.zoom) - rise * Math.sin(Math.PI * amount),
     pitch: between(from.pitch, to.pitch),
     bearing: between(from.bearing, to.bearing),
   };

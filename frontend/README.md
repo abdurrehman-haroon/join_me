@@ -1,4 +1,4 @@
-# Campus Pickup mobile app
+# Join Me mobile app
 
 Expo SDK 57 / React Native, with a native MapLibre map and OpenFreeMap Liberty tiles. `index.ts` registers `src/NativeApp.tsx`; `src/ExploreScreen.tsx` owns the connected Explore map. Only connected screens ship in the app: Explore, Your events and You.
 
@@ -12,6 +12,14 @@ pnpm run ios
 
 MapLibre requires a development build; Expo Go does not include its native module. After changing config plugins, run `pnpm exec expo prebuild --platform ios` before rebuilding. For later JavaScript updates, use `pnpm start`, then `i` to open the app or `r` to reload it.
 
+On an Android phone (local build, no cloud): install JDK 17 and the Android SDK (`platform-tools`, `platforms;android-36`, `build-tools;36.0.0`, `ndk;27.1.12297006`), set `JAVA_HOME` and `ANDROID_HOME`, turn on USB debugging on the phone and connect it by cable. With the phone on the same Wi-Fi as the computer:
+
+```sh
+EXPO_PUBLIC_API_URL=http://<computer LAN IP>:8080 pnpm exec expo run:android --device
+```
+
+The first build creates the ignored `android/` folder and installs the development build; later JavaScript changes reload over Wi-Fi.
+
 Configuration (Expo public environment variables, no secrets):
 
 - `EXPO_PUBLIC_API_URL`: defaults to `http://localhost:8080` for the iOS simulator. On a physical phone, use your computer's reachable LAN address; production needs HTTPS.
@@ -21,15 +29,15 @@ Restart Metro after changing environment values.
 
 ## Connected map behavior
 
-Explore loads Lahore's districts, places and upcoming events from the hierarchy API. Its Map button unlocks free pan/zoom behind the same cards; selecting districts and events updates the camera and highlights. Loading, empty, failed-request and retry states are present. No location permission or sign-in is requested. Map attribution remains enabled.
+Explore loads Lahore's districts, places and upcoming events from the hierarchy API. The map follows the cards and takes no gestures of its own; selecting districts and events updates the camera and highlights. Each level (city, district, place) is its own feed page, side by side: a sideways swipe drags the next level in 1:1 and the level either side is kept built. Holding and dragging the rail's dots scrubs through districts or places. Loading, empty, failed-request and retry states are present. No location permission or sign-in is requested. Map attribution remains enabled.
 
 The Lahore development catalogue includes community-mapped OpenStreetMap locations and approximate unverified entries described in `../backend/seeds/lahore_catalog.sql`. Event browsing, creation from a place, joining/leaving and details are connected. Hostel Cup, fake settings and sample action sheets have been removed.
 
 Checks: `pnpm exec expo lint index.ts src` and `pnpm exec tsc --noEmit`.
 
-Explore shows the coming seven days through Lahore district and place cards. District feeds include up to 20 events per place; a place page includes up to 100 and reports when more exist. Cancelled, completed and elapsed events are excluded from Explore but remain available by API ID and in Your events.
+Explore shows the coming seven days through Lahore district and place cards. District feeds include up to 20 events per place. There is no place page in the app for now (removed 2026-11-04); the API still serves place views, which the district feed loads for the place card in view. Cancelled, completed and elapsed events are excluded from Explore but remain available by API ID and in Your events.
 
-To create an event, open a place and choose **Create event here**. Enter title, type, YYYY-MM-DD date, 24-hour HH:mm start time, optional place spot and positive capacity including the host. Time uses the phone’s local zone and is sent as an ISO timestamp. The API assigns the demo user; load backend demo data first. Submission blocks repeated taps, preserves values on errors and reuses its request receipt when confirming an uncertain result.
+To create an event, scroll the district feed to a place and choose **+ Start something** on its card (available once that place's view has loaded). Enter title, type, YYYY-MM-DD date, 24-hour HH:mm start time, optional place spot and positive capacity including the host. Time uses the phone’s local zone and is sent as an ISO timestamp. The API assigns the demo user; load backend demo data first. Submission blocks repeated taps, preserves values on errors and reuses its request receipt when confirming an uncertain result.
 
 Event details show Join, Leave, Full, Joining closed, or host information using the API’s demo-user viewer flags. Both actions block repeated taps, refresh roster/capacity and Explore after the request, and reconcile uncertain failures with the server. Hosts cannot leave; non-host leaves are allowed regardless of status/time. Sign-in remains deferred; Your events, host editing/cancellation and host signup insights are connected.
 
@@ -49,7 +57,7 @@ ActivitiesProvider persists a bounded queue through Expo FileSystem (already inc
 
 After an uncertain creation, fields are frozen and Confirm creation reuses the original request receipt/body. A definite rejection allows corrections. Closing the form does not persist its draft or request; check the event list before starting another attempt after uncertainty. See ../docs/activities.md. make check includes deterministic activity timing/queue tests.
 
-Explore records city/district views once per session, place views and event-detail views. Place timers pause under event/form overlays, and referrer interaction IDs link place visits to event views. The removed Map screen's sport-filter and empty-result actions remain only as historical database/report values and are rejected by client ingestion. See `../docs/activities.md`.
+Explore records city/district views once per session and event-detail views, with the district view's interaction as the event view's referrer. Since the place level was removed (2026-11-04), Explore records no `place_viewed`. The removed Map screen's sport-filter and empty-result actions remain only as historical database/report values and are rejected by client ingestion. See `../docs/activities.md`.
 
 Chat activities start only after an authorized history load and visible modal, pause in background and close/reopen with fresh interaction IDs. Refreshes preserve the visit. Pending messages keep their original activity headers on Retry even after reopening; message contents stay out of activities. `pnpm run test:activities` covers chat lifecycle timing as well as earlier flows.
 

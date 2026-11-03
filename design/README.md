@@ -1,24 +1,6 @@
-# Campus Pickup: handoff
+# Join Me: design notes
 
-Current engineering decisions, v1 scope, and implementation status live in `../docs/project.md`, `../docs/plan.md`, and `../docs/handoff.md`. This folder preserves the design exploration; its prototype includes features beyond the current v1 scope.
-
-Design decisions from the sessions of 30 Sep – 9 Oct 2026 are preserved here for both developers.
-
-**Start here:** read this file, then `docs/conversation-log.md`, which has every request, decision and bug fix session by session. Open `prototype/index.html` in a browser to see the latest design (v6).
-
-## What's in this folder
-| Path | What it is |
-|---|---|
-| `prototype/index.html` | **The interactive prototype, v6.** Open in a browser. Needs internet (three.js from cdnjs, the Big Shoulders font from Google Fonts). |
-| `docs/build-plan-v1.md` | The original build plan: seven weeks, one campus, go/no-go targets. Still the source of truth for v1 scope. |
-| `docs/conversation-log.md` | Session-by-session record (sessions 1–6) of what was asked, built and decided, including the bugs fixed. |
-| `research/01-ui-tools-and-references.md` | The four sites from the first brief, the React Native 3D and motion toolkit, reference apps, how to avoid the AI-generated look. |
-| `research/02-us-universities-and-growth.md` | Yale, Princeton, Duke and Harvard house sport, IMLeagues, pickup apps, Facebook/Fizz/Yik Yak campus rollouts, Pakistan specifics. |
-| `research/03-scroll-driven-motion.md` | Scrollytelling maps, scroll-linked motion on iOS, how to build it in React Native, comfort and Reduce Motion. |
-| `research/04-places-and-hangouts.md` | Venue presence and "come join me" hangouts: prior art, safety in Pakistan, cold start, sequencing beyond campus. |
-| `research/05-google-maps-platform.md` | Google Maps Platform fit, cost and terms, plus our test results. |
-
-The old Claude artifact is preserved as `prototype/index.html`. The written session record is in `docs/conversation-log.md`; raw chat exports are not kept in the repo.
+Current engineering decisions, scope and implementation status live in `../docs/project.md`, `../docs/plan.md` and `../docs/handoff.md`. The current visual reference for Explore is `lahore-skin/` (see its README to run it). The earlier v6 prototype, design session log and research notes were removed on 2026-11-04; the product direction and decisions below are kept.
 
 ## The product
 - **Started as** a live map of pickup football and tape-ball cricket on one Pakistani campus (LUMS). Two engineers, seven weeks. Go + Postgres/PostGIS backend, React Native + Expo iOS client, MapLibre with self-hosted tiles. The question v1 answers: do games organised in the app actually get played?
@@ -26,38 +8,6 @@ The old Claude artifact is preserved as `prototype/index.html`. The written sess
   - Campuses have games.
   - Cafés, parks and turfs have hangouts: host-led, time-boxed, approval-based "come join me" sessions.
   - The plan's v1 scope is unchanged. Everything beyond it is phased (see Roadmap).
-
-## Where the prototype is now (v6)
-The time slider, the detailed 3D treatment, repeat-weekly, and everything beyond campus are explorations. See `../docs/plan.md` for the current build scope.
-
-- **Navigation rule at every level:**
-  - **Scrolling moves across a level.** It moves through LUMS's games, DHA's blocks, a block's places, or a place's hangouts.
-  - **Zooming moves down or up a level.** Pinch out, use a trackpad pinch, or tap **+** to dive into the card in front of you. Pinch in or tap **−** to pull back.
-  - The camera dives or rises to match, and a breadcrumb (Lahore › DHA › Phase 3 › CBTL) lets you tap back up.
-- **Home ("Tonight in LUMS"):**
-  - A giant one-word title whose letters lift away as you scroll.
-  - Scrolling flies the 3D camera from ground to ground in kick-off order.
-  - The sky darkens with the hour, and cards stand up as they arrive.
-  - Join right from a card.
-  - "Explore map" switches to free orbit.
-- **DHA blocks (schematic layout, not to scale):**
-  - Sector U: LUMS and a park.
-  - Phase 3: CBTL Z Block and a futsal turf.
-  - Phase 5: CBTL A Block.
-  - Phase 6: CBTL Raya.
-  - The three CBTL branches are real; Google Places confirmed them.
-- **Hangouts at a place:**
-  - An "I'm here" count that only includes people who tapped it. Names show only to friends who chose to share.
-  - Open hangouts with host, seats and time. Ask to join, then the host approves.
-  - Open your own hangout: plan, note, seats, until, visibility. Requests arrive.
-  - Women-only hangouts can be hosted only by verified women.
-- **Game sheet:** big "spots left" count, pitch formation, live roster, join with an avatar fly-in, a live join plus push notification. The count shrinks into a sticky bar as you scroll.
-- **Other tabs:**
-  - Your games: availability, positions, Regulars.
-  - Game day: check in, bib teams, a 3D Rs 5 coin toss, live ball-by-ball score shown on the map pin, match card.
-  - Hostel Cup: a pinned 3D podium that standings slide over.
-  - You: a player card that flips as you scroll, notifications, a Calm motion switch.
-  - Also: campus waitlist, campus email verification, game chat, report flow.
 
 ## Design direction: "Floodlight"
 Built from what's on a LUMS ground at 7pm: mown turf, chalk lines, a tennis ball wrapped in red tape, floodlights coming on.

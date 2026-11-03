@@ -16,7 +16,7 @@ export const explore = {
   ink: "#203E30",
   muted: "#798268",
   line: "#D2D9B8",
-  red: "#D14A35",
+  red: "#E3342F",
   sage: "#E5E8D8",
   display: "BarlowCondensed_800ExtraBold",
   displayBold: "BarlowCondensed_700Bold",
@@ -42,7 +42,9 @@ function initials(name: string) {
     .join("");
 }
 
+// The city hero's box is outlined in red; a district's is quieter, as in the prototype.
 export function HeroCard({
+  tone,
   kicker,
   title,
   intro,
@@ -50,8 +52,10 @@ export function HeroCard({
   portalStat,
   portalNote,
   actionLabel,
+  actionArrow,
   onAction,
 }: {
+  tone: "city" | "district";
   kicker: string;
   title: string;
   intro: string;
@@ -59,6 +63,7 @@ export function HeroCard({
   portalStat: string;
   portalNote: string;
   actionLabel: string;
+  actionArrow: string;
   onAction: () => void;
 }) {
   return (
@@ -75,9 +80,21 @@ export function HeroCard({
         <Text style={styles.red}>.</Text>
       </Text>
       <Text style={styles.heroIntro}>{intro}</Text>
-      <View style={styles.portal}>
+      <View
+        style={[
+          styles.portal,
+          tone === "city" ? styles.cityPortal : styles.districtPortal,
+        ]}
+      >
         <View style={styles.portalText}>
-          <Text style={styles.portalKicker}>{portalKicker}</Text>
+          <Text
+            style={[
+              styles.portalKicker,
+              tone === "district" && styles.quietKicker,
+            ]}
+          >
+            {portalKicker}
+          </Text>
           <Text style={styles.portalStat}>{portalStat}</Text>
           <Text style={styles.portalNote} numberOfLines={1}>
             {portalNote}
@@ -85,46 +102,36 @@ export function HeroCard({
         </View>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={actionLabel}
           onPress={onAction}
           style={styles.portalAction}
         >
           <Text style={styles.primaryText}>{actionLabel}</Text>
+          <Text style={styles.primaryText}>{actionArrow}</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
+// Kept short so the map above shows the district. Opening it is a left swipe or
+// the level button at the top; the rail shows the position.
 export function DistrictCard({
   name,
-  position,
-  total,
   firstUp,
   count,
   placeCount,
-  onOpen,
-  onNext,
 }: {
   name: string;
-  position: number;
-  total: number;
   firstUp: { place: string; title: string; startsAt: string } | null;
   count: number;
   placeCount: number;
-  onOpen: () => void;
-  onNext: (() => void) | null;
 }) {
   return (
     <View style={styles.card}>
-      <View style={styles.cardTop}>
-        <Text style={styles.tag}>● Lahore district</Text>
-        <Text style={styles.ordinal}>
-          {String(position).padStart(2, "0")} / {String(total).padStart(2, "0")}
-        </Text>
-      </View>
       <Text style={styles.cardTitle}>{name}</Text>
       <View style={styles.preview}>
-        <Text style={styles.portalKicker}>FIRST UP</Text>
+        <Text style={[styles.portalKicker, styles.quietKicker]}>FIRST UP</Text>
         {firstUp ? (
           <>
             <Text style={styles.previewPlace}>{firstUp.place}</Text>
@@ -151,45 +158,22 @@ export function DistrictCard({
           </Text>
         </View>
       </View>
-      <Text style={styles.caption}>
-        {firstUp
-          ? `Start with ${firstUp.place}, or open ${name} to see every place.`
-          : `Open ${name} to see every place.`}
-      </Text>
-      <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onOpen}
-          style={styles.primary}
-        >
-          <Text style={styles.primaryText} numberOfLines={1}>
-            See places in {name} ↗
-          </Text>
-        </Pressable>
-        {onNext && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onNext}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>Next ↓</Text>
-          </Pressable>
-        )}
-      </View>
     </View>
   );
 }
 
 // One place: a header and a carousel of full-width event cards. The selected
-// event is reported so the map can highlight where it happens.
+// event is reported when the carousel settles, and the scroll position while it
+// moves, so the map can glide between the grounds of neighbouring events.
 export function PlaceCard({
   name,
   count,
   events,
   selectedIndex,
+  reduceMotion,
   onSelectEvent,
+  onScrollEvents,
   onViewEvent,
-  onOpenPlace,
   onStartSomething,
   onTouchCarousel,
 }: {
@@ -197,23 +181,32 @@ export function PlaceCard({
   count: number;
   events: EventSummary[];
   selectedIndex: number;
+  reduceMotion: boolean;
   onSelectEvent: (index: number) => void;
+  onScrollEvents: (progress: number) => void;
   onViewEvent: (event: EventSummary) => void;
-  onOpenPlace: (() => void) | null;
   onStartSomething: (() => void) | null;
   onTouchCarousel: () => void;
 }) {
   const carousel = useRef<FlatList<EventSummary>>(null);
+  // Only a scroll someone started moves the map. A carousel that has just
+  // appeared reports its starting position too, which would cut short the
+  // camera's ease into a new level.
+  const scrolling = useRef(false);
   const [carouselWidth, setCarouselWidth] = useState(0);
-  const eventWidth = Math.max(0, carouselWidth - 24);
+  const eventWidth = Math.max(0, carouselWidth - 32);
+  const eventStride = eventWidth + 10;
 
   function showEvent(index: number) {
     const next = Math.max(0, Math.min(events.length - 1, index));
+    scrolling.current = !reduceMotion;
     carousel.current?.scrollToOffset({
-      offset: next * (eventWidth + 12),
-      animated: true,
+      offset: next * eventStride,
+      animated: !reduceMotion,
     });
-    onSelectEvent(next);
+    // An animated scroll reports its end through onMomentumScrollEnd; selecting
+    // now would move the map ahead of the carousel.
+    if (reduceMotion) onSelectEvent(next);
   }
 
   return (
@@ -222,14 +215,20 @@ export function PlaceCard({
         <Text style={styles.placeName} numberOfLines={1}>
           {name}
         </Text>
-        {onOpenPlace && (
-          <Pressable accessibilityRole="button" onPress={onOpenPlace}>
-            <Text style={styles.link}>Open place ↗</Text>
+        {/* The action sits in the heading so the card leaves the map in view. */}
+        {onStartSomething && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Start something here"
+            onPress={onStartSomething}
+          >
+            <Text style={styles.link}>+ Start something</Text>
           </Pressable>
         )}
       </View>
       {events.length ? (
         <View
+          style={styles.carouselStrip}
           onLayout={(event) => setCarouselWidth(event.nativeEvent.layout.width)}
           onTouchStart={onTouchCarousel}
         >
@@ -240,23 +239,30 @@ export function PlaceCard({
               data={events}
               keyExtractor={(event) => event.id}
               showsHorizontalScrollIndicator={false}
-              snapToInterval={eventWidth + 12}
+              snapToInterval={eventStride}
               // Remounted cards reopen on the event the map is already showing.
               initialScrollIndex={selectedIndex}
               getItemLayout={(_, index) => ({
-                length: eventWidth + 12,
-                offset: (eventWidth + 12) * index,
+                length: eventStride,
+                offset: eventStride * index,
                 index,
               })}
               decelerationRate="fast"
               contentContainerStyle={styles.carouselContent}
-              onMomentumScrollEnd={(event) =>
+              scrollEventThrottle={16}
+              onScrollBeginDrag={() => {
+                scrolling.current = true;
+              }}
+              onScroll={(event) => {
+                if (scrolling.current)
+                  onScrollEvents(event.nativeEvent.contentOffset.x / eventStride);
+              }}
+              onMomentumScrollEnd={(event) => {
+                scrolling.current = false;
                 onSelectEvent(
-                  Math.round(
-                    event.nativeEvent.contentOffset.x / (eventWidth + 12),
-                  ),
-                )
-              }
+                  Math.round(event.nativeEvent.contentOffset.x / eventStride),
+                );
+              }}
               renderItem={({ item }) => (
                 <EventCard
                   event={item}
@@ -276,6 +282,7 @@ export function PlaceCard({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Previous event"
+              hitSlop={8}
               disabled={selectedIndex === 0}
               onPress={() => showEvent(selectedIndex - 1)}
               style={[styles.arrow, selectedIndex === 0 && styles.disabled]}
@@ -296,6 +303,7 @@ export function PlaceCard({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Next event"
+              hitSlop={8}
               disabled={selectedIndex >= events.length - 1}
               onPress={() => showEvent(selectedIndex + 1)}
               style={[
@@ -312,15 +320,6 @@ export function PlaceCard({
           </Text>
         )}
       </View>
-      {onStartSomething && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onStartSomething}
-          style={styles.secondaryWide}
-        >
-          <Text style={styles.secondaryText}>+ Start something here</Text>
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -385,7 +384,8 @@ function EventCard({
         onPress={onView}
         style={[styles.primary, styles.primaryBlock]}
       >
-        <Text style={styles.primaryText}>View event ↗</Text>
+        <Text style={styles.primaryText}>View event</Text>
+        <Text style={styles.primaryText}>↗</Text>
       </Pressable>
     </View>
   );
@@ -411,10 +411,14 @@ export function EndCard({
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Back to the beginning"
           onPress={onBeginning}
           style={styles.primary}
         >
-          <Text style={styles.primaryText}>Back to the beginning ↑</Text>
+          <Text style={[styles.primaryText, styles.label]} numberOfLines={1}>
+            Back to the beginning
+          </Text>
+          <Text style={styles.primaryText}>↑</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -458,18 +462,28 @@ const styles = StyleSheet.create({
   },
   portal: {
     marginTop: 10,
-    backgroundColor: explore.paper,
     borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: "#E7B7A6",
     padding: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    shadowColor: "#314A34",
+    shadowOffset: { width: 0, height: 14 },
+  },
+  cityPortal: {
+    backgroundColor: "#FFFAF0",
+    borderWidth: 2,
+    borderColor: explore.red,
+    shadowColor: "#92352A",
+    shadowOpacity: 0.14,
+    shadowRadius: 21,
+  },
+  districtPortal: {
+    backgroundColor: "#FFF9EAE8",
+    borderWidth: 1,
+    borderColor: "#D8DEC5",
+    shadowColor: "#294A25",
     shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 19,
   },
   portalText: { flex: 1, gap: 3 },
   portalKicker: {
@@ -478,6 +492,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     color: explore.red,
   },
+  quietKicker: { color: "#6A7C60" },
   portalStat: {
     fontFamily: explore.displayBold,
     fontSize: 22,
@@ -486,22 +501,32 @@ const styles = StyleSheet.create({
   },
   portalNote: { fontFamily: explore.body, fontSize: 12, color: explore.muted },
   portalAction: {
+    minWidth: 132,
+    minHeight: 52,
     backgroundColor: explore.red,
-    borderRadius: 14,
+    borderRadius: 13,
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
   },
   card: {
     backgroundColor: explore.paper,
     borderRadius: 26,
-    padding: 20,
-    gap: 12,
+    padding: 18,
+    gap: 10,
     shadowColor: "#314A34",
     shadowOpacity: 0.13,
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 12 },
   },
-  placeCard: { paddingHorizontal: 0, gap: 10 },
+  placeCard: {
+    paddingHorizontal: 0,
+    paddingTop: 14,
+    paddingBottom: 14,
+    gap: 0,
+  },
   cardTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -522,50 +547,55 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: explore.display,
-    fontSize: 46,
-    lineHeight: 46,
+    fontSize: 38,
+    lineHeight: 38,
     color: explore.ink,
   },
   preview: {
     backgroundColor: explore.cream,
     borderColor: explore.line,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    gap: 3,
+    borderRadius: 14,
+    padding: 12,
+    gap: 2,
   },
   previewPlace: {
     fontFamily: explore.displayBold,
-    fontSize: 22,
+    fontSize: 20,
     color: explore.ink,
   },
   statRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   statText: { flex: 1 },
   bigNumber: {
     fontFamily: explore.display,
-    fontSize: 64,
-    lineHeight: 64,
+    fontSize: 52,
+    lineHeight: 52,
     color: explore.red,
   },
   statTitle: {
     fontFamily: explore.displayBold,
-    fontSize: 24,
+    fontSize: 22,
     color: explore.ink,
   },
   caption: {
     fontFamily: explore.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     color: explore.muted,
   },
   actions: { flexDirection: "row", gap: 10 },
+  // Label on the left and its arrow on the right, as in the prototype.
   primary: {
     flex: 1,
     backgroundColor: explore.red,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 14,
+    paddingVertical: 13,
     paddingHorizontal: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
   },
+  label: { flexShrink: 1 },
   // A full-width button in a column must not grow like the row buttons do.
   primaryBlock: { flex: 0 },
   primaryText: {
@@ -575,17 +605,10 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: explore.sage,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 14,
+    paddingVertical: 13,
     paddingHorizontal: 16,
     maxWidth: 150,
-  },
-  secondaryWide: {
-    marginHorizontal: 20,
-    backgroundColor: explore.sage,
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: "center",
   },
   secondaryText: {
     fontFamily: explore.bodyBold,
@@ -597,6 +620,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
+    paddingBottom: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: "#DDE3D6",
     gap: 10,
   },
   placeName: {
@@ -606,17 +632,21 @@ const styles = StyleSheet.create({
     color: explore.ink,
   },
   link: { fontFamily: explore.bodyBold, fontSize: 13, color: explore.ink },
-  carouselContent: { paddingHorizontal: 12, gap: 12 },
+  // Events sit flush on a sage strip, with the next one peeking in on the right.
+  carouselStrip: { backgroundColor: "#E7ECDF" },
+  carouselContent: { paddingRight: 32, gap: 10 },
   eventCard: {
-    backgroundColor: "#F3F2EA",
-    borderRadius: 20,
-    padding: 18,
-    gap: 10,
+    backgroundColor: "#F4F5F0",
+    borderRadius: 12,
+    borderRightWidth: 1,
+    borderRightColor: "#D5DDCE",
+    padding: 16,
+    gap: 8,
   },
   eventTitle: {
     fontFamily: explore.display,
-    fontSize: 34,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 29,
     color: explore.ink,
   },
   avatars: { flexDirection: "row" },
@@ -637,22 +667,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
+    paddingTop: 12,
     gap: 10,
   },
   arrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: explore.sage,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E4E9DC",
     alignItems: "center",
     justifyContent: "center",
   },
-  arrowText: { fontSize: 18, color: explore.ink },
-  disabled: { opacity: 0.4 },
-  dots: { flexDirection: "row", gap: 6, flex: 1 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: explore.line },
-  dotOn: { width: 24, backgroundColor: explore.red },
+  arrowText: { fontSize: 15, color: "#40583B" },
+  disabled: { opacity: 0.3 },
+  dots: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#C9D2C1" },
+  dotOn: { width: 17, borderRadius: 4, backgroundColor: explore.red },
   empty: {
+    paddingVertical: 16,
     paddingHorizontal: 20,
     fontFamily: explore.body,
     fontSize: 14,

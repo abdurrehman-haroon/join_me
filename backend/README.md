@@ -1,4 +1,4 @@
-# Campus Pickup API
+# Join Me API
 
 Requires Go 1.23+, PostgreSQL with PostGIS, and `DATABASE_URL`.
 

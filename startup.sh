@@ -57,7 +57,9 @@ done
 
 if ! "$POSTGRES_BIN/pg_isready" -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
   echo "Starting PostgreSQL…"
-  "$POSTGRES_BIN/pg_ctl" -D /opt/homebrew/var/postgresql@17 \
+  # Without a locale (a fresh login shell) PostgreSQL stops with "postmaster
+  # became multithreaded during startup".
+  LC_ALL="${LC_ALL:-en_US.UTF-8}" "$POSTGRES_BIN/pg_ctl" -D /opt/homebrew/var/postgresql@17 \
     -l "$RUNTIME_DIR/postgres.log" -o '-h 127.0.0.1 -p 5432' start
 fi
 # Check the existing database before starting API migrations.
@@ -149,8 +151,30 @@ if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.campuspickup 
   echo "Installing the iOS development build (first run may take a few minutes)…"
   pnpm exec expo run:ios --no-bundler --device "$simulator_id"
 fi
-xcrun simctl openurl "$simulator_id" 'exp+campus-pickup://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
+# A freshly booted simulator or newly installed app can time out on the first
+# URL open, so launch the app first and retry instead of stopping the servers.
+dev_client_url='exp+campus-pickup://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
+xcrun simctl launch "$simulator_id" com.abdrhsteam.campuspickup >/dev/null 2>&1 || true
+for attempt in {1..5}; do
+  if xcrun simctl openurl "$simulator_id" "$dev_client_url"; then break; fi
+  if [[ "$attempt" -eq 5 ]]; then
+    echo "Could not open the app automatically. In the simulator, open Join Me and choose http://127.0.0.1:8081."
+    break
+  fi
+  echo "The simulator was not ready to open the app; retrying ($attempt/5)…"
+  sleep 5
+done
 echo "Backend: http://localhost:8080 | Metro: http://localhost:8081"
+# A USB-connected Android phone reaches both servers as localhost through adb.
+# Phones drop these forwards when they reconnect or sleep, so the loop below
+# reapplies them.
+adb="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}/platform-tools/adb"
+forward_to_android() {
+  [[ -x "$adb" ]] && "$adb" get-state >/dev/null 2>&1 || return 0
+  "$adb" reverse tcp:8081 tcp:8081 >/dev/null 2>&1 || true
+  "$adb" reverse tcp:8080 tcp:8080 >/dev/null 2>&1 || true
+}
+forward_to_android
 echo "Keep this window open. Press Ctrl+C to stop servers started here. PostgreSQL stays running."
 touch "$RUNTIME_DIR/backend.log" "$RUNTIME_DIR/frontend.log"
 tail -n 5 -f "$RUNTIME_DIR/backend.log" "$RUNTIME_DIR/frontend.log" &
@@ -162,6 +186,7 @@ while kill -0 "$log_pid" 2>/dev/null; do
       exit 1
     fi
   done
+  forward_to_android
   sleep 2
 done
 wait "$log_pid"
