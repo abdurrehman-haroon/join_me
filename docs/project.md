@@ -1,4 +1,4 @@
-# Campus Pickup: shared context
+# Join Me: shared context
 
 
 ## Goal and starting scope
@@ -11,7 +11,7 @@ For each feature, discuss schema with the user, then frontend mechanics, then im
 
 Use a real geographic map with MapLibre and OpenFreeMap tiles. This supersedes the immediate illustrated-v6 fidelity milestone. Preserve Floodlight colors/type and keep sample-data previews distinct from connected features. Full prototype coverage remains in `feature-inventory.md`; fidelity references remain in `v6-fidelity-plan.md`.
 
-Explore opens on Lahore and moves through City -> District -> Place cards over a MapLibre map. District and place selections frame the map; a Map button enables free pan/zoom. The hierarchy API supplies districts, places, spots and upcoming events. Empty/loading/error/retry states are required.
+Explore opens on Lahore and moves through City -> District cards over a MapLibre map; a district's feed shows its place cards (there is no separate place level for now). Selections frame the map, which follows the feed and takes no gestures of its own. The hierarchy API supplies districts, places, spots and upcoming events. Empty/loading/error/retry states are required.
 
 ## Stack and data rules
 

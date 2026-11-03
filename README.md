@@ -1,4 +1,4 @@
-# Campus Pickup
+# Join Me
 
 One repository for the mobile app and its API.
 

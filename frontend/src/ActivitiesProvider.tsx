@@ -29,7 +29,8 @@ const ActivitiesContext = createContext<{
 // Alternate complete snapshots: if termination interrupts one write, restore the other.
 function queueStorage() {
   let generation = 0;
-  const base = `${FileSystem.documentDirectory}activities-${encodeURIComponent(apiURL)}`;
+  // Letters and digits only: Android decodes %2F in a file URI into folders.
+  const base = `${FileSystem.documentDirectory}activities-${apiURL.replace(/[^A-Za-z0-9]/g, "_")}`;
   return {
     async load(): Promise<QueueSnapshot> {
       const snapshots = await Promise.all(

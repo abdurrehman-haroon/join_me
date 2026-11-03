@@ -241,7 +241,7 @@ Verification: database-backed make check and focused Go race tests pass; fronten
 
 ## Discovery tracking extension
 
-Retired 2026-11-02: the old Map screen that recorded `sport_filter_selected`, map/place `empty_results_viewed` and map-source `place_viewed` was removed. Client ingestion rejects those combinations. Their PostgreSQL enum values, existing rows and internal report remain unchanged so historical data stays readable. Explore-source `place_viewed` remains active without a sport field.
+Retired 2026-11-02: the old Map screen that recorded `sport_filter_selected`, map/place `empty_results_viewed` and map-source `place_viewed` was removed. Client ingestion rejects those combinations. Their PostgreSQL enum values, existing rows and internal report remain unchanged so historical data stays readable. Explore-source `place_viewed` remains accepted without a sport field, but since 2026-11-04 the app records none: the Explore place level was removed.
 
 Approved scope: sport filter changes, place views and visible empty results, linked to the existing view-to-join flow. These answer which sports people seek, which grounds attract interest and where discovery has no available games. Reuse migration 000011 and its existing enum values; no new table/column/migration is needed.
 
