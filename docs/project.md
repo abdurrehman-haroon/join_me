@@ -9,7 +9,7 @@ For each feature, discuss schema with the user, then frontend mechanics, then im
 
 ## Agreed map direction
 
-Use a real geographic map with MapLibre and OpenFreeMap tiles. This supersedes the immediate illustrated-v6 fidelity milestone. Preserve Floodlight colors/type and keep sample-data previews distinct from connected features. Full prototype coverage remains in `feature-inventory.md`; fidelity references remain in `v6-fidelity-plan.md`.
+Use a real geographic map with MapLibre and OpenFreeMap tiles. Preserve Floodlight colors/type and keep sample-data previews distinct from connected features. `design/lahore-skin/` is the visual reference for Explore.
 
 Explore opens on Lahore and moves through City -> District cards over a MapLibre map; a district's feed shows its place cards (there is no separate place level for now). Selections frame the map, which follows the feed and takes no gestures of its own. The hierarchy API supplies districts, places, spots and upcoming events. Empty/loading/error/retry states are required.
 
@@ -56,7 +56,7 @@ Merge recovery restored the verified event implementation; repairs were committe
 
 Review map behavior and confirm campus names/locations. Moderation reporting and notifications are skipped for now; event browsing, Your events and host cancellation are implemented. Confirm pilot access before a student rollout. Deployment accounts/domains and future verified-access rules remain undecided.
 
-See `plan.md` for scope, `handoff.md` for verification and runtime details, and `feature-inventory.md` for the stable 45-feature v6 baseline.
+See `plan.md` for scope and `handoff.md` for verification and runtime details.
 
 Local macOS startup: double-click startup.command (runs startup.sh) to start PostgreSQL if needed, backend, Metro and the iOS development app. Ctrl+C stops launcher-owned servers; existing servers and PostgreSQL stay running. See README.md.
 
