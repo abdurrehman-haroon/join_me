@@ -55,9 +55,37 @@ for command_name in go pnpm curl xcrun python3; do
   fi
 done
 
+# Boot the simulator and open Device Hub first, so the device window appears
+# right away and iOS finishes booting while the servers start.
+simulator_info="$(xcrun simctl list devices available -j | python3 -c '
+import json, sys
+runtime, name = sys.argv[1:]
+for device in json.load(sys.stdin)["devices"].get(runtime, []):
+    if device["name"] == name:
+        print(device["udid"] + "|" + device["state"])
+        break
+else:
+    sys.exit("Requested simulator is not installed: " + name + " (" + runtime + ")")
+' "$SIMULATOR_RUNTIME" "$SIMULATOR_NAME")"
+IFS='|' read -r simulator_id simulator_state <<< "$simulator_info"
+echo "Using $SIMULATOR_NAME on $SIMULATOR_RUNTIME ($simulator_id)."
+if [[ "$simulator_state" != "Booted" ]]; then
+  xcrun simctl boot "$simulator_id"
+fi
+developer_directory="$(xcode-select -p)"
+device_hub="$(dirname "$developer_directory")/Applications/DeviceHub.app"
+if [[ -d "$device_hub" ]]; then
+  open -a "$device_hub"
+elif ! open -a Simulator --args -CurrentDeviceUDID "$simulator_id"; then
+  echo "Could not open Device Hub or Simulator. Check the active Xcode installation."
+  exit 1
+fi
+
 if ! "$POSTGRES_BIN/pg_isready" -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
   echo "Starting PostgreSQL…"
-  "$POSTGRES_BIN/pg_ctl" -D /opt/homebrew/var/postgresql@17 \
+  # Without a locale (a fresh login shell) PostgreSQL stops with "postmaster
+  # became multithreaded during startup".
+  LC_ALL="${LC_ALL:-en_US.UTF-8}" "$POSTGRES_BIN/pg_ctl" -D /opt/homebrew/var/postgresql@17 \
     -l "$RUNTIME_DIR/postgres.log" -o '-h 127.0.0.1 -p 5432' start
 fi
 # Check the existing database before starting API migrations.
@@ -84,30 +112,6 @@ fi
 
 cd "$PROJECT_DIR/frontend"
 if [[ ! -d node_modules ]]; then pnpm install --frozen-lockfile; fi
-simulator_info="$(xcrun simctl list devices available -j | python3 -c '
-import json, sys
-runtime, name = sys.argv[1:]
-for device in json.load(sys.stdin)["devices"].get(runtime, []):
-    if device["name"] == name:
-        print(device["udid"] + "|" + device["state"])
-        break
-else:
-    sys.exit("Requested simulator is not installed: " + name + " (" + runtime + ")")
-' "$SIMULATOR_RUNTIME" "$SIMULATOR_NAME")"
-IFS='|' read -r simulator_id simulator_state <<< "$simulator_info"
-echo "Using $SIMULATOR_NAME on $SIMULATOR_RUNTIME ($simulator_id)."
-if [[ "$simulator_state" != "Booted" ]]; then
-  xcrun simctl boot "$simulator_id"
-fi
-xcrun simctl bootstatus "$simulator_id" -b
-developer_directory="$(xcode-select -p)"
-device_hub="$(dirname "$developer_directory")/Applications/DeviceHub.app"
-if [[ -d "$device_hub" ]]; then
-  open -a "$device_hub"
-elif ! open -a Simulator --args -CurrentDeviceUDID "$simulator_id"; then
-  echo "Could not open Device Hub or Simulator. Check the active Xcode installation."
-  exit 1
-fi
 
 if lsof -tiTCP:8081 -sTCP:LISTEN >/dev/null 2>&1; then
   if [[ "$(curl -fsS --max-time 3 http://127.0.0.1:8081/status)" != 'packager-status:running' ]]; then
@@ -145,12 +149,40 @@ print(url)
 ' "$RUNTIME_DIR/metro-manifest.json")"
 curl -fsS --max-time 180 "$bundle_url" -o /dev/null
 
-if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.campuspickup app >/dev/null 2>&1; then
+# The simulator has been booting since the launcher started; wait for it to
+# finish before installing or opening the app.
+xcrun simctl bootstatus "$simulator_id" -b
+
+if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.joinme app >/dev/null 2>&1; then
   echo "Installing the iOS development build (first run may take a few minutes)…"
-  pnpm exec expo run:ios --no-bundler --device "$simulator_id"
+  # run:ios opens the app itself once installed; without this it points the app at
+  # the Mac's network address, where Metro (bound to 127.0.0.1) does not listen.
+  REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1 pnpm exec expo run:ios --no-bundler --device "$simulator_id"
 fi
-xcrun simctl openurl "$simulator_id" 'exp+campus-pickup://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
+# A freshly booted simulator or newly installed app can time out on the first
+# URL open, so launch the app first and retry instead of stopping the servers.
+dev_client_url='exp+join-me://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
+xcrun simctl launch "$simulator_id" com.abdrhsteam.joinme >/dev/null 2>&1 || true
+for attempt in {1..5}; do
+  if xcrun simctl openurl "$simulator_id" "$dev_client_url"; then break; fi
+  if [[ "$attempt" -eq 5 ]]; then
+    echo "Could not open the app automatically. In the simulator, open Join Me and choose http://127.0.0.1:8081."
+    break
+  fi
+  echo "The simulator was not ready to open the app; retrying ($attempt/5)…"
+  sleep 5
+done
 echo "Backend: http://localhost:8080 | Metro: http://localhost:8081"
+# A USB-connected Android phone reaches both servers as localhost through adb.
+# Phones drop these forwards when they reconnect or sleep, so the loop below
+# reapplies them.
+adb="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}/platform-tools/adb"
+forward_to_android() {
+  [[ -x "$adb" ]] && "$adb" get-state >/dev/null 2>&1 || return 0
+  "$adb" reverse tcp:8081 tcp:8081 >/dev/null 2>&1 || true
+  "$adb" reverse tcp:8080 tcp:8080 >/dev/null 2>&1 || true
+}
+forward_to_android
 echo "Keep this window open. Press Ctrl+C to stop servers started here. PostgreSQL stays running."
 touch "$RUNTIME_DIR/backend.log" "$RUNTIME_DIR/frontend.log"
 tail -n 5 -f "$RUNTIME_DIR/backend.log" "$RUNTIME_DIR/frontend.log" &
@@ -162,6 +194,7 @@ while kill -0 "$log_pid" 2>/dev/null; do
       exit 1
     fi
   done
+  forward_to_android
   sleep 2
 done
 wait "$log_pid"

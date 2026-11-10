@@ -1,13 +1,13 @@
 # Shared AI workflow
 
-1. Start: read `docs/project.md`, `docs/plan.md`, and `docs/handoff.md`. Read `design/README.md` for design work, `openapi.yaml` for API work, and `frontend/AGENTS.md` for frontend work.
+1. Start: read `docs/project.md`, `docs/plan.md`, and `docs/handoff.md`. Read `design/README.md` for design work, `openapi.yaml` for API work, `frontend/AGENTS.md` for frontend work, and `docs/explore-performance.md` for Explore or map UX work.
 2. Work directly on `main`; do not create feature branches. Keep API changes aligned with `openapi.yaml`.
 3. Finish: run `make check`. Keep `docs/project.md`, `docs/plan.md`, and `docs/handoff.md` current when decisions, scope, or implementation state change. Leave changes uncommitted for user review.
 4. After frontend changes, reload the local development app and verify the updated screen in the simulator when available. Tell the user which server is running and how to reload it themselves.
 
 Code quality, always: favor readable, explicit, domain-named code with the main flow visible. Avoid needless layers, helpers, hooks, interfaces, and unrelated refactors. Keep validation, authorization, errors, concurrency, SQL, and coordinates easy to trace; test behavior and review the diff for readability.
 
-Current user-approved starting scope in `docs/plan.md` supersedes the earlier all-v6 fidelity milestone: use a real MapLibre map with OpenFreeMap tiles and build the slim LUMS pickup flow first. Preserve Floodlight styling; keep simulated prototype behavior distinct from connected production behavior. Discuss schema with the user, then frontend mechanics, before implementing each feature. `design/prototype/index.html` and `docs/v6-fidelity-plan.md` remain references for deferred features.
+Current user-approved scope is in `docs/plan.md`: a real MapLibre map with OpenFreeMap tiles. Preserve Floodlight styling; keep simulated prototype behavior distinct from connected production behavior. Discuss schema with the user, then frontend mechanics, before implementing each feature. `design/lahore-skin/` is the current visual reference for Explore.
 
 Before writing or reviewing code, read all of `docs/code-practice.md` and apply it. Documentation-only tasks can use the summary above.
 
