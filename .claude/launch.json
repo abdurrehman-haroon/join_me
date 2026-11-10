@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lahore-skin",
+      "url": "http://127.0.0.1:4174",
+      "port": 4174
+    },
+    {
+      "name": "district-map",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4180", "--bind", "127.0.0.1", "--directory", "/private/tmp/claude-502/-Users-abdurrehman-Desktop-p-join-me/4a8943fc-8f6f-49cf-992b-b0d0d40fe63b/scratchpad/map"],
+      "port": 4180
+    }
+  ]
+}
