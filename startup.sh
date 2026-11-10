@@ -55,6 +55,32 @@ for command_name in go pnpm curl xcrun python3; do
   fi
 done
 
+# Boot the simulator and open Device Hub first, so the device window appears
+# right away and iOS finishes booting while the servers start.
+simulator_info="$(xcrun simctl list devices available -j | python3 -c '
+import json, sys
+runtime, name = sys.argv[1:]
+for device in json.load(sys.stdin)["devices"].get(runtime, []):
+    if device["name"] == name:
+        print(device["udid"] + "|" + device["state"])
+        break
+else:
+    sys.exit("Requested simulator is not installed: " + name + " (" + runtime + ")")
+' "$SIMULATOR_RUNTIME" "$SIMULATOR_NAME")"
+IFS='|' read -r simulator_id simulator_state <<< "$simulator_info"
+echo "Using $SIMULATOR_NAME on $SIMULATOR_RUNTIME ($simulator_id)."
+if [[ "$simulator_state" != "Booted" ]]; then
+  xcrun simctl boot "$simulator_id"
+fi
+developer_directory="$(xcode-select -p)"
+device_hub="$(dirname "$developer_directory")/Applications/DeviceHub.app"
+if [[ -d "$device_hub" ]]; then
+  open -a "$device_hub"
+elif ! open -a Simulator --args -CurrentDeviceUDID "$simulator_id"; then
+  echo "Could not open Device Hub or Simulator. Check the active Xcode installation."
+  exit 1
+fi
+
 if ! "$POSTGRES_BIN/pg_isready" -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
   echo "Starting PostgreSQL…"
   # Without a locale (a fresh login shell) PostgreSQL stops with "postmaster
@@ -86,30 +112,6 @@ fi
 
 cd "$PROJECT_DIR/frontend"
 if [[ ! -d node_modules ]]; then pnpm install --frozen-lockfile; fi
-simulator_info="$(xcrun simctl list devices available -j | python3 -c '
-import json, sys
-runtime, name = sys.argv[1:]
-for device in json.load(sys.stdin)["devices"].get(runtime, []):
-    if device["name"] == name:
-        print(device["udid"] + "|" + device["state"])
-        break
-else:
-    sys.exit("Requested simulator is not installed: " + name + " (" + runtime + ")")
-' "$SIMULATOR_RUNTIME" "$SIMULATOR_NAME")"
-IFS='|' read -r simulator_id simulator_state <<< "$simulator_info"
-echo "Using $SIMULATOR_NAME on $SIMULATOR_RUNTIME ($simulator_id)."
-if [[ "$simulator_state" != "Booted" ]]; then
-  xcrun simctl boot "$simulator_id"
-fi
-xcrun simctl bootstatus "$simulator_id" -b
-developer_directory="$(xcode-select -p)"
-device_hub="$(dirname "$developer_directory")/Applications/DeviceHub.app"
-if [[ -d "$device_hub" ]]; then
-  open -a "$device_hub"
-elif ! open -a Simulator --args -CurrentDeviceUDID "$simulator_id"; then
-  echo "Could not open Device Hub or Simulator. Check the active Xcode installation."
-  exit 1
-fi
 
 if lsof -tiTCP:8081 -sTCP:LISTEN >/dev/null 2>&1; then
   if [[ "$(curl -fsS --max-time 3 http://127.0.0.1:8081/status)" != 'packager-status:running' ]]; then
@@ -147,14 +149,18 @@ print(url)
 ' "$RUNTIME_DIR/metro-manifest.json")"
 curl -fsS --max-time 180 "$bundle_url" -o /dev/null
 
-if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.campuspickup app >/dev/null 2>&1; then
+# The simulator has been booting since the launcher started; wait for it to
+# finish before installing or opening the app.
+xcrun simctl bootstatus "$simulator_id" -b
+
+if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.joinme app >/dev/null 2>&1; then
   echo "Installing the iOS development build (first run may take a few minutes)…"
   pnpm exec expo run:ios --no-bundler --device "$simulator_id"
 fi
 # A freshly booted simulator or newly installed app can time out on the first
 # URL open, so launch the app first and retry instead of stopping the servers.
-dev_client_url='exp+campus-pickup://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
-xcrun simctl launch "$simulator_id" com.abdrhsteam.campuspickup >/dev/null 2>&1 || true
+dev_client_url='exp+join-me://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081'
+xcrun simctl launch "$simulator_id" com.abdrhsteam.joinme >/dev/null 2>&1 || true
 for attempt in {1..5}; do
   if xcrun simctl openurl "$simulator_id" "$dev_client_url"; then break; fi
   if [[ "$attempt" -eq 5 ]]; then

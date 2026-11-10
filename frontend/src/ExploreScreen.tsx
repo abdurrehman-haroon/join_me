@@ -155,7 +155,7 @@ export default function ExploreScreen() {
   const [eventID, setEventID] = useState<string | null>(null);
   // The place an event is being created at, from its place view.
   const [creating, setCreating] = useState<PlaceView | null>(null);
-  // Explore map mode hides the stories and lets the same map pan freely.
+  // Whether the app is in the foreground; area views are only recorded while it is.
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
   );
@@ -384,22 +384,24 @@ export default function ExploreScreen() {
           : [];
       });
   const nearbyDistrictsKey = nearbyDistrictSlugs.join(",");
+  // Districts being fetched ahead. Each fetch runs to completion even after the
+  // focus moves on: aborting when one neighbour loads would restart the others.
+  const districtsLoadingAhead = useRef(new Set<string>());
   useEffect(() => {
     if (!nearbyDistrictsKey) return;
-    const controller = new AbortController();
     for (const slug of nearbyDistrictsKey.split(",")) {
-      fetch(`${apiURL}/cities/${citySlug}/districts/${slug}/places`, {
-        signal: controller.signal,
-      })
+      if (districtsLoadingAhead.current.has(slug)) continue;
+      districtsLoadingAhead.current.add(slug);
+      fetch(`${apiURL}/cities/${citySlug}/districts/${slug}/places`)
         .then((response) => (response.ok ? response.json() : null))
         .then((loadedDistrict: DistrictFeed | null) => {
           if (loadedDistrict)
             setDistrictFeeds((feeds) => ({ ...feeds, [slug]: loadedDistrict }));
         })
         // Pins are a preview; the cards stay usable without them.
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => districtsLoadingAhead.current.delete(slug));
     }
-    return () => controller.abort();
   }, [nearbyDistrictsKey]);
 
   // On the district feed the map draws the focused place's outline and grounds,
@@ -468,6 +470,13 @@ export default function ExploreScreen() {
     setMapLoaded(false);
     setMapStyle(null);
     setMapAttempt((attempt) => attempt + 1);
+  }
+
+  // Reloads the current level. Place cards prefer their cached place views over the
+  // feed's events, so those are dropped too and the place in view fetches its own again.
+  function refreshExplore() {
+    setPlaceViews({});
+    setRefreshCount((value) => value + 1);
   }
 
   // A place card lists its full place view once loaded, otherwise the feed's events.
@@ -649,7 +658,7 @@ export default function ExploreScreen() {
       }
       cancelLevelSwipe();
       // On the city feed this explains that there is no level above Lahore.
-      if (event.translationX > levelSwipeDistance) goBack();
+      if (!districtSlug && event.translationX > levelSwipeDistance) goBack();
     });
   /* eslint-enable react-hooks/refs */
 
@@ -1130,7 +1139,7 @@ export default function ExploreScreen() {
                   <Text style={styles.body}>{loadError}</Text>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => setRefreshCount((value) => value + 1)}
+                    onPress={() => refreshExplore()}
                     style={styles.retry}
                   >
                     <Text style={styles.retryText}>Try again</Text>
@@ -1197,7 +1206,7 @@ export default function ExploreScreen() {
                   refreshing={current && pullRefreshing}
                   onRefresh={() => {
                     setPullRefreshing(true);
-                    setRefreshCount((value) => value + 1);
+                    refreshExplore();
                   }}
                 />
               }
@@ -1209,19 +1218,26 @@ export default function ExploreScreen() {
   }
 
   // Holding and dragging along the rail's dots moves through the feed's
-  // districts or places quickly, one dot per card. As with the level swipe, the
+  // districts or places quickly. The rail's length covers every card; with more
+  // than 14 cards each dot stands for a few. As with the level swipe, the
   // builder only stores callbacks that run on touch events.
   const [railHeight, setRailHeight] = useState(0);
   const railDotCount = Math.min(children.length, 14);
+  const focusedDot =
+    focusedIndex >= heroOffset && focusedIndex < heroOffset + children.length
+      ? Math.floor(
+          ((focusedIndex - heroOffset) * railDotCount) / children.length,
+        )
+      : null;
   /* eslint-disable react-hooks/refs */
   const railScrub = Gesture.Pan()
     .runOnJS(true)
     .minDistance(0)
     .onUpdate((event) => {
-      if (!railHeight || !railDotCount) return;
-      const position = Math.floor((event.y / railHeight) * railDotCount);
+      if (!railHeight || !children.length) return;
+      const position = Math.floor((event.y / railHeight) * children.length);
       const index =
-        Math.max(0, Math.min(railDotCount - 1, position)) + heroOffset;
+        Math.max(0, Math.min(children.length - 1, position)) + heroOffset;
       if (index !== scrubIndex.current) {
         scrubIndex.current = index;
         scrollToCard(index);
@@ -1398,7 +1414,9 @@ export default function ExploreScreen() {
       >
         <Pressable
           accessibilityRole="button"
-          onPress={() => openLevel(null)}
+          onPress={() => {
+            if (districtSlug) openLevel(null);
+          }}
           style={styles.crumbs}
         >
           <Text style={[styles.crumb, !districtSlug && styles.currentCrumb]}>
@@ -1431,7 +1449,7 @@ export default function ExploreScreen() {
                   key={index}
                   style={[
                     styles.railDot,
-                    index + heroOffset === focusedIndex && styles.railOn,
+                    index === focusedDot && styles.railOn,
                   ]}
                 />
               ))}
@@ -1456,7 +1474,7 @@ export default function ExploreScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => setRefreshCount((value) => value + 1)}
+            onPress={() => refreshExplore()}
           >
             <Text style={styles.link}>Try again</Text>
           </Pressable>
@@ -1494,7 +1512,7 @@ export default function ExploreScreen() {
             districtAreaID ? viewedAreas.get(districtAreaID) : undefined
           }
           onClose={() => setEventID(null)}
-          onEventChanged={() => setRefreshCount((value) => value + 1)}
+          onEventChanged={() => refreshExplore()}
         />
       )}
       {creating && (
@@ -1505,7 +1523,7 @@ export default function ExploreScreen() {
           onClose={() => setCreating(null)}
           onSaved={() => {
             setCreating(null);
-            setRefreshCount((value) => value + 1);
+            refreshExplore();
           }}
         />
       )}
