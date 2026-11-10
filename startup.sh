@@ -155,7 +155,9 @@ xcrun simctl bootstatus "$simulator_id" -b
 
 if ! xcrun simctl get_app_container "$simulator_id" com.abdrhsteam.joinme app >/dev/null 2>&1; then
   echo "Installing the iOS development build (first run may take a few minutes)…"
-  pnpm exec expo run:ios --no-bundler --device "$simulator_id"
+  # run:ios opens the app itself once installed; without this it points the app at
+  # the Mac's network address, where Metro (bound to 127.0.0.1) does not listen.
+  REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1 pnpm exec expo run:ios --no-bundler --device "$simulator_id"
 fi
 # A freshly booted simulator or newly installed app can time out on the first
 # URL open, so launch the app first and retry instead of stopping the servers.
