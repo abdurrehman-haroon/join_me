@@ -251,8 +251,7 @@ export default function YourActivity() {
               style={styles.history}
             >
               <Text style={styles.action}>
-                {actionLabels[entry.action]} ·{" "}
-                {formatEventType(entry.type)}
+                {actionLabels[entry.action]} · {formatEventType(entry.type)}
               </Text>
               <Text style={styles.label}>{entry.title}</Text>
               <Text style={styles.muted}>
@@ -284,7 +283,7 @@ export default function YourActivity() {
           )}
         </>
       )}
-      {loading && <ActivityIndicator color="#1D5B3A" />}
+      {loading && <ActivityIndicator color="#E3342F" />}
       {!!error && (
         <>
           <Text accessibilityRole="alert" style={styles.error}>
@@ -328,27 +327,46 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     flexWrap: "wrap",
   },
-  heading: { fontFamily: "BigShoulders", fontSize: 36, color: "#15201B" },
+  heading: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 36,
+    color: "#203E30",
+  },
   subheading: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#15201B",
+    fontFamily: "DMSans_700Bold",
+    color: "#203E30",
     marginTop: 8,
   },
   row: { flexDirection: "row", gap: 12 },
-  period: { borderRadius: 16, padding: 14, backgroundColor: "#E5E9DF" },
-  selected: { backgroundColor: "#1D5B3A" },
-  selectedText: { color: "white", fontSize: 16, fontWeight: "700" },
+  period: { borderRadius: 16, padding: 14, backgroundColor: "#E5E8D8" },
+  selected: { backgroundColor: "#203E30" },
+  selectedText: {
+    color: "#FFF8E8",
+    fontSize: 16,
+    fontFamily: "DMSans_700Bold",
+  },
   stat: {
     flex: 1,
-    backgroundColor: "#E5E9DF",
+    backgroundColor: "#FFF8E8",
     padding: 16,
     borderRadius: 20,
     gap: 8,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
   },
-  number: { fontFamily: "BigShoulders", fontSize: 46, color: "#15201B" },
-  label: { fontSize: 16, fontWeight: "700", color: "#15201B" },
-  muted: { fontSize: 14, lineHeight: 21, color: "#6C786E" },
+  number: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 46,
+    color: "#203E30",
+  },
+  label: { fontSize: 16, fontFamily: "DMSans_700Bold", color: "#203E30" },
+  muted: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#798268",
+    fontFamily: "DMSans_400Regular",
+  },
   line: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -356,13 +374,20 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   groundName: { flex: 1 },
-  action: { fontSize: 16, fontWeight: "700", color: "#1D5B3A" },
+  action: { fontSize: 16, fontFamily: "DMSans_700Bold", color: "#203E30" },
   history: {
-    backgroundColor: "#E5E9DF",
+    backgroundColor: "#FFF8E8",
     borderRadius: 20,
     padding: 20,
     gap: 8,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
   },
   control: { paddingVertical: 12 },
-  error: { fontSize: 14, lineHeight: 21, color: "#B51E2C" },
+  error: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#B51E2C",
+    fontFamily: "DMSans_400Regular",
+  },
 });

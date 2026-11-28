@@ -14,26 +14,32 @@ import (
 type ActivityAction string
 
 const (
-	ActivityActionSessionStarted         ActivityAction = "session_started"
-	ActivityActionSportFilterSelected    ActivityAction = "sport_filter_selected"
-	ActivityActionPlaceViewed            ActivityAction = "place_viewed"
-	ActivityActionEventViewed            ActivityAction = "event_viewed"
-	ActivityActionEmptyResultsViewed     ActivityAction = "empty_results_viewed"
-	ActivityActionEventCreationStarted   ActivityAction = "event_creation_started"
-	ActivityActionEventCreationSubmitted ActivityAction = "event_creation_submitted"
-	ActivityActionEventCreated           ActivityAction = "event_created"
-	ActivityActionEventEdited            ActivityAction = "event_edited"
-	ActivityActionEventCancelled         ActivityAction = "event_cancelled"
-	ActivityActionJoinAttempted          ActivityAction = "join_attempted"
-	ActivityActionParticipationJoined    ActivityAction = "participation_joined"
-	ActivityActionJoinRejected           ActivityAction = "join_rejected"
-	ActivityActionParticipationLeft      ActivityAction = "participation_left"
-	ActivityActionChatOpened             ActivityAction = "chat_opened"
-	ActivityActionMessageSent            ActivityAction = "message_sent"
-	ActivityActionInteractionPaused      ActivityAction = "interaction_paused"
-	ActivityActionInteractionResumed     ActivityAction = "interaction_resumed"
-	ActivityActionInteractionClosed      ActivityAction = "interaction_closed"
-	ActivityActionAreaViewed             ActivityAction = "area_viewed"
+	ActivityActionSessionStarted             ActivityAction = "session_started"
+	ActivityActionSportFilterSelected        ActivityAction = "sport_filter_selected"
+	ActivityActionPlaceViewed                ActivityAction = "place_viewed"
+	ActivityActionEventViewed                ActivityAction = "event_viewed"
+	ActivityActionEmptyResultsViewed         ActivityAction = "empty_results_viewed"
+	ActivityActionEventCreationStarted       ActivityAction = "event_creation_started"
+	ActivityActionEventCreationSubmitted     ActivityAction = "event_creation_submitted"
+	ActivityActionEventCreated               ActivityAction = "event_created"
+	ActivityActionEventEdited                ActivityAction = "event_edited"
+	ActivityActionEventCancelled             ActivityAction = "event_cancelled"
+	ActivityActionJoinAttempted              ActivityAction = "join_attempted"
+	ActivityActionParticipationJoined        ActivityAction = "participation_joined"
+	ActivityActionJoinRejected               ActivityAction = "join_rejected"
+	ActivityActionParticipationLeft          ActivityAction = "participation_left"
+	ActivityActionChatOpened                 ActivityAction = "chat_opened"
+	ActivityActionMessageSent                ActivityAction = "message_sent"
+	ActivityActionInteractionPaused          ActivityAction = "interaction_paused"
+	ActivityActionInteractionResumed         ActivityAction = "interaction_resumed"
+	ActivityActionInteractionClosed          ActivityAction = "interaction_closed"
+	ActivityActionAreaViewed                 ActivityAction = "area_viewed"
+	ActivityActionPlaceSearchSelected        ActivityAction = "place_search_selected"
+	ActivityActionPlaceSearchAbandoned       ActivityAction = "place_search_abandoned"
+	ActivityActionLocationPermissionAnswered ActivityAction = "location_permission_answered"
+	ActivityActionPlacePinned                ActivityAction = "place_pinned"
+	ActivityActionEventShared                ActivityAction = "event_shared"
+	ActivityActionCelebrationClosed          ActivityAction = "celebration_closed"
 )
 
 func (e *ActivityAction) Scan(src interface{}) error {
@@ -82,6 +88,7 @@ const (
 	ActivitySourceYourEvents   ActivitySource = "your_events"
 	ActivitySourceProfile      ActivitySource = "profile"
 	ActivitySourceExplore      ActivitySource = "explore"
+	ActivitySourceCelebration  ActivitySource = "celebration"
 )
 
 func (e *ActivitySource) Scan(src interface{}) error {
@@ -246,6 +253,133 @@ func (ns NullEventGoalPeriod) Value() (driver.Value, error) {
 	return string(ns.EventGoalPeriod), nil
 }
 
+type PlaceReviewStatus string
+
+const (
+	PlaceReviewStatusUnreviewed PlaceReviewStatus = "unreviewed"
+	PlaceReviewStatusApproved   PlaceReviewStatus = "approved"
+	PlaceReviewStatusRejected   PlaceReviewStatus = "rejected"
+)
+
+func (e *PlaceReviewStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PlaceReviewStatus(s)
+	case string:
+		*e = PlaceReviewStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PlaceReviewStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPlaceReviewStatus struct {
+	PlaceReviewStatus PlaceReviewStatus
+	Valid             bool // Valid is true if PlaceReviewStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPlaceReviewStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PlaceReviewStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PlaceReviewStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPlaceReviewStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PlaceReviewStatus), nil
+}
+
+type PlaceSource string
+
+const (
+	PlaceSourceOsm  PlaceSource = "osm"
+	PlaceSourceUser PlaceSource = "user"
+)
+
+func (e *PlaceSource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PlaceSource(s)
+	case string:
+		*e = PlaceSource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PlaceSource: %T", src)
+	}
+	return nil
+}
+
+type NullPlaceSource struct {
+	PlaceSource PlaceSource
+	Valid       bool // Valid is true if PlaceSource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPlaceSource) Scan(value interface{}) error {
+	if value == nil {
+		ns.PlaceSource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PlaceSource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPlaceSource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PlaceSource), nil
+}
+
+type PlaceStatus string
+
+const (
+	PlaceStatusActive         PlaceStatus = "active"
+	PlaceStatusMissingFromOsm PlaceStatus = "missing_from_osm"
+)
+
+func (e *PlaceStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PlaceStatus(s)
+	case string:
+		*e = PlaceStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PlaceStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPlaceStatus struct {
+	PlaceStatus PlaceStatus
+	Valid       bool // Valid is true if PlaceStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPlaceStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PlaceStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PlaceStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPlaceStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PlaceStatus), nil
+}
+
 type PlaceType string
 
 const (
@@ -261,6 +395,7 @@ const (
 	PlaceTypeHotel      PlaceType = "hotel"
 	PlaceTypeExhibition PlaceType = "exhibition"
 	PlaceTypeCommunity  PlaceType = "community"
+	PlaceTypeOther      PlaceType = "other"
 )
 
 func (e *PlaceType) Scan(src interface{}) error {
@@ -487,16 +622,24 @@ type Message struct {
 }
 
 type Place struct {
-	ID        pgtype.UUID
-	AreaID    pgtype.UUID
-	Name      string
-	Type      PlaceType
-	Location  interface{}
-	Boundary  interface{}
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	Slug      string
-	SortOrder int32
+	ID           pgtype.UUID
+	AreaID       pgtype.UUID
+	Name         string
+	Type         PlaceType
+	Location     interface{}
+	Boundary     interface{}
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Slug         string
+	SortOrder    int32
+	Source       PlaceSource
+	Status       PlaceStatus
+	ReviewStatus PlaceReviewStatus
+	OsmRef       pgtype.Text
+	OsmTags      []byte
+	SearchText   pgtype.Text
+	CreatedBy    pgtype.UUID
+	KindText     pgtype.Text
 }
 
 type PlaceSpot struct {

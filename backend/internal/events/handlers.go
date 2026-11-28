@@ -1,6 +1,7 @@
 package events
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -19,12 +21,57 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"joinme/backend/internal/activities"
 	"joinme/backend/internal/database"
+	"joinme/backend/internal/osmplaces"
 )
 
 type Handler struct {
 	Queries    *database.Queries
 	DemoUserID pgtype.UUID
 	Pool       *pgxpool.Pool
+	// New events one person may create per Lahore day; 0 means no limit.
+	DailyEventLimit int
+}
+
+// Pins are placed in Lahore, the only city for now.
+const pinCity = "lahore"
+
+// The kinds people can pick from the chips; anything else is typed as kind_text.
+var approvedKinds = map[database.PlaceType]bool{
+	database.PlaceTypeCampus: true, database.PlaceTypeCafe: true, database.PlaceTypeRestaurant: true,
+	database.PlaceTypePark: true, database.PlaceTypeMall: true, database.PlaceTypeSportsClub: true,
+	database.PlaceTypeStadium: true, database.PlaceTypeCulture: true, database.PlaceTypeHeritage: true,
+	database.PlaceTypeHotel: true, database.PlaceTypeExhibition: true, database.PlaceTypeCommunity: true,
+}
+
+// A place someone pinned, created together with this event.
+type newPlace struct {
+	Name        string      `json:"name"`
+	Kind        string      `json:"kind,omitempty"`
+	KindText    string      `json:"kind_text,omitempty"`
+	Coordinates *[2]float64 `json:"coordinates"`
+	Private     bool        `json:"private"`
+}
+
+func (place *newPlace) validate() error {
+	place.Name = strings.TrimSpace(place.Name)
+	place.Kind = strings.TrimSpace(place.Kind)
+	place.KindText = strings.TrimSpace(place.KindText)
+	if length := utf8.RuneCountInString(place.Name); length < 2 || length > 80 || strings.IndexFunc(place.Name, unicode.IsControl) >= 0 {
+		return errors.New("the place name must be 2 to 80 characters on one line")
+	}
+	if (place.Kind == "") == (place.KindText == "") {
+		return errors.New("give the place either a kind or a typed kind_text")
+	}
+	if place.Kind != "" && !approvedKinds[database.PlaceType(place.Kind)] {
+		return errors.New("unknown place kind; type it as kind_text instead")
+	}
+	if length := utf8.RuneCountInString(place.KindText); place.KindText != "" && (length > 40 || strings.IndexFunc(place.KindText, unicode.IsControl) >= 0) {
+		return errors.New("kind_text must be 1 to 40 characters on one line")
+	}
+	if place.Coordinates == nil || place.Coordinates[0] < -180 || place.Coordinates[0] > 180 || place.Coordinates[1] < -90 || place.Coordinates[1] > 90 {
+		return errors.New("the place needs coordinates as [longitude, latitude]")
+	}
+	return nil
 }
 
 func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request) {
@@ -35,6 +82,7 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 	}
 	var input struct {
 		PlaceID  string    `json:"place_id"`
+		NewPlace *newPlace `json:"new_place,omitempty"`
 		SpotID   string    `json:"spot_id"`
 		Title    string    `json:"title"`
 		Type     string    `json:"type"`
@@ -71,7 +119,16 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		return
 	}
 	var placeID pgtype.UUID
-	if err := placeID.Scan(input.PlaceID); err != nil || !placeID.Valid {
+	if input.NewPlace != nil {
+		if input.PlaceID != "" || input.SpotID != "" {
+			http.Error(w, "send either place_id or new_place, without a spot", http.StatusBadRequest)
+			return
+		}
+		if err := input.NewPlace.validate(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else if err := placeID.Scan(input.PlaceID); err != nil || !placeID.Valid {
 		http.Error(w, "invalid place ID", http.StatusBadRequest)
 		return
 	}
@@ -139,6 +196,35 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		http.Error(w, "start time must be in the future", 400)
 		return
 	}
+	if handler.DailyEventLimit > 0 {
+		// One person's creations run one at a time, so two at once cannot both slip under the limit.
+		if err = queries.LockActivityRequest(request.Context(), "daily-events:"+handler.DemoUserID.String()); err != nil {
+			http.Error(w, "could not create event", 500)
+			return
+		}
+		created, countErr := queries.EventsCreatedToday(request.Context(), handler.DemoUserID)
+		if countErr != nil {
+			log.Printf("count events created today: %v", countErr)
+			http.Error(w, "could not create event", 500)
+			return
+		}
+		if created >= int64(handler.DailyEventLimit) {
+			http.Error(w, fmt.Sprintf("You can start %d plans a day. Try again tomorrow.", handler.DailyEventLimit), http.StatusTooManyRequests)
+			return
+		}
+	}
+	if input.NewPlace != nil {
+		placeID, err = createPinnedPlace(request.Context(), queries, *input.NewPlace, handler.DemoUserID)
+		if errors.Is(err, errOutsideCity) {
+			http.Error(w, "Pins must be inside Lahore.", http.StatusUnprocessableEntity)
+			return
+		}
+		if err != nil {
+			log.Printf("create pinned place: %v", err)
+			http.Error(w, "could not create the place", 500)
+			return
+		}
+	}
 	event, err := queries.CreateEvent(request.Context(), database.CreateEventParams{
 		HostID: handler.DemoUserID, PlaceID: placeID, SpotID: spotID, StatusID: statusID, Title: input.Title,
 		Type: input.Type, StartsAt: pgtype.Timestamptz{Time: input.StartsAt, Valid: true}, Capacity: input.Capacity,
@@ -163,7 +249,7 @@ func (handler Handler) CreateEvent(w http.ResponseWriter, request *http.Request)
 		return
 	}
 	if err = activities.RecordOutcome(request.Context(), queries, handler.DemoUserID, event.ID,
-		database.ActivityActionEventCreated, database.ActivitySourceEventForm, tracking, map[string]any{"request_hash": requestHash}); err == nil {
+		database.ActivityActionEventCreated, database.ActivitySourceEventForm, tracking, createdDetails(requestHash, input.NewPlace != nil)); err == nil {
 		err = recordEventUpdate(request.Context(), queries, event.ID)
 	}
 	if err == nil {
@@ -613,4 +699,51 @@ func (handler Handler) UpdateEvent(w http.ResponseWriter, request *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+var errOutsideCity = errors.New("pin outside the city")
+
+// createPinnedPlace adds a place someone pinned in the district containing it,
+// with a slug unique in that district. Only private places record who made them.
+func createPinnedPlace(ctx context.Context, queries *database.Queries, place newPlace, creator pgtype.UUID) (pgtype.UUID, error) {
+	district, err := queries.DistrictAt(ctx, database.DistrictAtParams{CitySlug: pinCity, Lng: place.Coordinates[0], Lat: place.Coordinates[1]})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return pgtype.UUID{}, errOutsideCity
+	}
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	base := osmplaces.Slugify(place.Name)
+	taken, err := queries.PlaceSlugsLike(ctx, database.PlaceSlugsLikeParams{AreaID: district.ID, Base: base})
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	used := map[string]bool{}
+	for _, slug := range taken {
+		used[slug] = true
+	}
+	slug := base
+	for number := 2; used[slug]; number++ {
+		slug = fmt.Sprintf("%s-%d", base, number)
+	}
+	params := database.CreatePinnedPlaceParams{
+		AreaID: district.ID, Name: place.Name, Type: database.PlaceType(place.Kind),
+		Lng: place.Coordinates[0], Lat: place.Coordinates[1], Slug: slug,
+	}
+	if place.KindText != "" {
+		params.Type = database.PlaceTypeOther
+		params.KindText = pgtype.Text{String: place.KindText, Valid: true}
+	}
+	if place.Private {
+		params.CreatedBy = creator
+	}
+	return queries.CreatePinnedPlace(ctx, params)
+}
+
+func createdDetails(requestHash string, newPlace bool) map[string]any {
+	details := map[string]any{"request_hash": requestHash}
+	if newPlace {
+		details["new_place"] = true
+	}
+	return details
 }

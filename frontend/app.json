@@ -18,10 +18,20 @@
         {
           "ios": {
             "enableSceneSupport": true
+          },
+          "android": {
+            "usesCleartextTraffic": true
           }
         }
       ],
-      "@maplibre/maplibre-react-native"
-    ]
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Join Me uses your location to show places near you when you pick where to meet. It is never saved."
+        }
+      ]
+    ],
+    "scheme": "joinme"
   }
 }

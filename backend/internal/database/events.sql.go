@@ -118,6 +118,7 @@ func (q *Queries) GetCancelledEventStatus(ctx context.Context) (pgtype.UUID, err
 const getEvent = `-- name: GetEvent :one
 WITH event_detail AS (
     SELECT events.id, events.host_id, events.type, events.starts_at, events.capacity, events.created_at, events.updated_at, events.title, events.place_id, events.status_id, events.spot_id, places.name AS place_name, places.location,
+        places.slug AS place_slug, district.slug AS district_slug, district.name AS district_name,
         place_spots.name AS spot_name, place_spots.location AS spot_location,
         users.display_name AS host_name, status.name AS status_name, status.slug AS status_slug,
         COALESCE((SELECT jsonb_agg(jsonb_build_object('id', participants.id,
@@ -125,6 +126,7 @@ WITH event_detail AS (
             FROM event_participants AS membership JOIN users AS participants ON participants.id = membership.user_id
             WHERE membership.event_id = events.id), '[]'::jsonb) AS participants
     FROM events JOIN places ON places.id = events.place_id
+    JOIN areas AS district ON district.id = places.area_id
     LEFT JOIN place_spots ON place_spots.id = events.spot_id
     JOIN users ON users.id = events.host_id JOIN status ON status.id = events.status_id
     WHERE events.id = $2 AND status.statusable_type = 'event'
@@ -132,7 +134,8 @@ WITH event_detail AS (
 SELECT jsonb_build_object(
     'id', id, 'title', title, 'type', type, 'starts_at', starts_at, 'capacity', capacity,
     'host', jsonb_build_object('id', host_id, 'display_name', host_name),
-    'place', jsonb_build_object('id', place_id, 'name', place_name,
+    'place', jsonb_build_object('id', place_id, 'name', place_name, 'slug', place_slug,
+        'district', jsonb_build_object('slug', district_slug, 'name', district_name),
         'coordinates', ST_AsGeoJSON(location)::jsonb->'coordinates'),
     'spot', CASE WHEN spot_id IS NULL THEN NULL ELSE jsonb_build_object(
         'id', spot_id, 'name', spot_name,
@@ -244,10 +247,12 @@ func (q *Queries) LeaveEvent(ctx context.Context, arg LeaveEventParams) (int64, 
 const listUserEvents = `-- name: ListUserEvents :one
 WITH matching_events AS (
     SELECT events.id, events.host_id, events.type, events.starts_at, events.capacity, events.created_at, events.updated_at, events.title, events.place_id, events.status_id, events.spot_id, places.name AS place_name, places.location,
+        places.slug AS place_slug, district.slug AS district_slug, district.name AS district_name,
         place_spots.name AS spot_name, place_spots.location AS spot_location,
         users.display_name AS host_name, status.name AS status_name, status.slug AS status_slug
     FROM events
     JOIN places ON places.id = events.place_id
+    JOIN areas AS district ON district.id = places.area_id
     LEFT JOIN place_spots ON place_spots.id = events.spot_id
     JOIN users ON users.id = events.host_id
     JOIN status ON status.id = events.status_id
@@ -256,12 +261,12 @@ WITH matching_events AS (
             SELECT 1 FROM event_participants WHERE event_id = events.id AND user_id = $2::uuid))
         AND ((status.slug = 'scheduled' AND starts_at > statement_timestamp()) = ($3::text = 'upcoming'))
 ), limited_events AS (
-    SELECT id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id, spot_id, place_name, location, spot_name, spot_location, host_name, status_name, status_slug, row_number() OVER (ORDER BY
+    SELECT id, host_id, type, starts_at, capacity, created_at, updated_at, title, place_id, status_id, spot_id, place_name, location, place_slug, district_slug, district_name, spot_name, spot_location, host_name, status_name, status_slug, row_number() OVER (ORDER BY
         CASE WHEN $3::text = 'upcoming' THEN starts_at END ASC,
         CASE WHEN $3::text = 'past' THEN starts_at END DESC, id) AS position
     FROM matching_events ORDER BY position LIMIT 51 OFFSET $1::int
 ), event_summaries AS (
-    SELECT limited_events.id, limited_events.host_id, limited_events.type, limited_events.starts_at, limited_events.capacity, limited_events.created_at, limited_events.updated_at, limited_events.title, limited_events.place_id, limited_events.status_id, limited_events.spot_id, limited_events.place_name, limited_events.location, limited_events.spot_name, limited_events.spot_location, limited_events.host_name, limited_events.status_name, limited_events.status_slug, limited_events.position, (SELECT count(*) FROM event_participants
+    SELECT limited_events.id, limited_events.host_id, limited_events.type, limited_events.starts_at, limited_events.capacity, limited_events.created_at, limited_events.updated_at, limited_events.title, limited_events.place_id, limited_events.status_id, limited_events.spot_id, limited_events.place_name, limited_events.location, limited_events.place_slug, limited_events.district_slug, limited_events.district_name, limited_events.spot_name, limited_events.spot_location, limited_events.host_name, limited_events.status_name, limited_events.status_slug, limited_events.position, (SELECT count(*) FROM event_participants
         WHERE event_id = limited_events.id) AS participant_count
     FROM limited_events
 )
@@ -270,7 +275,8 @@ SELECT jsonb_build_object(
     'events', COALESCE(jsonb_agg(jsonb_build_object(
         'id', id, 'title', title, 'type', type, 'starts_at', starts_at, 'capacity', capacity,
         'host', jsonb_build_object('id', host_id, 'display_name', host_name),
-        'place', jsonb_build_object('id', place_id, 'name', place_name,
+        'place', jsonb_build_object('id', place_id, 'name', place_name, 'slug', place_slug,
+            'district', jsonb_build_object('slug', district_slug, 'name', district_name),
             'coordinates', ST_AsGeoJSON(location)::jsonb->'coordinates'),
         'spot', CASE WHEN spot_id IS NULL THEN NULL ELSE jsonb_build_object(
             'id', spot_id, 'name', spot_name,

@@ -21,7 +21,12 @@ type Profile = {
 };
 const apiURL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 
-export default function ProfileScreen() {
+export default function ProfileScreen({
+  embedded = false,
+}: {
+  // Inside the You tab, which shows its own title.
+  embedded?: boolean;
+}) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
@@ -121,12 +126,12 @@ export default function ProfileScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, embedded && styles.embedded]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>You</Text>
+        {!embedded && <Text style={styles.title}>You</Text>}
         <Text style={styles.muted}>Using the demo user · no sign-in yet</Text>
-        {!profile && !error && <ActivityIndicator color="#1D5B3A" />}
+        {!profile && !error && <ActivityIndicator color="#E3342F" />}
         {profile && (
           <>
             <View style={styles.card}>
@@ -140,6 +145,7 @@ export default function ProfileScreen() {
               <View style={styles.form}>
                 <Text style={styles.label}>Display name</Text>
                 <TextInput
+                  placeholderTextColor="#798268"
                   accessibilityLabel="Display name"
                   value={draft}
                   onChangeText={setDraft}
@@ -162,7 +168,7 @@ export default function ProfileScreen() {
                     ]}
                   >
                     {saving ? (
-                      <ActivityIndicator color="white" />
+                      <ActivityIndicator color="#FFF8E8" />
                     ) : (
                       <Text style={styles.buttonText}>Save name</Text>
                     )}
@@ -226,40 +232,67 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0" },
+  root: { flex: 1, backgroundColor: "#FAF5E7" },
   content: { padding: 24, paddingTop: 64, paddingBottom: 40, gap: 20 },
-  title: { fontFamily: "BigShoulders", fontSize: 48, color: "#15201B" },
-  name: { fontFamily: "BigShoulders", fontSize: 44, color: "#15201B" },
-  card: { backgroundColor: "#E5E9DF", borderRadius: 24, padding: 24, gap: 12 },
+  embedded: { paddingTop: 16 },
+  title: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 48,
+    color: "#203E30",
+  },
+  name: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 44,
+    color: "#203E30",
+  },
+  card: {
+    backgroundColor: "#FFF8E8",
+    borderRadius: 24,
+    padding: 24,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
+  },
   kicker: {
-    color: "#1D5B3A",
+    color: "#E3342F",
     fontSize: 11,
-    fontWeight: "800",
+    fontFamily: "DMSans_700Bold",
     letterSpacing: 1.3,
   },
-  muted: { color: "#6C786E", fontSize: 14, lineHeight: 21 },
+  muted: {
+    color: "#798268",
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: "DMSans_400Regular",
+  },
   form: { gap: 14 },
-  label: { color: "#15201B", fontSize: 16, fontWeight: "700" },
+  label: { color: "#203E30", fontSize: 16, fontFamily: "DMSans_700Bold" },
   input: {
-    backgroundColor: "white",
-    color: "#15201B",
+    backgroundColor: "#FFF8E8",
+    color: "#203E30",
     fontSize: 18,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#BCC8BB",
+    borderColor: "#D2D9B8",
+    fontFamily: "DMSans_400Regular",
   },
   actions: { flexDirection: "row", alignItems: "center", gap: 16 },
   button: {
-    backgroundColor: "#1D5B3A",
+    backgroundColor: "#E3342F",
     borderRadius: 18,
     padding: 18,
     alignItems: "center",
     minWidth: 140,
   },
-  buttonText: { color: "white", fontSize: 16, fontWeight: "700" },
+  buttonText: { color: "#FFF8E8", fontSize: 16, fontFamily: "DMSans_700Bold" },
   secondary: { padding: 18 },
-  action: { color: "#1D5B3A", fontSize: 16, fontWeight: "700" },
+  action: { color: "#203E30", fontSize: 16, fontFamily: "DMSans_700Bold" },
   disabled: { opacity: 0.5 },
-  error: { color: "#B51E2C", fontSize: 14, lineHeight: 21 },
+  error: {
+    color: "#B51E2C",
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: "DMSans_400Regular",
+  },
 });

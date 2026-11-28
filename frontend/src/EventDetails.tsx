@@ -18,6 +18,7 @@ import { useRealtimeTarget, liveStatusText } from "./RealtimeProvider";
 import EventForm from "./EventForm";
 import EventChat from "./EventChat";
 import HostSignupInsights from "./HostSignupInsights";
+import { ShareButtons, useShareEvent } from "./share";
 
 type Person = { id: string; display_name: string };
 export type EventSummary = {
@@ -72,6 +73,7 @@ export default function EventDetails({
   referrerInteractionID?: string;
   onEventChanged: () => void;
 }) {
+  const shareEvent = useShareEvent();
   const [editing, setEditing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [event, setEvent] = useState<EventDetail | null>(null);
@@ -385,7 +387,7 @@ export default function EventDetails({
                     disabled={mutating}
                     style={[
                       styles.participation,
-                      { backgroundColor: "#913A32" },
+                      styles.danger,
                       mutating && styles.disabled,
                     ]}
                     onPress={() =>
@@ -404,9 +406,9 @@ export default function EventDetails({
                     }
                   >
                     {mutating ? (
-                      <ActivityIndicator color="#FFFFFF" />
+                      <ActivityIndicator color="#E3342F" />
                     ) : (
-                      <Text style={styles.participationText}>Cancel event</Text>
+                      <Text style={styles.dangerText}>Cancel event</Text>
                     )}
                   </Pressable>
                 )}
@@ -435,7 +437,7 @@ export default function EventDetails({
                 ]}
               >
                 {mutating ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color="#FFF8E8" />
                 ) : (
                   <Text style={styles.participationText}>
                     {event.viewer.is_participant
@@ -452,11 +454,28 @@ export default function EventDetails({
             {event.viewer.is_participant && (
               <Pressable
                 accessibilityRole="button"
-                style={styles.participation}
+                style={[styles.participation, styles.secondary]}
                 onPress={() => setChatOpen(true)}
               >
                 <Text style={styles.participationText}>Open event chat</Text>
               </Pressable>
+            )}
+            {/* Anyone can bring people along to a plan that is still coming up. */}
+            {event.status.slug === "scheduled" && !hasStarted && (
+              <View style={styles.share}>
+                <Text style={styles.shareLabel}>BRING PEOPLE ALONG</Text>
+                <ShareButtons
+                  onShare={(via) =>
+                    interaction.current &&
+                    shareEvent(
+                      event,
+                      via,
+                      "event_details",
+                      interaction.current.id,
+                    )
+                  }
+                />
+              </View>
             )}
             {event.viewer.is_host && (
               <HostSignupInsights
@@ -482,7 +501,7 @@ export default function EventDetails({
           </ScrollView>
         ) : (
           <View style={styles.message}>
-            <ActivityIndicator color="#1D5B3A" />
+            <ActivityIndicator color="#E3342F" />
             <Text style={styles.body}>Loading event…</Text>
           </View>
         )}
@@ -521,7 +540,7 @@ export default function EventDetails({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0", paddingTop: 24 },
+  root: { flex: 1, backgroundColor: "#FAF5E7", paddingTop: 24 },
   heading: {
     flexDirection: "row",
     alignItems: "center",
@@ -529,45 +548,91 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   kicker: {
-    color: "#1D5B3A",
+    color: "#E3342F",
     fontSize: 11,
-    fontWeight: "800",
+    fontFamily: "DMSans_700Bold",
     letterSpacing: 1.3,
   },
   button: { paddingVertical: 14, paddingHorizontal: 6 },
-  action: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
+  action: { color: "#203E30", fontFamily: "DMSans_700Bold", fontSize: 14 },
   liveStatus: {
-    color: "#6C786E",
+    color: "#798268",
     fontSize: 12,
     paddingHorizontal: 24,
     paddingVertical: 6,
+    fontFamily: "DMSans_400Regular",
   },
   content: { padding: 24, paddingBottom: 60, gap: 18 },
-  title: { fontFamily: "BigShoulders", fontSize: 46, color: "#15201B" },
-  body: { color: "#15201B", fontSize: 16, lineHeight: 24 },
+  title: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 46,
+    color: "#203E30",
+  },
+  body: {
+    color: "#203E30",
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: "DMSans_400Regular",
+  },
   message: { padding: 28, gap: 18, alignItems: "center" },
   capacity: {
-    backgroundColor: "#E5E9DF",
+    backgroundColor: "#FFF8E8",
     padding: 22,
     borderRadius: 24,
     gap: 4,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
   },
-  count: { fontFamily: "BigShoulders", fontSize: 56, color: "#1D5B3A" },
+  count: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 56,
+    color: "#E3342F",
+  },
   person: {
     fontSize: 16,
-    color: "#15201B",
+    color: "#203E30",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#DEE3D8",
+    borderBottomColor: "#D2D9B8",
+    fontFamily: "DMSans_400Regular",
   },
-  muted: { fontSize: 13, color: "#6C786E", marginTop: 12 },
+  muted: {
+    fontSize: 13,
+    color: "#798268",
+    marginTop: 12,
+    fontFamily: "DMSans_400Regular",
+  },
   participation: {
-    backgroundColor: "#1D5B3A",
+    backgroundColor: "#E3342F",
     padding: 18,
     borderRadius: 20,
     alignItems: "center",
   },
-  participationText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  participationText: {
+    color: "#FFF8E8",
+    fontSize: 16,
+    fontFamily: "DMSans_700Bold",
+  },
+  secondary: { backgroundColor: "#203E30" },
+  // Outlined, so cancelling never looks like the main action.
+  danger: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: "#E3342F",
+  },
+  dangerText: { color: "#E3342F", fontSize: 16, fontFamily: "DMSans_700Bold" },
+  share: { gap: 10, marginTop: 6 },
+  shareLabel: {
+    fontFamily: "DMSans_700Bold",
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: "#798268",
+  },
   disabled: { opacity: 0.5 },
-  actionError: { color: "#B51E2C", fontSize: 14, lineHeight: 21 },
+  actionError: {
+    color: "#B51E2C",
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: "DMSans_400Regular",
+  },
 });

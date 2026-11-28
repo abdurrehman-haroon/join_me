@@ -12,8 +12,10 @@ import { uuid } from "expo-modules-core";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   memo,
+  type Ref,
   type RefObject,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -39,6 +41,9 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useActivities } from "./ActivitiesProvider";
 import EventDetails, { type EventSummary } from "./EventDetails";
 import EventForm from "./EventForm";
+import type { PickerStart } from "./PlacePicker";
+import Celebration, { type CreatedEvent } from "./Celebration";
+import { ShareButtons, useShareEvent } from "./share";
 import {
   DistrictCard,
   EndCard,
@@ -52,6 +57,7 @@ import {
   boundsCentre,
   groundMarkings,
   loadSkinnedMapStyle,
+  mapStyleURL,
   zoomToFit,
   type CameraTarget,
   type Coordinates,
@@ -74,6 +80,8 @@ type CityFeed = {
 };
 type PlaceSummary = AreaReference & {
   type: string;
+  // Pinned by someone and not reviewed yet.
+  is_new?: boolean;
   coordinates: Coordinates;
   upcoming_event_count: number;
   events: EventSummary[];
@@ -114,19 +122,26 @@ type Level = { district: string | null };
 
 const apiURL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 const citySlug = "lahore";
-const mapStyleURL =
-  process.env.EXPO_PUBLIC_MAP_STYLE_URL ??
-  "https://tiles.openfreemap.org/styles/liberty";
 // A horizontal drag shorter than this snaps back instead of changing level.
 const levelSwipeDistance = 60;
 // Space kept for the footer controls under each card.
 const footerHeight = 76;
 
-export default function ExploreScreen() {
+export default function ExploreScreen({
+  ref,
+  openedByCreate,
+}: {
+  // The bottom-bar ＋ calls startCreating while Explore is in view.
+  ref: Ref<{ startCreating: () => void }>;
+  // True when the ＋ was tapped on another tab and brought Explore up.
+  openedByCreate: boolean;
+}) {
   const { queue, sessionID, viewedAreas } = useActivities();
   const camera = useRef<CameraRef>(null);
   // Each level's feed, by feed key: the one in view and the levels either side.
-  const [feedLists] = useState(() => new globalThis.Map<string, FlatList<Card> | null>());
+  const [feedLists] = useState(
+    () => new globalThis.Map<string, FlatList<Card> | null>(),
+  );
   // The camera follows the feed only while someone scrolls it. A feed that has
   // just appeared reports its starting position too, which would cut the camera's
   // ease to the new level short.
@@ -153,12 +168,36 @@ export default function ExploreScreen() {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [notice, setNotice] = useState("");
   const [eventID, setEventID] = useState<string | null>(null);
-  // The place an event is being created at, from its place view.
-  const [creating, setCreating] = useState<PlaceView | null>(null);
+  // The place an event is being created at, from its place view (none when
+  // the ＋ opens it elsewhere), where the form was opened from, and where the
+  // place picker's map starts. A ＋ on another tab starts with the whole city.
+  const [creating, setCreating] = useState<{
+    view: PlaceView | null;
+    entry: "create_tab" | "place_card";
+    start: PickerStart;
+  } | null>(
+    openedByCreate ? { view: null, entry: "create_tab", start: null } : null,
+  );
   // Whether the app is in the foreground; area views are only recorded while it is.
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
   );
+  // After posting: the celebration, then landing on the new event, where a Share
+  // bar stays until it is closed or the feed moves to another place or level.
+  const [celebrating, setCelebrating] = useState<{
+    eventID: string;
+    referrer: string;
+  } | null>(null);
+  const [landing, setLanding] = useState<{
+    district: string;
+    place: string;
+    eventID: string;
+  } | null>(null);
+  const [shareBar, setShareBar] = useState<{
+    event: CreatedEvent;
+    referrer: string;
+  } | null>(null);
+  const shareEvent = useShareEvent();
   // Remembers the focused card per level so going back returns to the same place.
   const [savedIndexes, setSavedIndexes] = useState<Record<string, number>>({});
   // Event shown in each place's carousel, by place ID.
@@ -190,7 +229,9 @@ export default function ExploreScreen() {
   // The card the rail scrub last moved to, while a finger is on the rail.
   const scrubIndex = useRef<number | null>(null);
   // Each feed's scroll position, which drives its cards' motion on the native thread.
-  const [scrollValues] = useState(() => new globalThis.Map<string, Animated.Value>());
+  const [scrollValues] = useState(
+    () => new globalThis.Map<string, Animated.Value>(),
+  );
   // The level just left, kept built so swiping back to it is instant.
   const [leftKey, setLeftKey] = useState<string | null>(null);
 
@@ -260,6 +301,31 @@ export default function ExploreScreen() {
       ? placeViews[`${districtSlug}/${focusedCard.place.slug}`]
       : undefined;
 
+  // The ＋ creates at the place in view. Anywhere else the form opens with no
+  // place and the picker's map starts on the district in view, or the city.
+  const districtBounds = districtSlug
+    ? districtFeeds[districtSlug]?.district.bbox
+    : focusedCard?.kind === "district"
+      ? focusedCard.district.bbox
+      : null;
+  useImperativeHandle(
+    ref,
+    () => ({
+      startCreating() {
+        setCreating(
+          focusedPlaceView
+            ? { view: focusedPlaceView, entry: "create_tab", start: null }
+            : {
+                view: null,
+                entry: "create_tab",
+                start: districtBounds ? { bounds: districtBounds } : null,
+              },
+        );
+      },
+    }),
+    [focusedPlaceView, districtBounds],
+  );
+
   // Opening moves one level down: from the hero into the first child, otherwise into the focused child.
   const openTarget: { name: string; level: Level } | null = (() => {
     if (districtSlug || focusedCard?.kind === "end") return null;
@@ -289,6 +355,15 @@ export default function ExploreScreen() {
     feedScrolling.current = false;
     setFocusedIndex(index);
     const settledCard = cards[index];
+    if (
+      shareBar &&
+      !landing &&
+      !(
+        settledCard?.kind === "place" &&
+        settledCard.place.slug === shareBar.event.place.slug
+      )
+    )
+      setShareBar(null);
     cityOutlineFades.current?.(null);
     if (!districtSlug)
       setOutline({
@@ -308,14 +383,12 @@ export default function ExploreScreen() {
     if (reduceMotion) settleOnCard(target);
   }
 
-
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) =>
       setForeground(state === "active"),
     );
     return () => subscription.remove();
   }, []);
-
 
   useEffect(() => {
     void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -571,7 +644,8 @@ export default function ExploreScreen() {
       bearing: 0,
     };
   }
-  function openLevel(nextDistrict: string | null) {
+  function openLevel(nextDistrict: string | null, keepShareBar = false) {
+    if (!keepShareBar) setShareBar(null);
     const nextLevel = { district: nextDistrict };
     const nextIndex = openingIndex(nextLevel);
     // Levels slide like pages: opening a district, it comes in from the right;
@@ -615,6 +689,55 @@ export default function ExploreScreen() {
     });
   }
 
+  // Lands on a new event: the district's feed is fetched again so the event and
+  // any new place are in it, then the feed scrolls to the place with the event shown.
+  function landOn(event: CreatedEvent) {
+    const district = event.place.district.slug;
+    setPlaceViews({});
+    setDistrictFeeds((feeds) => {
+      const fresh = { ...feeds };
+      delete fresh[district];
+      return fresh;
+    });
+    setLanding({ district, place: event.place.slug, eventID: event.id });
+    if (districtSlug === district) setRefreshCount((value) => value + 1);
+    else openLevel(district, true);
+  }
+
+  // The landing's card in the fresh feed: -1 when the event is not in it, which
+  // happens when it is more than a week away (Explore shows the coming week).
+  const landingIndex =
+    landing && districtSlug === landing.district && districtFeed
+      ? cards.findIndex(
+          (card) => card.kind === "place" && card.place.slug === landing.place,
+        )
+      : null;
+  useEffect(() => {
+    if (!landing || landingIndex === null) return;
+    // Once the level has slid in, so the feed is there to scroll.
+    const timer = setTimeout(() => {
+      setLanding(null);
+      const card = cards[landingIndex];
+      if (card?.kind !== "place") {
+        setNotice(
+          "Your plan is more than a week away, so it isn't on the map yet.",
+        );
+        return;
+      }
+      const eventIndex = placeEvents(card.place, landing.district).findIndex(
+        (event) => event.id === landing.eventID,
+      );
+      setSelectedEvents((selected) => ({
+        ...selected,
+        [card.place.id]: Math.max(0, eventIndex),
+      }));
+      scrollToCard(landingIndex);
+    }, 450);
+    return () => clearTimeout(timer);
+    // cards, placeEvents and scrollToCard follow landingIndex.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landing, landingIndex]);
+
   function goBack() {
     if (districtSlug) openLevel(null);
     else setNotice("Lahore is the only city for now.");
@@ -635,8 +758,7 @@ export default function ExploreScreen() {
       // The next level follows the finger; with nowhere to go, the feed resists.
       const canGo = event.translationX < 0 ? openTarget : parentLevel;
       swipeOffset.setValue(
-        -(depth - 1) * mapSize.width +
-          event.translationX * (canGo ? 1 : 0.35),
+        -(depth - 1) * mapSize.width + event.translationX * (canGo ? 1 : 0.35),
       );
       followLevelSwipe(event.translationX);
     })
@@ -735,7 +857,10 @@ export default function ExploreScreen() {
     // the next fades in.
     const fades: OutlineFade = [];
     if (fromKind === "district")
-      fades.push({ index: leaving, opacity: toKind === "district" || toKind === "end" ? 1 - amount : 1 });
+      fades.push({
+        index: leaving,
+        opacity: toKind === "district" || toKind === "end" ? 1 - amount : 1,
+      });
     if (toKind === "district" && approaching !== leaving)
       fades.push({ index: approaching, opacity: amount });
     cityOutlineFades.current?.(fades);
@@ -758,7 +883,11 @@ export default function ExploreScreen() {
     const from = eventCamera(place.coordinates, events[leaving], turn);
     const to = eventCamera(place.coordinates, events[approaching], turn);
     glideTo({
-      ...blendCamera(from, to, reduceMotion ? (fraction > 0.5 ? 1 : 0) : fraction),
+      ...blendCamera(
+        from,
+        to,
+        reduceMotion ? (fraction > 0.5 ? 1 : 0) : fraction,
+      ),
       padding: cameraPadding(level, index),
     });
   }
@@ -782,7 +911,9 @@ export default function ExploreScreen() {
   // Scroll and drag events reach JavaScript about 80 times a second, while the
   // screen draws up to 120: jumping to each position left the map a step behind
   // the cards. A short linear ease lets MapLibre draw every frame between them.
-  function glideTo(target: CameraTarget & { padding: ReturnType<typeof cameraPadding> }) {
+  function glideTo(
+    target: CameraTarget & { padding: ReturnType<typeof cameraPadding> },
+  ) {
     if (reduceMotion) camera.current?.jumpTo(target);
     else camera.current?.easeTo({ ...target, duration: 60, easing: "linear" });
   }
@@ -832,7 +963,9 @@ export default function ExploreScreen() {
         : null;
 
   // On the city feed CityOutlines draws the outlines.
-  const districtBoundary = districtSlug ? districtFeed?.district.boundary : null;
+  const districtBoundary = districtSlug
+    ? districtFeed?.district.boundary
+    : null;
   const districtOutline: GeoJSON.FeatureCollection<GeoJSON.MultiPolygon> = {
     type: "FeatureCollection",
     features: districtBoundary
@@ -1022,6 +1155,7 @@ export default function ExploreScreen() {
       content = (
         <PlaceCard
           name={place.name}
+          isNew={place.is_new}
           count={place.upcoming_event_count}
           events={events}
           selectedIndex={Math.min(
@@ -1040,7 +1174,11 @@ export default function ExploreScreen() {
           }
           onViewEvent={(event) => setEventID(event.id)}
           // Creating needs the place's spots, from its place view.
-          onStartSomething={view ? () => setCreating(view) : null}
+          onStartSomething={
+            view
+              ? () => setCreating({ view, entry: "place_card", start: null })
+              : null
+          }
           onTouchCarousel={() => setTouchOnEventRow(true)}
         />
       );
@@ -1131,88 +1269,88 @@ export default function ExploreScreen() {
           },
         ]}
       >
-        {!loaded ? (
-          current && (
-            <View style={styles.centred}>
-              {loadError ? (
-                <>
-                  <Text style={styles.body}>{loadError}</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => refreshExplore()}
-                    style={styles.retry}
-                  >
-                    <Text style={styles.retryText}>Try again</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <ActivityIndicator color={explore.ink} />
-              )}
-            </View>
-          )
-        ) : (
-          pageHeight > 0 && (
-            <Animated.FlatList
-              ref={(list: FlatList<Card> | null) => {
-                feedLists.set(key, list);
-              }}
-              data={pageCards}
-              keyExtractor={cardKey}
-              renderItem={(item) => renderCard(atLevel, scrollY, item)}
-              pagingEnabled
-              showsVerticalScrollIndicator={false}
-              // Cards are a page each: build the one in view and its neighbours.
-              initialNumToRender={2}
-              windowSize={3}
-              maxToRenderPerBatch={2}
-              // Android clips list children it thinks are off screen and does not
-              // restore them when a level page slides back into view.
-              removeClippedSubviews={false}
-              initialScrollIndex={Math.min(startIndex, pageCards.length - 1)}
-              getItemLayout={(_, index) => ({
-                length: pageHeight,
-                offset: pageHeight * index,
-                index,
-              })}
-              scrollEventThrottle={16}
-              onScrollBeginDrag={() => {
-                feedScrolling.current = true;
-              }}
-              // Card tilt and fade follow the scroll on the native thread; the
-              // listener moves the camera and outline from JavaScript.
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                {
-                  useNativeDriver: true,
-                  listener: (
-                    event: NativeSyntheticEvent<NativeScrollEvent>,
-                  ) => {
-                    if (current && feedScrolling.current)
-                      followScroll(event.nativeEvent.contentOffset.y);
+        {!loaded
+          ? current && (
+              <View style={styles.centred}>
+                {loadError ? (
+                  <>
+                    <Text style={styles.body}>{loadError}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => refreshExplore()}
+                      style={styles.retry}
+                    >
+                      <Text style={styles.retryText}>Try again</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <ActivityIndicator color={explore.ink} />
+                )}
+              </View>
+            )
+          : pageHeight > 0 && (
+              <Animated.FlatList
+                ref={(list: FlatList<Card> | null) => {
+                  feedLists.set(key, list);
+                }}
+                data={pageCards}
+                keyExtractor={cardKey}
+                renderItem={(item) => renderCard(atLevel, scrollY, item)}
+                pagingEnabled
+                showsVerticalScrollIndicator={false}
+                // Cards are a page each: build the one in view and its neighbours.
+                initialNumToRender={2}
+                windowSize={3}
+                maxToRenderPerBatch={2}
+                // Android clips list children it thinks are off screen and does not
+                // restore them when a level page slides back into view.
+                removeClippedSubviews={false}
+                initialScrollIndex={Math.min(startIndex, pageCards.length - 1)}
+                getItemLayout={(_, index) => ({
+                  length: pageHeight,
+                  offset: pageHeight * index,
+                  index,
+                })}
+                scrollEventThrottle={16}
+                onScrollBeginDrag={() => {
+                  feedScrolling.current = true;
+                }}
+                // Card tilt and fade follow the scroll on the native thread; the
+                // listener moves the camera and outline from JavaScript.
+                onScroll={Animated.event(
+                  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                  {
+                    useNativeDriver: true,
+                    listener: (
+                      event: NativeSyntheticEvent<NativeScrollEvent>,
+                    ) => {
+                      if (current && feedScrolling.current)
+                        followScroll(event.nativeEvent.contentOffset.y);
+                    },
                   },
-                },
-              )}
-              onMomentumScrollEnd={(event) => {
-                if (current)
-                  settleOnCard(
-                    Math.round(event.nativeEvent.contentOffset.y / pageHeight),
-                  );
-              }}
-              // Always present: on Android it wraps the scroll view, and adding or
-              // removing it recreates the list at the top.
-              refreshControl={
-                <RefreshControl
-                  enabled={current}
-                  refreshing={current && pullRefreshing}
-                  onRefresh={() => {
-                    setPullRefreshing(true);
-                    refreshExplore();
-                  }}
-                />
-              }
-            />
-          )
-        )}
+                )}
+                onMomentumScrollEnd={(event) => {
+                  if (current)
+                    settleOnCard(
+                      Math.round(
+                        event.nativeEvent.contentOffset.y / pageHeight,
+                      ),
+                    );
+                }}
+                // Always present: on Android it wraps the scroll view, and adding or
+                // removing it recreates the list at the top.
+                refreshControl={
+                  <RefreshControl
+                    enabled={current}
+                    refreshing={current && pullRefreshing}
+                    onRefresh={() => {
+                      setPullRefreshing(true);
+                      refreshExplore();
+                    }}
+                  />
+                }
+              />
+            )}
       </View>
     );
   }
@@ -1480,6 +1618,35 @@ export default function ExploreScreen() {
           </Pressable>
         </View>
       ) : null}
+      {shareBar &&
+        !landing &&
+        districtSlug === shareBar.event.place.district.slug &&
+        focusedCard?.kind === "place" &&
+        focusedCard.place.slug === shareBar.event.place.slug && (
+          <View style={styles.shareBar}>
+            <Text style={styles.shareBarText}>Share your plan</Text>
+            <ShareButtons
+              compact
+              onShare={(via) =>
+                shareEvent(
+                  shareBar.event,
+                  via,
+                  "celebration",
+                  shareBar.referrer,
+                )
+              }
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Hide sharing"
+              hitSlop={10}
+              onPress={() => setShareBar(null)}
+              style={styles.shareBarClose}
+            >
+              <Text style={styles.shareBarCloseText}>×</Text>
+            </Pressable>
+          </View>
+        )}
       {notice ? (
         <View
           style={styles.toast}
@@ -1517,13 +1684,42 @@ export default function ExploreScreen() {
       )}
       {creating && (
         <EventForm
-          place={{ id: creating.place.id, name: creating.place.name }}
-          spots={creating.spots}
+          place={
+            creating.view
+              ? {
+                  id: creating.view.place.id,
+                  name: creating.view.place.name,
+                  // "Change" reopens the picker's map here.
+                  coordinates: creating.view.place.coordinates,
+                }
+              : undefined
+          }
+          spots={creating.view?.spots ?? []}
+          entry={creating.entry}
+          pickerStart={creating.start}
           apiURL={apiURL}
           onClose={() => setCreating(null)}
-          onSaved={() => {
+          onSaved={(created) => {
             setCreating(null);
-            refreshExplore();
+            if (created)
+              setCelebrating({
+                eventID: created.id,
+                referrer: created.interactionID,
+              });
+            else refreshExplore();
+          }}
+        />
+      )}
+      {celebrating && (
+        <Celebration
+          apiURL={apiURL}
+          eventID={celebrating.eventID}
+          referrerInteractionID={celebrating.referrer}
+          onClose={(_, event) => {
+            setCelebrating(null);
+            if (!event) return refreshExplore();
+            setShareBar({ event, referrer: celebrating.referrer });
+            landOn(event);
           }}
         />
       )}
@@ -1533,10 +1729,12 @@ export default function ExploreScreen() {
 
 type OutlineFade = { index: number; opacity: number }[];
 
-// Every district outline on the city feed, drawn from one source that never
-// changes so a fade only updates paint. While the feed scrolls, the parent sends
-// a cross-fade through `liveRef` every frame; this small component re-renders,
-// not the whole screen. `null` hands back to the settled outline in `rest`.
+// The city feed's district outlines. While the feed scrolls, the parent sends a
+// cross-fade through `liveRef` every frame; this small component re-renders, not
+// the whole screen. `null` hands back to the settled outline in `rest`. Only the
+// outlines near the card in view are in the source: a fade re-evaluates paint
+// for every feature, and 68 detailed outlines made each scroll frame slow. The
+// source changes once per card passed, not per frame.
 const CityOutlines = memo(function CityOutlines({
   districts,
   rest,
@@ -1553,11 +1751,15 @@ const CityOutlines = memo(function CityOutlines({
       liveRef.current = null;
     };
   }, [liveRef]);
+  // A fade covers the card being left and the next one; keep two either side.
+  const nearIndex = fades?.[0]?.index ?? rest.index;
   const data = useMemo<GeoJSON.FeatureCollection<GeoJSON.MultiPolygon>>(
     () => ({
       type: "FeatureCollection",
       features: districts.flatMap((district, position) =>
-        district.boundary
+        district.boundary &&
+        nearIndex !== null &&
+        Math.abs(position + 1 - nearIndex) <= 2
           ? [
               {
                 type: "Feature" as const,
@@ -1569,14 +1771,13 @@ const CityOutlines = memo(function CityOutlines({
           : [],
       ),
     }),
-    [districts],
+    [districts, nearIndex],
   );
   const shown =
-    fades ?? (rest.index === null ? [] : [{ index: rest.index, opacity: rest.opacity }]);
+    fades ??
+    (rest.index === null ? [] : [{ index: rest.index, opacity: rest.opacity }]);
   // A match needs at least one card/opacity pair; index -1 never matches.
-  const [first, ...others] = shown.length
-    ? shown
-    : [{ index: -1, opacity: 0 }];
+  const [first, ...others] = shown.length ? shown : [{ index: -1, opacity: 0 }];
   const opacity = (
     scale: number,
   ): ["match", ["get", string], number, number, ...number[], number] => [
@@ -1715,6 +1916,46 @@ const styles = StyleSheet.create({
   },
   retryText: { fontFamily: explore.bodyBold, color: "#FFFFFF" },
   // Short messages appear as a dark toast above the footer, as in the prototype.
+  shareBar: {
+    position: "absolute",
+    top: 196,
+    left: 44,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 8,
+    borderRadius: 22,
+    backgroundColor: explore.cream,
+    borderWidth: 1,
+    borderColor: explore.line,
+    shadowColor: "#203E30",
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  shareBarText: {
+    flex: 1,
+    fontFamily: explore.bodyBold,
+    fontSize: 13,
+    color: explore.ink,
+  },
+  shareBarClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shareBarCloseText: {
+    fontFamily: explore.bodyBold,
+    fontSize: 20,
+    lineHeight: 22,
+    color: explore.muted,
+  },
   toast: {
     position: "absolute",
     bottom: footerHeight + 24,

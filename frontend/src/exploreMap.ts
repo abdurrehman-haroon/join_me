@@ -11,6 +11,10 @@ export type CameraTarget = {
   bearing: number;
 };
 
+export const mapStyleURL =
+  process.env.EXPO_PUBLIC_MAP_STYLE_URL ??
+  "https://tiles.openfreemap.org/styles/liberty";
+
 // Mirrors design/lahore-skin/skin.js: the prototype's warm palette applied to
 // OpenFreeMap's style before the map loads, with shop and POI labels hidden.
 export async function loadSkinnedMapStyle(
@@ -104,10 +108,10 @@ export function blendCamera(
   const between = (start: number, end: number) =>
     start + (end - start) * amount;
   const screensApart =
-    (Math.hypot(to.center[0] - from.center[0], to.center[1] - from.center[1]) /
+    ((Math.hypot(to.center[0] - from.center[0], to.center[1] - from.center[1]) /
       360) *
-    512 *
-    2 ** Math.min(from.zoom, to.zoom) /
+      512 *
+      2 ** Math.min(from.zoom, to.zoom)) /
     400;
   const rise = Math.min(1.4, 0.5 * Math.log2(1 + screensApart));
   return {

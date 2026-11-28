@@ -1,5 +1,12 @@
 import { uuid } from "expo-modules-core";
 import { useActivityInteraction } from "./ActivitiesProvider";
+import { explore as theme } from "./ExploreCards";
+import PlacePicker, {
+  forgetPickerPlaces,
+  kindName,
+  type PickerStart,
+} from "./PlacePicker";
+import type { PinnedPlace } from "./PinSheet";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -19,10 +26,13 @@ export default function EventForm({
   spots = [],
   event,
   apiURL,
+  entry,
+  pickerStart = null,
   onClose,
   onSaved,
 }: {
-  place: { id: string; name: string };
+  // The place the form opened at; none when the ＋ opened it with nothing picked.
+  place?: { id: string; name: string; coordinates?: [number, number] };
   spots?: { id: string; name: string }[];
   event?: {
     id: string;
@@ -33,8 +43,13 @@ export default function EventForm({
     participant_count: number;
   };
   apiURL: string;
+  // Where a new event's form was opened from, recorded when it starts.
+  entry?: "create_tab" | "place_card";
+  // Where the place picker's map opens (a district in view, say).
+  pickerStart?: PickerStart;
   onClose: () => void;
-  onSaved: () => void;
+  // A new event reports its ID and the creation interaction, for what follows posting.
+  onSaved: (created?: { id: string; interactionID: string }) => void;
 }) {
   const [initialStart] = useState(() => {
     if (event) return new Date(event.starts_at);
@@ -58,12 +73,28 @@ export default function EventForm({
   const [capacity, setCapacity] = useState(String(event?.capacity ?? 10));
   const [spotID, setSpotID] = useState("");
   const [shown, setShown] = useState(false);
+  const [chosen, setChosen] = useState<{
+    id: string;
+    name: string;
+    detail?: string;
+    coordinates?: [number, number];
+    // A pinned place, created together with the event.
+    newPlace?: PinnedPlace;
+  } | null>(place ?? null);
+  // With nothing picked, the picker opens straight over the form.
+  const [picking, setPicking] = useState(false);
+  // The interaction's first target stays fixed; later rows follow the pick.
+  const [startTarget] = useState(() =>
+    place ? { type: "place" as const, id: place.id } : null,
+  );
   const interaction = useActivityInteraction({
     enabled: !event && shown,
+    // The picker is part of creating, so its time counts as active.
     visible: shown,
-    target: { type: "place", id: place.id },
+    target: startTarget,
     source: "event_form",
     startAction: "event_creation_started",
+    details: entry ? { entry } : {},
   });
   const attempt = useRef(0);
   const creationRequest = useRef<{
@@ -81,6 +112,11 @@ export default function EventForm({
   async function submit() {
     if (pending.current) return;
     setError("");
+    if (!chosen) {
+      setError("Pick a place first.");
+      setPicking(true);
+      return;
+    }
     if (
       !uncertainCreation &&
       (!title.trim() || [...title.trim()].length > 200)
@@ -137,7 +173,18 @@ export default function EventForm({
     let creation = creationRequest.current;
     if (!event && !uncertainCreation) {
       const body = JSON.stringify({
-        place_id: place.id,
+        ...(chosen.newPlace
+          ? {
+              new_place: {
+                name: chosen.newPlace.name,
+                ...(chosen.newPlace.kindText
+                  ? { kind_text: chosen.newPlace.kindText }
+                  : { kind: chosen.newPlace.kind }),
+                coordinates: chosen.newPlace.coordinates,
+                private: chosen.newPlace.private,
+              },
+            }
+          : { place_id: chosen.id }),
         ...(spotID && { spot_id: spotID }),
         type,
         title: title.trim(),
@@ -174,7 +221,7 @@ export default function EventForm({
             !event && creation
               ? creation.body
               : JSON.stringify({
-                  ...(!event && { place_id: place.id, type }),
+                  ...(!event && { place_id: chosen.id, type }),
                   title: title.trim(),
                   starts_at: startsAt.toISOString(),
                   capacity: spots,
@@ -191,8 +238,18 @@ export default function EventForm({
         setError(message.trim() || "Could not save the event.");
         return;
       }
+      const created: { id?: string } | null = event
+        ? null
+        : await response.json().catch(() => null);
+      const interactionID = interaction.current?.id;
       interaction.current?.close("completed");
-      onSaved();
+      // The new place joins the picker's list next time it opens.
+      if (chosen?.newPlace) forgetPickerPlaces();
+      onSaved(
+        created?.id && interactionID
+          ? { id: created.id, interactionID }
+          : undefined,
+      );
     } catch {
       if (!event) setUncertainCreation(true);
       setError(
@@ -211,7 +268,10 @@ export default function EventForm({
   return (
     <Modal
       visible
-      onShow={() => setShown(true)}
+      onShow={() => {
+        setShown(true);
+        if (!event && !chosen) setPicking(true);
+      }}
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={() => {
@@ -223,9 +283,7 @@ export default function EventForm({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.heading}>
-          <Text style={styles.kicker}>
-            {event ? "EDIT EVENT" : "NEW EVENT"}
-          </Text>
+          <Text style={styles.kicker}>{event ? "EDIT PLAN" : "NEW PLAN"}</Text>
           <Pressable
             accessibilityRole="button"
             disabled={submitting}
@@ -242,21 +300,47 @@ export default function EventForm({
           <Text style={styles.title}>
             {event ? "Update your plan." : "Make a plan."}
           </Text>
-          <Text style={styles.body}>{place.name}</Text>
-          <Text style={styles.muted}>
-            {event ? "Update the details below." : "Choose the details below."}
-          </Text>
-          <Text style={styles.label}>Title</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              chosen ? `Where: ${chosen.name}. Change place` : "Pick a place"
+            }
+            disabled={!!event || submitting || uncertainCreation}
+            onPress={() => setPicking(true)}
+            style={({ pressed }) => [
+              styles.place,
+              !chosen && styles.placeEmpty,
+              pressed && styles.placePressed,
+            ]}
+          >
+            <View style={[styles.placeDot, !chosen && styles.placeDotEmpty]} />
+            <View style={styles.placeText}>
+              <Text style={styles.placeKicker}>WHERE</Text>
+              <Text
+                style={[styles.placeName, !chosen && styles.placeNameEmpty]}
+                numberOfLines={2}
+              >
+                {chosen?.name ?? "Pick a place"}
+              </Text>
+              {!!chosen?.detail && (
+                <Text style={styles.muted}>{chosen.detail}</Text>
+              )}
+            </View>
+            {!event && (
+              <Text style={styles.change}>{chosen ? "Change" : "›"}</Text>
+            )}
+          </Pressable>
+          <Text style={styles.label}>WHAT</Text>
           <TextInput
             accessibilityLabel="Event title"
             placeholder="Evening football"
-            placeholderTextColor="#6C786E"
+            placeholderTextColor={theme.muted}
             value={title}
             onChangeText={setTitle}
             editable={!submitting && !uncertainCreation}
             style={styles.input}
           />
-          <Text style={styles.label}>Event type</Text>
+          <Text style={styles.label}>KIND</Text>
           {event ? (
             <Text style={styles.body}>
               {type === "football" ? "Football" : "Cricket"} · fixed for this
@@ -282,9 +366,11 @@ export default function EventForm({
               ))}
             </View>
           )}
-          {!event && spots.length > 0 && (
+          {!event && place && chosen?.id === place.id && spots.length > 0 && (
             <>
-              <Text style={styles.label}>Where at {place.name}</Text>
+              <Text style={styles.label}>
+                WHERE AT {place.name.toUpperCase()}
+              </Text>
               <View style={styles.types}>
                 {[{ id: "", name: "Anywhere" }, ...spots].map((spot) => (
                   <Pressable
@@ -311,7 +397,7 @@ export default function EventForm({
               </View>
             </>
           )}
-          <Text style={styles.label}>Date · YYYY-MM-DD</Text>
+          <Text style={styles.label}>DATE · YYYY-MM-DD</Text>
           <TextInput
             accessibilityLabel="Event date YYYY-MM-DD"
             value={date}
@@ -321,7 +407,7 @@ export default function EventForm({
             autoCapitalize="none"
             style={styles.input}
           />
-          <Text style={styles.label}>Start time · HH:mm (24-hour)</Text>
+          <Text style={styles.label}>START TIME · HH:MM, 24-HOUR</Text>
           <TextInput
             accessibilityLabel="Start time HH:mm"
             value={time}
@@ -332,7 +418,7 @@ export default function EventForm({
             style={styles.input}
           />
           <Text style={styles.muted}>Uses your phone’s local time zone.</Text>
-          <Text style={styles.label}>Capacity · includes you as host</Text>
+          <Text style={styles.label}>HOW MANY PEOPLE · INCLUDING YOU</Text>
           <TextInput
             accessibilityLabel="Capacity including host"
             value={capacity}
@@ -353,7 +439,7 @@ export default function EventForm({
             style={[styles.submit, submitting && styles.disabled]}
           >
             {submitting ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={theme.cream} />
             ) : (
               <Text style={styles.submitText}>
                 {event
@@ -366,52 +452,211 @@ export default function EventForm({
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+      {picking && (
+        <PlacePicker
+          apiURL={apiURL}
+          // Changing the place reopens the map where the picked one is.
+          start={
+            chosen?.coordinates
+              ? { center: chosen.coordinates, zoom: 15 }
+              : pickerStart
+          }
+          onPick={(
+            picked,
+            districtName,
+            via,
+            position,
+            resultCount,
+            query,
+            locationOn,
+          ) => {
+            // The pick and everything after it point at the picked place.
+            const target = { type: "place" as const, id: picked.id };
+            interaction.current?.setTarget(target);
+            interaction.current?.record("place_search_selected", {
+              via,
+              position,
+              result_count: resultCount,
+              query,
+              location_on: locationOn,
+            });
+            setChosen({
+              id: picked.id,
+              name: picked.name,
+              detail: `${kindName(picked.type)} · ${districtName}`,
+              coordinates: picked.coordinates,
+            });
+            setSpotID("");
+            setError("");
+            setPicking(false);
+          }}
+          onPinned={(pinned, district, tracking) => {
+            // The place does not exist until the event is created, so the pin
+            // and the rows after it have no target.
+            interaction.current?.setTarget(null);
+            interaction.current?.record(
+              "place_pinned",
+              { ...tracking, district: district.slug },
+              undefined,
+              null,
+            );
+            setChosen({
+              id: "",
+              name: pinned.name,
+              detail: `${pinned.kindText ?? kindName(pinned.kind ?? "")} · ${district.name} · ${pinned.private ? "Private" : "New place"}`,
+              coordinates: pinned.coordinates,
+              newPlace: pinned,
+            });
+            setSpotID("");
+            setError("");
+            setPicking(false);
+          }}
+          onLocationAnswered={(answer) =>
+            interaction.current?.record(
+              "location_permission_answered",
+              { answer },
+              undefined,
+              null,
+            )
+          }
+          onBack={(resultCount, query, locationOn) => {
+            interaction.current?.record(
+              "place_search_abandoned",
+              {
+                query,
+                result_count: resultCount,
+                location_on: locationOn,
+                reason: "back",
+              },
+              undefined,
+              null,
+            );
+            setPicking(false);
+          }}
+        />
+      )}
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0", paddingTop: 24 },
+  root: { flex: 1, backgroundColor: theme.paper, paddingTop: 24 },
   heading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
   },
   kicker: {
-    color: "#1D5B3A",
+    fontFamily: theme.bodyBold,
+    color: theme.red,
     fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.3,
+    letterSpacing: 1.6,
   },
-  close: { padding: 14 },
-  action: { color: "#1D5B3A", fontWeight: "700", fontSize: 14 },
-  content: { padding: 24, paddingBottom: 60, gap: 12 },
-  title: { fontFamily: "BigShoulders", fontSize: 46, color: "#15201B" },
-  body: { color: "#15201B", fontSize: 16, lineHeight: 24 },
-  muted: { color: "#6C786E", fontSize: 13 },
-  label: { color: "#15201B", fontSize: 14, fontWeight: "700", marginTop: 12 },
-  input: {
-    backgroundColor: "#FFFFFF",
-    color: "#15201B",
+  close: { padding: 14, marginRight: -14 },
+  action: { fontFamily: theme.bodyBold, color: theme.ink, fontSize: 14 },
+  content: { padding: 24, paddingTop: 8, paddingBottom: 60, gap: 10 },
+  title: {
+    fontFamily: theme.display,
+    fontSize: 52,
+    lineHeight: 52,
+    letterSpacing: -0.5,
+    color: theme.ink,
+  },
+  body: {
+    fontFamily: theme.body,
+    color: theme.ink,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  muted: { fontFamily: theme.body, color: theme.muted, fontSize: 13 },
+  // The place, as a card like the ones floating over the Explore map.
+  place: {
+    // Android keeps a dashed border unless solid is set explicitly.
+    borderStyle: "solid",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 6,
     padding: 16,
+    borderRadius: 18,
+    backgroundColor: theme.cream,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  placeEmpty: { borderStyle: "dashed", borderColor: theme.red },
+  placePressed: { opacity: 0.75 },
+  placeDotEmpty: { backgroundColor: theme.line, borderColor: theme.sage },
+  placeNameEmpty: { color: theme.red },
+  change: { fontFamily: theme.bodyBold, fontSize: 13, color: theme.red },
+  placeDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: theme.red,
+    borderWidth: 3,
+    borderColor: "#F6C9B9",
+  },
+  placeText: { flex: 1, gap: 2 },
+  placeKicker: {
+    fontFamily: theme.bodyBold,
+    color: theme.muted,
+    fontSize: 10,
+    letterSpacing: 1.4,
+  },
+  placeName: {
+    fontFamily: theme.displayBold,
+    color: theme.ink,
+    fontSize: 24,
+    lineHeight: 26,
+  },
+  label: {
+    fontFamily: theme.bodyBold,
+    color: theme.muted,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    marginTop: 14,
+  },
+  input: {
+    fontFamily: theme.bodyMedium,
+    backgroundColor: theme.cream,
+    color: theme.ink,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
     borderRadius: 14,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: "#DEE3D8",
+    borderColor: theme.line,
   },
-  types: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  type: { backgroundColor: "#E5E9DF", padding: 14, borderRadius: 20 },
-  selectedType: { backgroundColor: "#1D5B3A" },
-  white: { color: "#FFFFFF" },
-  error: { color: "#B51E2C", fontSize: 14, lineHeight: 21 },
+  types: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  type: {
+    backgroundColor: theme.sage,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  selectedType: { backgroundColor: theme.ink, borderColor: theme.ink },
+  white: { color: theme.cream },
+  error: {
+    fontFamily: theme.body,
+    color: "#B51E2C",
+    fontSize: 14,
+    lineHeight: 21,
+  },
   submit: {
-    backgroundColor: "#1D5B3A",
-    padding: 18,
-    borderRadius: 20,
+    backgroundColor: theme.red,
+    paddingVertical: 18,
+    borderRadius: 18,
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 18,
+    shadowColor: "#5B2A17",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
-  submitText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  submitText: { fontFamily: theme.bodyBold, color: theme.cream, fontSize: 16 },
   disabled: { opacity: 0.6 },
 });

@@ -1,0 +1,1099 @@
+<meta charset="utf-8">
+<title>Create Flow Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Big+Shoulders+Display:wght@900&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: the app on a phone on the left, the open decisions beside it; stacks on narrow screens.
+   The phone uses the app's own palette (light only, like the app); the page around it follows the viewer's theme. */
+:root {
+  /* Page chrome */
+  --page: #EEF0E6; --page-ink: #1E2B24; --page-muted: #5E6B5F; --panel: #FFFFFF; --panel-line: #D9DECF;
+  --pick: #1D5B3A; --pick-soft: #E3EEE6; --log-bg: #F6F7F1;
+  /* The app (frontend/src/ExploreCards.tsx `explore` and EventForm.tsx) */
+  --app-cream: #FFF8E8; --app-ink: #203E30; --app-muted: #798268; --app-red: #E3342F; --app-sage: #E5E8D8;
+  --tab-red: #F3192C; --form-bg: #F4F5F0; --form-green: #1D5B3A; --form-ink: #15201B; --form-muted: #6C786E;
+  --form-line: #DEE3D8; --form-chip: #E5E9DF;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --shoulders: "Big Shoulders Display", "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --page: #141A16; --page-ink: #E8EDE4; --page-muted: #A3AE9F; --panel: #1C241F; --panel-line: #2F3B33; --pick: #7FC79B; --pick-soft: #22362A; --log-bg: #161D19; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --page: #141A16; --page-ink: #E8EDE4; --page-muted: #A3AE9F; --panel: #1C241F; --panel-line: #2F3B33; --pick: #7FC79B; --pick-soft: #22362A; --log-bg: #161D19; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--page); color: var(--page-ink); font-family: var(--body); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 40px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 20px; }
+header.top h1 { font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: .3px; margin: 0; text-wrap: balance; }
+header.top p { margin: 6px 0 0; color: var(--page-muted); max-width: 72ch; line-height: 1.5; }
+.layout { display: grid; grid-template-columns: 392px minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Phone ---------- */
+.phone-col { display: grid; gap: 12px; justify-items: center; position: sticky; top: 16px; }
+@media (max-width: 860px) { .phone-col { position: static; } }
+.context { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.context button { font: 500 13px var(--body); border: 1px solid var(--panel-line); background: var(--panel); color: var(--page-ink); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.context button[aria-pressed="true"] { background: var(--pick); border-color: var(--pick); color: var(--panel); }
+.context-label { font-size: 12px; color: var(--page-muted); text-align: center; }
+.phone { width: 375px; max-width: 100%; height: 780px; border-radius: 44px; background: #0E1411; padding: 10px; box-shadow: 0 20px 50px rgba(20, 30, 24, .25); }
+.screen { position: relative; width: 100%; height: 100%; border-radius: 35px; overflow: hidden; background: var(--app-sage); font-family: var(--body); color: var(--app-ink); }
+.status { position: absolute; inset: 0 0 auto; height: 34px; display: flex; justify-content: space-between; align-items: center; padding: 0 26px; font: 600 13px var(--body); color: var(--app-ink); z-index: 50; pointer-events: none; }
+
+/* Explore */
+.map-bg { position: absolute; inset: 0; }
+.map-bg svg { width: 100%; height: 100%; display: block; }
+.brand { position: absolute; top: 46px; left: 22px; font: 700 30px var(--body); letter-spacing: -1px; color: var(--app-ink); }
+.brand b { color: var(--app-red); }
+.crumb { position: absolute; top: 92px; left: 22px; background: var(--app-cream); border-radius: 999px; padding: 9px 16px; font: 500 15px var(--body); box-shadow: 0 2px 8px rgba(32, 62, 48, .08); }
+.crumb span { color: var(--app-muted); }
+.rail { position: absolute; top: 140px; left: 22px; background: var(--app-cream); border-radius: 10px; padding: 6px 10px; font: 400 12px var(--body); }
+.card { position: absolute; left: 14px; right: 14px; bottom: 96px; background: var(--app-cream); border-radius: 22px; padding: 18px; box-shadow: 0 6px 20px rgba(32, 62, 48, .12); display: grid; gap: 10px; }
+.hero-kicker { font: 700 11px var(--body); letter-spacing: 3px; color: var(--app-ink); }
+.hero-title { font: 800 64px/0.9 var(--display); color: var(--app-ink); margin: 0; }
+.hero-title b { color: var(--app-red); }
+.portal { border: 1.5px solid var(--app-red); border-radius: 16px; padding: 12px; display: grid; gap: 4px; background: #FFFAF0; }
+.portal .k { font: 700 10px var(--body); letter-spacing: 2px; color: var(--app-red); }
+.portal .s { font: 700 22px/1.05 var(--display); }
+.portal .n { font: 400 12px var(--body); color: var(--app-muted); }
+.place-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.place-head h3 { margin: 0; font: 700 17px var(--body); }
+.link { font: 700 13px var(--body); color: var(--app-ink); background: none; border: 0; padding: 4px 0; cursor: pointer; }
+.event { background: #F3F2EA; border-radius: 16px; padding: 14px; display: grid; gap: 6px; }
+.event .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--app-muted); }
+.event h4 { margin: 0; font: 800 24px/1 var(--display); }
+.event .spots { display: flex; align-items: baseline; gap: 8px; }
+.event .spots b { font: 800 34px/1 var(--display); color: var(--app-red); }
+.view { background: var(--app-red); color: #fff; border-radius: 14px; padding: 11px 14px; font: 700 15px var(--body); }
+.toast { position: absolute; left: 50%; bottom: 190px; transform: translateX(-50%); background: var(--app-ink); color: #fff; padding: 12px 16px; border-radius: 14px; font: 500 13px var(--body); width: 84%; text-align: center; z-index: 60; }
+
+/* Tab bar with the raised create button */
+.tabbar { position: absolute; inset: auto 0 0; height: 82px; background: var(--form-bg); border-top: 1px solid #DFE2DA; display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: 14px; z-index: 6; }
+.tab { display: grid; justify-items: center; align-content: center; gap: 2px; font: 700 10px var(--body); color: #91A098; background: none; border: 0; }
+.tab .i { font-size: 22px; line-height: 1; }
+.tab.on { color: var(--tab-red); }
+.plus-slot { display: grid; justify-items: center; }
+.plus { width: 54px; height: 54px; margin-top: -22px; border-radius: 50%; background: var(--tab-red); border: 4px solid var(--form-bg); color: #fff; font: 500 32px/1 var(--body); display: grid; place-items: center; box-shadow: 0 4px 10px rgba(21, 32, 27, .2); cursor: pointer; }
+.plus:active { transform: scale(.94); }
+
+/* Sheets (create form, map picker) slide over Explore */
+.sheet { position: absolute; inset: 0; background: var(--form-bg); z-index: 20; display: flex; flex-direction: column; transform: translateY(100%); transition: transform .28s ease; }
+.sheet.open { transform: none; }
+.sheet.picker { z-index: 22; transform: translateX(100%); background: #EEEBDD; overflow: hidden; }
+.sheet.picker.open { transform: none; }
+@media (prefers-reduced-motion: reduce) { .sheet, .sheet.picker { transition: none; } }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 42px 18px 6px; }
+.kicker { font: 800 11px var(--body); letter-spacing: 1.3px; color: var(--form-green); }
+.btn-text { background: none; border: 0; font: 700 14px var(--body); color: var(--form-green); padding: 10px 4px; cursor: pointer; }
+.form { overflow-y: auto; padding: 8px 20px 40px; display: grid; gap: 10px; }
+.form h2 { font: 900 44px/1 var(--shoulders); color: var(--form-ink); margin: 6px 0 2px; }
+.label { font: 700 14px var(--body); color: var(--form-ink); margin-top: 10px; }
+.field { background: #fff; border: 1px solid var(--form-line); border-radius: 14px; padding: 14px 16px; font: 400 15px var(--body); color: var(--form-ink); width: 100%; text-align: left; }
+.where { display: flex; align-items: center; gap: 10px; cursor: pointer; border-color: var(--form-green); border-width: 1.5px; }
+.where .ph { color: var(--form-muted); flex: 1; }
+.where .pin { color: var(--form-green); font-size: 16px; }
+.where .chosen { flex: 1; display: grid; }
+.where .chosen b { font-weight: 700; }
+.where .chosen small { color: var(--form-muted); font-size: 12px; }
+.where .x { background: var(--form-chip); border: 0; border-radius: 50%; width: 26px; height: 26px; font-size: 14px; color: var(--form-ink); cursor: pointer; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { background: var(--form-chip); color: var(--form-green); border: 0; border-radius: 18px; padding: 11px 14px; font: 700 13px var(--body); }
+.chip.on { background: var(--form-green); color: #fff; }
+.muted { color: var(--form-muted); font-size: 12px; }
+.error { color: #B51E2C; font-size: 13px; }
+.submit { background: var(--form-green); color: #fff; border: 0; border-radius: 18px; padding: 16px; font: 700 15px var(--body); margin-top: 10px; cursor: pointer; }
+.submit:disabled { opacity: .45; cursor: default; }
+
+/* ---------- Map picker ---------- */
+#mapCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; display: block; }
+#mapCanvas:active { cursor: grabbing; }
+.map-top { position: absolute; inset: 0 0 auto; padding: 40px 12px 0; display: grid; gap: 8px; z-index: 3; pointer-events: none; }
+.map-top > * { pointer-events: auto; }
+.searchrow { display: flex; gap: 6px; align-items: center; background: #fff; border-radius: 16px; padding: 4px 6px; box-shadow: 0 4px 14px rgba(21, 32, 27, .14); }
+.searchrow input { flex: 1; min-width: 0; border: 0; outline: none; font: 400 16px var(--body); padding: 10px 4px; color: var(--form-ink); background: transparent; }
+.searchrow .back, .searchrow .clear { background: none; border: 0; font-size: 20px; color: var(--form-green); padding: 6px 8px; cursor: pointer; }
+.kinds { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.kinds::-webkit-scrollbar { display: none; }
+.kind { flex: none; display: flex; align-items: center; gap: 6px; background: #fff; color: var(--form-ink); border: 0; border-radius: 999px; padding: 7px 12px; font: 500 13px var(--body); box-shadow: 0 2px 8px rgba(21, 32, 27, .1); cursor: pointer; }
+.kind i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.kind[aria-pressed="true"] { background: var(--form-green); color: #fff; }
+.map-ctrl { position: absolute; right: 12px; bottom: calc(var(--sheet-h, 220px) + 14px); display: grid; gap: 8px; z-index: 3; transition: bottom .2s ease; }
+.map-ctrl button { width: 40px; height: 40px; border-radius: 12px; border: 0; background: #fff; color: var(--form-ink); font: 500 20px var(--body); box-shadow: 0 2px 10px rgba(21, 32, 27, .16); cursor: pointer; }
+.pin-pill { position: absolute; left: 12px; bottom: calc(var(--sheet-h, 220px) + 14px); z-index: 3; border: 0; background: #fff; color: var(--form-ink); border-radius: 999px; padding: 10px 14px; font: 700 13px var(--body); box-shadow: 0 2px 10px rgba(21, 32, 27, .16); cursor: pointer; transition: bottom .2s ease; }
+.pin-pill span { color: var(--app-red); }
+.center-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); z-index: 4; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .3)); }
+.pin-banner { background: var(--app-ink); color: #fff; border-radius: 12px; padding: 10px 12px; font: 500 13px var(--body); }
+.bsheet { position: absolute; inset: auto 0 0; height: var(--sheet-h, 220px); background: var(--form-bg); border-radius: 22px 22px 0 0; box-shadow: 0 -6px 20px rgba(21, 32, 27, .14); z-index: 5; display: flex; flex-direction: column; transition: height .2s ease; }
+.handle { border: 0; background: none; padding: 8px 0 4px; cursor: pointer; display: grid; place-items: center; }
+.handle::before { content: ""; width: 38px; height: 5px; border-radius: 3px; background: #C9CFC0; }
+.bbody { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.bhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 18px 8px; }
+.bhead b { font: 700 15px var(--body); color: var(--form-ink); }
+.bhead span { font-size: 12px; color: var(--form-muted); text-align: right; }
+.blist { overflow-y: auto; flex: 1; }
+.row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 18px; border: 0; background: none; width: 100%; text-align: left; cursor: pointer; border-top: 1px solid #E8EBE2; font-family: var(--body); color: var(--form-ink); }
+.row:hover, .row:focus-visible { background: #EBEEE4; outline: none; }
+.dot { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font: 800 12px var(--display); color: #fff; }
+.row .nm { font: 500 15px var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .nm mark { background: #FFE3A0; color: inherit; border-radius: 3px; }
+.row .sub { font-size: 12px; color: var(--form-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .km { font: 500 12px var(--body); color: var(--form-muted); font-variant-numeric: tabular-nums; }
+.happening { font-size: 11px; color: var(--app-red); font-weight: 700; }
+.pcard { padding: 14px 18px 16px; display: grid; gap: 8px; }
+.pcard h3 { margin: 0; font: 800 28px/1 var(--display); color: var(--form-ink); }
+.pcard .sub { color: var(--form-muted); font-size: 13px; }
+.pcard .actions { display: flex; gap: 10px; align-items: center; }
+.pcard .use { flex: 1; background: var(--form-green); color: #fff; border: 0; border-radius: 16px; padding: 14px; font: 700 15px var(--body); cursor: pointer; }
+.pcard .use:disabled { opacity: .45; cursor: default; }
+.pcard input { font: 400 15px var(--body); border: 1.5px solid var(--form-green); border-radius: 14px; padding: 12px 14px; outline: none; background: #fff; color: var(--form-ink); width: 100%; }
+.dup { border: 1px solid #F1D79A; background: #FFF6DE; border-radius: 12px; padding: 6px 6px 6px 12px; font-size: 13px; display: flex; gap: 8px; align-items: center; justify-content: space-between; color: var(--form-ink); }
+.empty { padding: 10px 18px 16px; color: var(--form-muted); font-size: 14px; }
+
+/* Android-style permission dialog */
+.scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .45); z-index: 40; display: grid; place-items: end center; padding: 0 12px 24px; }
+.dialog { background: #F2F4EF; border-radius: 26px; padding: 22px 18px 12px; width: 100%; display: grid; gap: 14px; text-align: center; color: #1B1F1C; }
+.dialog .gl { font-size: 26px; }
+.dialog p { margin: 0; font: 400 17px/1.35 var(--body); }
+.dialog .opts { display: grid; gap: 6px; }
+.dialog .opts button { border: 0; border-radius: 22px; background: #DCE6DE; color: #16301F; font: 500 15px var(--body); padding: 13px; cursor: pointer; }
+.dialog .opts button.no { background: transparent; }
+
+/* ---------- Decisions panel ---------- */
+.panel { display: grid; gap: 16px; min-width: 0; }
+.q { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 16px; padding: 16px 18px; display: grid; gap: 10px; }
+.q h2 { margin: 0; font: 700 16px var(--body); text-wrap: balance; }
+.q h2 .qn { color: var(--page-muted); font-weight: 500; margin-right: 6px; }
+.q p { margin: 0; color: var(--page-muted); font-size: 14px; line-height: 1.5; }
+.opts-row { display: grid; gap: 6px; }
+.opt { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; padding: 9px 10px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; }
+.opt:has(input:checked) { background: var(--pick-soft); border-color: var(--pick); }
+.opt input { margin: 3px 0 0; accent-color: var(--pick); }
+.opt .t { font: 500 14px var(--body); }
+.opt .d { display: block; font-size: 13px; color: var(--page-muted); margin-top: 2px; line-height: 1.4; }
+.tag { font: 700 10px var(--body); letter-spacing: .8px; color: var(--pick); border: 1px solid var(--pick); border-radius: 999px; padding: 1px 7px; margin-left: 6px; vertical-align: 2px; }
+.log { background: var(--log-bg); border: 1px solid var(--panel-line); border-radius: 12px; padding: 10px 12px; font: 400 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.log .act { color: var(--pick); font-weight: 700; }
+.fixed, .try { font-size: 13px; color: var(--page-muted); line-height: 1.5; }
+.fixed ul, .try ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.reset { justify-self: start; font: 700 13px var(--body); background: var(--panel); color: var(--page-ink); border: 1px solid var(--panel-line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--pick); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Create flow · finding the place</h1>
+    <p>Tap ＋ and choose where on a map of Lahore: all 2,237 real places from OpenStreetMap as dots, search on top, and a pin for anywhere that is missing. The district outlines stand in for streets, because real map tiles cannot load inside this page. Change the answers on the right and the phone follows.</p>
+  </header>
+
+  <div class="layout">
+    <div class="phone-col">
+      <div class="context-label">You are looking at</div>
+      <div class="context" role="group" aria-label="Where you are in Explore">
+        <button type="button" data-context="city" aria-pressed="true">Lahore</button>
+        <button type="button" data-context="district" aria-pressed="false">Gulberg</button>
+        <button type="button" data-context="place" aria-pressed="false">Second Cup card</button>
+      </div>
+      <div class="phone">
+        <div class="screen" id="screen">
+          <div class="status"><span>7:42</span><span>▲ ▮▮▮ 82%</span></div>
+          <div class="map-bg" id="exploreMap"></div>
+          <div class="brand">join me<b>.</b></div>
+          <div class="crumb" id="crumb"></div>
+          <div class="rail" id="rail"></div>
+          <div class="card" id="exploreCard"></div>
+
+          <nav class="tabbar" aria-label="Tabs">
+            <button class="tab on" type="button"><span class="i">◇</span>Explore</button>
+            <div class="plus-slot"><button class="plus" id="plus" type="button" aria-label="Create an event">+</button></div>
+            <button class="tab" type="button"><span class="i">▣</span>Your events</button>
+            <button class="tab" type="button"><span class="i">♙</span>You</button>
+          </nav>
+
+          <!-- Create sheet: today's EventForm with a new Where field on top -->
+          <section class="sheet" id="createSheet" aria-label="New event">
+            <div class="sheet-head"><span class="kicker">NEW EVENT</span><button class="btn-text" id="cancelCreate" type="button">Cancel</button></div>
+            <div class="form">
+              <h2>Make a plan.</h2>
+              <div class="label">Where</div>
+              <div class="field where" id="whereField" role="button" tabindex="0" aria-label="Choose where"></div>
+              <div class="label">Title</div>
+              <input class="field" id="title" placeholder="Evening football" aria-label="Event title">
+              <div class="label">Event type</div>
+              <div class="chips"><button class="chip on" type="button">Football</button><button class="chip" type="button">Cricket</button></div>
+              <div class="label">Date · YYYY-MM-DD</div>
+              <input class="field" id="date" value="2026-11-27" aria-label="Event date">
+              <div class="label">Start time · HH:mm (24-hour)</div>
+              <input class="field" id="time" value="18:00" aria-label="Start time">
+              <div class="muted">Uses your phone’s local time zone.</div>
+              <div class="label">Capacity · includes you as host</div>
+              <input class="field" id="capacity" value="10" aria-label="Capacity">
+              <div class="error" id="formError" hidden>Choose where the event happens.</div>
+              <button class="submit" id="createBtn" type="button">Create event</button>
+            </div>
+          </section>
+
+          <!-- Map picker -->
+          <section class="sheet picker" id="picker" aria-label="Choose a place on the map">
+            <canvas id="mapCanvas" aria-label="Map of Lahore places"></canvas>
+            <div class="map-top">
+              <div class="searchrow">
+                <button class="back" id="pickerBack" type="button" aria-label="Back">←</button>
+                <input id="q" type="search" placeholder="Search places in Lahore" autocomplete="off" aria-label="Search places">
+                <button class="clear" id="clearQ" type="button" aria-label="Clear search" hidden>✕</button>
+              </div>
+              <div class="kinds" id="kinds" role="group" aria-label="Kinds of place"></div>
+              <div class="pin-banner" id="pinBanner" hidden>Move the map so the pin sits on the spot.</div>
+            </div>
+            <div class="center-pin" id="centerPin" hidden>
+              <svg width="34" height="44" viewBox="0 0 34 44" aria-hidden="true"><path d="M17 43s15-14.6 15-26A15 15 0 0 0 2 17c0 11.4 15 26 15 26z" fill="#E3342F"/><circle cx="17" cy="17" r="6" fill="#fff"/></svg>
+            </div>
+            <div class="map-ctrl">
+              <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
+              <button id="zoomOut" type="button" aria-label="Zoom out">−</button>
+              <button id="locate" type="button" aria-label="Go to my location">⌖</button>
+            </div>
+            <button class="pin-pill" id="pinPill" type="button"><span>📍</span> Not here? Drop a pin</button>
+            <div class="bsheet" id="bsheet">
+              <button class="handle" id="handle" type="button" aria-label="Expand or collapse the list"></button>
+              <div class="bbody" id="bsheetBody"></div>
+            </div>
+          </section>
+
+          <div id="permission"></div>
+          <div id="toast"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <section class="q try">
+        <h2>Try this</h2>
+        <ul>
+          <li>Tap ＋ and look around. The location prompt appears after 4 list swipes, or 7 map touches or zooms, or 3 of each, whichever comes first. <span id="looking" class="d"></span> Tap a numbered circle to zoom in, and a dot to see the place.</li>
+          <li>Type "gloria" or "chai": the dots and the list filter together, and the map flies to the best match.</li>
+          <li>Tap <b>Not here? Drop a pin</b>, move the map near Gulberg's Cosa Nostra, then type "Cosa" to see the duplicate check.</li>
+        </ul>
+      </section>
+
+      <section class="q">
+        <h2><span class="qn">1</span>What sits under the map?</h2>
+        <div class="opts-row">
+          <label class="opt"><input type="radio" name="layout" value="sheet" checked><span><span class="t">A list of the places in view<span class="tag">DECIDED</span></span><span class="d">Browse on the map or the list; tap the handle to expand it.</span></span></label>
+          <label class="opt"><input type="radio" name="layout" value="map"><span><span class="t">Map only, a card when you tap a dot</span><span class="d">More map, no list to scan.</span></span></label>
+        </div>
+      </section>
+
+      <section class="q">
+        <h2><span class="qn">2</span>How should the dots look?</h2>
+        <p>All places show, with kind filters (decided). Zoom in and out on the phone to compare. Earlier answer: too cluttered.</p>
+        <div class="opts-row">
+          <label class="opt"><input type="radio" name="dotStyle" value="calm" checked><span><span class="t">Calm, by zoom level<span class="tag">MY PICK</span></span><span class="d">City: one bubble per district with its count. District: places with something on stand out with names; the rest are quiet clusters and faint dots. Street: every place with its name.</span></span></label>
+          <label class="opt"><input type="radio" name="dotStyle" value="grid"><span><span class="t">Before: numbered circles everywhere</span><span class="d">What you saw first.</span></span></label>
+        </div>
+        <input type="radio" name="dots" value="all" checked hidden>
+      </section>
+
+      <section class="q">
+        <h2><span class="qn">3</span>How do you start a pin?</h2>
+        <p>The pin is step 4. This shows where it starts, and the duplicate check while naming.</p>
+        <div class="opts-row">
+          <label class="opt"><input type="radio" name="pinStart" value="button"><span><span class="t">A "Drop a pin" button</span><span class="d">Easy to find.</span></span></label>
+          <label class="opt"><input type="radio" name="pinStart" value="long"><span><span class="t">Long-press the map</span><span class="d">Hidden; people who know maps use it.</span></span></label>
+          <label class="opt"><input type="radio" name="pinStart" value="both" checked><span><span class="t">Both<span class="tag">DECIDED</span></span><span class="d">The button for everyone; long-press for people who know maps.</span></span></label>
+        </div>
+      </section>
+
+      <section class="q">
+        <h2><span class="qn">4</span>Where do the map's places come from?</h2>
+        <p>This doesn't change the phone here; it decides speed and data use in the app.</p>
+        <div class="opts-row">
+          <label class="opt"><input type="radio" name="source" value="once" checked><span><span class="t">Download all places once, about 185 KB, and filter on the phone<span class="tag">DECIDED</span></span><span class="d">Instant panning and search; refreshed when the app opens.</span></span></label>
+          <label class="opt"><input type="radio" name="source" value="pan"><span><span class="t">Ask the server for the places in view on every pan</span><span class="d">Less data up front; a short wait after each move.</span></span></label>
+        </div>
+      </section>
+
+      <section class="q">
+        <h2>Recorded activities</h2>
+        <p>What the app would record as you use the phone.</p>
+        <div class="log" id="log" aria-live="polite"></div>
+      </section>
+
+      <section class="q fixed">
+        <h2>Already decided</h2>
+        <ul>
+          <li>＋ starts from what you're looking at: a place card picks that place; a district or the city opens the map there.</li>
+          <li>Location is asked once someone has looked around the place picker: 4 list swipes, or 7 map touches or zooms, or 3 of each, whichever comes first. Not when it opens. The ⌖ button asks straight away.</li>
+          <li>Search covers all of Lahore, ranked by match and then distance, in our own Postgres. No Google.</li>
+          <li>Picking records the result, its position, the typed text, whether location was on, and how it was picked (dot, list or search). Leaving without picking records the last search. The location answer is recorded once.</li>
+          <li>"Start something" stays on place cards.</li>
+        </ul>
+        <button class="reset" id="reset" type="button">Restart the prototype</button>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Data ------------------------------------------------------------------------
+// places.json: [name, kind, district, lng, lat, urdu/alt names] for every active place.
+// districts.json: the 68 district outlines, simplified, with a label point.
+// Liberty Market, Gulberg stands in for the person's location.
+const me = { lng: 74.3447, lat: 31.5106 };
+const lahore = { lng: 74.335, lat: 31.50 };
+const cosLat = Math.cos(31.5 * Math.PI / 180);
+const happening = new Set(["The Defence Club", "Pure Padel", "DHA Sports Complex Ph 5", "Gloria Jean's", "Lahore University of Management Sciences",
+  "Abdul Rehman Chughtai Museum", "Chaye Kada", "Forman Christian College", "Gaddafi Stadium", "Olympic Pool", "Second Cup", "Emporium Mall",
+  "Expo Center", "Guftagu Cafe", "Packages Mall", "Doongi Ground", "Model Town Park", "Alhamra Art Centre", "Faletti's Hotel", "Jinnah Gardens",
+  "Race Course Park", "University of the Punjab", "Amanah Mall", "Iqbal Park", "Lahore Fort"]);
+const kinds = {
+  cafe: ["Café", "#B5652C"], restaurant: ["Restaurant", "#C2462F"], park: ["Park", "#3F7D4E"], sports_club: ["Sports", "#1D6E8C"],
+  stadium: ["Stadium", "#1D6E8C"], campus: ["Campus", "#355C8A"], culture: ["Culture", "#7A4E8C"], heritage: ["Heritage", "#8A6A2E"],
+  mall: ["Mall", "#5C6670"], hotel: ["Hotel", "#6B5B95"], community: ["Community", "#2F7A7A"], exhibition: ["Exhibition", "#7A4E8C"],
+  pin: ["Dropped pin", "#E3342F"],
+};
+// The kind filter chips group our place kinds the way people think of them.
+const groups = [
+  ["cafe", "Cafés", ["cafe"]], ["food", "Food", ["restaurant"]], ["sports", "Sports", ["sports_club", "stadium"]],
+  ["parks", "Parks", ["park"]], ["culture", "Culture", ["culture", "heritage", "exhibition"]], ["campus", "Campus", ["campus"]],
+  ["malls", "Malls", ["mall"]], ["hotels", "Hotels", ["hotel"]], ["community", "Community", ["community"]],
+];
+let places = [];
+let districts = [];
+
+// ---- Prototype state --------------------------------------------------------
+const state = { context: "city", permission: "unknown", chosen: null, entry: null };
+const picker = { open: false, query: "", group: null, selected: null, via: null, position: null, expanded: false, pinMode: false,
+  resultCount: 0, rows: [] };
+const view = { lng: lahore.lng, lat: lahore.lat, k: 1100 };  // k = screen pixels per degree of latitude
+const answer = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
+const $ = (id) => document.getElementById(id);
+
+// ---- Search (mirrors the agreed pg_trgm search) ---------------------------------
+function normalise(text) {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u2019'`]/g, "").replace(/[^a-z0-9\u0600-\u06ff]+/g, " ").trim();
+}
+function trigrams(text) {
+  const set = new Set();
+  for (const word of text.split(" ")) {
+    if (!word) continue;
+    const padded = `  ${word} `;
+    for (let i = 0; i < padded.length - 2; i++) set.add(padded.slice(i, i + 3));
+  }
+  return set;
+}
+function similarity(a, b) {
+  let common = 0;
+  for (const t of a) if (b.has(t)) common++;
+  return common / (a.size + b.size - common || 1);
+}
+function matchScore(place, q, qTrigrams) {
+  if (place.norm.startsWith(q)) return 3;
+  if (place.words.some((w) => w.startsWith(q))) return 2.5;
+  if (place.norm.includes(q) || place.alt.includes(q)) return 2;
+  let score = similarity(qTrigrams, place.trigrams);
+  for (const w of place.wordTrigrams) score = Math.max(score, similarity(qTrigrams, w));
+  return score >= 0.3 ? score : 0;
+}
+function km(a, b) {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+
+// The places the map and list show right now: kind filter, then search.
+function visiblePlaces() {
+  let pool = places;
+  if (picker.group) {
+    const allowed = groups.find((g) => g[0] === picker.group)[2];
+    pool = pool.filter((p) => allowed.includes(p.kind));
+  } else if (answer("dots") === "filter") {
+    pool = [];
+  }
+  const q = normalise(picker.query);
+  if (q.length < 2) return { list: pool, searching: false };
+  const qTrigrams = trigrams(q);
+  const located = state.permission === "granted";
+  const scored = [];
+  for (const place of pool) {
+    const score = matchScore(place, q, qTrigrams);
+    if (score > 0) scored.push({ place, score });
+  }
+  scored.sort((a, b) => b.score - a.score || (located ? a.place.km - b.place.km : a.place.name.localeCompare(b.place.name)));
+  return { list: scored.map((s) => s.place), searching: true };
+}
+
+// ---- Map: projection and drawing ----------------------------------------------------
+const canvas = $("mapCanvas");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, hits = [];
+function project(lng, lat) { return [W / 2 + (lng - view.lng) * view.k * cosLat, H / 2 - (lat - view.lat) * view.k]; }
+function unproject(x, y) { return { lng: view.lng + (x - W / 2) / (view.k * cosLat), lat: view.lat - (y - H / 2) / view.k }; }
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return;
+  const dpr = window.devicePixelRatio || 1;
+  W = rect.width; H = rect.height;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+function overlaps(box, taken) { return taken.some((t) => box[0] < t[2] && box[2] > t[0] && box[1] < t[3] && box[3] > t[1]); }
+// A numbered circle. "strong" for district counts, "quiet" for clusters in a district, "dark" for the earlier style.
+function bubble(x, y, r, text, livelyRing, style) {
+  if (livelyRing) { ctx.beginPath(); ctx.arc(x, y, r + 3.5, 0, Math.PI * 2); ctx.strokeStyle = "#E3342F"; ctx.lineWidth = 2.5; ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = style === "dark" ? "rgba(32, 62, 48, .88)" : style === "strong" ? "#FFF8E8" : "rgba(255, 248, 232, .8)";
+  ctx.fill();
+  ctx.lineWidth = style === "quiet" ? 1 : 1.5;
+  ctx.strokeStyle = style === "dark" ? "#FFF8E8" : style === "strong" ? "#203E30" : "#C3CBAA";
+  ctx.stroke();
+  ctx.fillStyle = style === "dark" ? "#fff" : style === "strong" ? "#203E30" : "#7C876C";
+  ctx.font = `700 ${style === "quiet" ? 10 : 11}px 'DM Sans', sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(text, x, y + 0.5);
+}
+// A full place dot in its kind's colour, ringed in red when something is on there.
+function fullDot(place, x, y) {
+  if (happening.has(place.name)) { ctx.beginPath(); ctx.arc(x, y, 9.5, 0, Math.PI * 2); ctx.strokeStyle = "#E3342F"; ctx.lineWidth = 2.5; ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fillStyle = kinds[place.kind][1]; ctx.fill();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+  hits.push({ x, y, r: 14, members: [{ place, x, y }] });
+}
+function draw() {
+  if (!W) return;
+  ctx.fillStyle = "#EEEBDD";
+  ctx.fillRect(0, 0, W, H);
+  // District outlines stand in for the street map. In pin mode the district under the pin is highlighted.
+  const pinDistrict = picker.pinMode ? districtAt(unproject(W / 2, H / 2)) : null;
+  for (const district of districts) {
+    ctx.beginPath();
+    for (const ring of district.rings) {
+      ring.forEach(([lng, lat], i) => { const [x, y] = project(lng, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+      ctx.closePath();
+    }
+    const highlighted = district === pinDistrict;
+    ctx.fillStyle = highlighted ? "#F6E3D9" : "#E4E8D2";
+    ctx.fill();
+    ctx.strokeStyle = highlighted ? "#E3342F" : "#C3CBAA";
+    ctx.lineWidth = highlighted ? 2 : 1;
+    ctx.setLineDash(highlighted ? [7, 5] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // District names, where there is room.
+  const taken = [];
+  if (view.k > 1500 && view.k < 70000) {
+    ctx.font = "700 10px 'DM Sans', sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const district of districts) {
+      const [x, y] = project(district.label[0], district.label[1]);
+      if (x < -40 || x > W + 40 || y < 60 || y > H) continue;
+      const label = district.name.toUpperCase();
+      const width = ctx.measureText(label).width;
+      const box = [x - width / 2 - 4, y - 8, x + width / 2 + 4, y + 8];
+      if (overlaps(box, taken)) continue;
+      taken.push(box);
+      ctx.fillStyle = "#8C9676";
+      ctx.fillText(label, x, y);
+    }
+  }
+  // Places. "Calm" uses three zoom levels: district bubbles across the city, lively
+  // places picked out over quiet clusters in a district, and every place up close.
+  hits = [];
+  const { list, searching } = visiblePlaces();
+  const calm = answer("dotStyle") === "calm";
+  const lively = (place) => happening.has(place.name);
+  const onScreen = (x, y) => x > -20 && x < W + 20 && y > -20 && y < H + 20;
+  const labels = [];
+  ctx.globalAlpha = picker.pinMode ? 0.35 : 1;
+  if (calm && !searching && view.k < 6000) {
+    // City: one bubble per district, sized by how many places it has.
+    const counts = new Map();
+    for (const place of list) {
+      const count = counts.get(place.district) || { places: 0, lively: false };
+      count.places++;
+      count.lively = count.lively || lively(place);
+      counts.set(place.district, count);
+    }
+    for (const district of districts) {
+      const count = counts.get(district.name);
+      if (!count) continue;
+      const [x, y] = project(district.label[0], district.label[1]);
+      if (!onScreen(x, y)) continue;
+      const r = Math.min(24, 10 + Math.sqrt(count.places) * 1.1);
+      bubble(x, y, r, String(count.places), count.lively, "strong");
+      hits.push({ x, y, r: r + 4, district });
+    }
+  } else if (calm && !searching && view.k < 45000) {
+    // District: places with something on stand out; the rest gather quietly.
+    const cells = new Map();
+    for (const place of list) {
+      if (lively(place)) continue;
+      const [x, y] = project(place.lng, place.lat);
+      if (!onScreen(x, y)) continue;
+      const key = `${Math.floor(x / 56)},${Math.floor(y / 56)}`;
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push({ place, x, y });
+    }
+    for (const members of cells.values()) {
+      if (members.length === 1) {
+        const { place, x, y } = members[0];
+        ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = kinds[place.kind][1]; ctx.globalAlpha = picker.pinMode ? 0.2 : 0.55; ctx.fill();
+        ctx.globalAlpha = picker.pinMode ? 0.35 : 1;
+        hits.push({ x, y, r: 10, members });
+        continue;
+      }
+      const x = members.reduce((sum, m) => sum + m.x, 0) / members.length;
+      const y = members.reduce((sum, m) => sum + m.y, 0) / members.length;
+      const r = Math.min(15, 8 + Math.log2(members.length) * 1.6);
+      bubble(x, y, r, String(members.length), false, "quiet");
+      hits.push({ x, y, r: r + 4, members });
+    }
+    for (const place of list) {
+      if (!lively(place)) continue;
+      const [x, y] = project(place.lng, place.lat);
+      if (!onScreen(x, y)) continue;
+      fullDot(place, x, y);
+      labels.push({ place, x, y });
+    }
+  } else {
+    // Up close, while searching, or the earlier grid style: every place, grouped only where they crowd.
+    const cell = calm || view.k > 90000 ? 0 : 34;
+    const cells = new Map();
+    for (const place of list) {
+      const [x, y] = project(place.lng, place.lat);
+      if (!onScreen(x, y)) continue;
+      const key = cell ? `${Math.floor(x / cell)},${Math.floor(y / cell)}` : `${place.lng},${place.lat}`;
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push({ place, x, y });
+    }
+    for (const members of cells.values()) {
+      if (members.length > 1) {
+        const x = members.reduce((sum, m) => sum + m.x, 0) / members.length;
+        const y = members.reduce((sum, m) => sum + m.y, 0) / members.length;
+        const r = Math.min(20, 9 + Math.log2(members.length) * 2.4);
+        bubble(x, y, r, String(members.length), members.some((m) => lively(m.place)), "dark");
+        hits.push({ x, y, r: r + 4, members });
+      } else {
+        const { place, x, y } = members[0];
+        fullDot(place, x, y);
+        // Search results are always named; other places once zoomed in.
+        if (view.k > 45000 || searching) labels.push({ place, x, y });
+      }
+    }
+  }
+  // Lively places first, so their names win any overlap; then names beside the other dots.
+  labels.sort((a, b) => lively(b.place) - lively(a.place));
+  ctx.font = "600 11px 'DM Sans', sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  for (const { place, x, y } of labels.slice(0, 80)) {
+    const width = ctx.measureText(place.name).width;
+    const box = [x + 9, y - 7, x + 13 + width, y + 7];
+    if (overlaps(box, taken)) continue;
+    taken.push(box);
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(238, 235, 221, .95)"; ctx.strokeText(place.name, x + 11, y);
+    ctx.fillStyle = "#203E30"; ctx.fillText(place.name, x + 11, y);
+  }
+  ctx.globalAlpha = 1;
+  // The place being looked at stands out.
+  if (picker.selected) {
+    const [x, y] = project(picker.selected.lng, picker.selected.lat);
+    ctx.beginPath(); ctx.arc(x, y, 17, 0, Math.PI * 2); ctx.fillStyle = "rgba(29, 91, 58, .2)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fillStyle = kinds[picker.selected.kind][1]; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
+  }
+  // You.
+  if (state.permission === "granted") {
+    const [x, y] = project(me.lng, me.lat);
+    ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fillStyle = "rgba(43, 108, 232, .18)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = "#2B6CE8"; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = "#fff"; ctx.stroke();
+  }
+}
+function districtAt(point) {
+  for (const district of districts) {
+    for (const ring of district.rings) {
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > point.lat) !== (yj > point.lat) && point.lng < (xj - xi) * (point.lat - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) return district;
+    }
+  }
+  return null;
+}
+
+// ---- Map: moving --------------------------------------------------------------------
+let frame = 0;
+// Redraw the map, then refresh whatever the sheet shows for the new view.
+function redraw() {
+  if (frame) return;
+  frame = requestAnimationFrame(() => {
+    frame = 0;
+    draw();
+    if (picker.pinMode) updatePinCard();
+    else if (!picker.selected) renderList();
+  });
+}
+// Location is asked once the person has clearly been looking around, not the moment the
+// picker opens: 4 list swipes, or 7 map touches or zooms, or 3 of each, whichever comes first.
+// A swipe counts when the list stops scrolling; a touch is one finger landing on the map
+// (a pinch or a drag is one touch); a wheel zoom counts once per burst; +/− count per press.
+const looking = { swipes: 0, map: 0 };
+let swipeEnd = 0, wheelEnd = 0, wheelBurst = false;
+function showLooking() {
+  const el = $("looking");
+  if (!el) return;
+  el.textContent = state.permission !== "unknown" || $("permission").innerHTML
+    ? "Location prompt shown."
+    : `So far: ${looking.swipes} list swipe${looking.swipes === 1 ? "" : "s"}, ${looking.map} map touch${looking.map === 1 ? "" : "es"} or zoom${looking.map === 1 ? "" : "s"}.`;
+}
+function lookedAround(kind) {
+  if (!picker.open || state.permission !== "unknown" || $("permission").innerHTML) return;
+  looking[kind] += 1;
+  const { swipes, map } = looking;
+  if (swipes >= 4 || map >= 7 || (swipes >= 3 && map >= 3)) askPermission();
+  showLooking();
+}
+function listScrolled() {
+  clearTimeout(swipeEnd);
+  swipeEnd = setTimeout(() => lookedAround("swipes"), 180);
+}
+function zoomAt(factor, x, y) {
+  const before = unproject(x, y);
+  view.k = Math.min(400000, Math.max(700, view.k * factor));
+  const after = unproject(x, y);
+  view.lng += before.lng - after.lng; view.lat += before.lat - after.lat;
+  redraw();
+}
+function flyTo(lng, lat, k) {
+  const start = { ...view }, end = { lng, lat, k: k ?? view.k };
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { Object.assign(view, end); redraw(); return; }
+  const began = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - began) / 450), e = t < .5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+    view.lng = start.lng + (end.lng - start.lng) * e; view.lat = start.lat + (end.lat - start.lat) * e;
+    view.k = Math.exp(Math.log(start.k) + (Math.log(end.k) - Math.log(start.k)) * e);
+    draw();
+    if (t < 1) requestAnimationFrame(step); else redraw();
+  };
+  requestAnimationFrame(step);
+}
+const pointers = new Map();
+let gesture = null, longPress = 0;
+function pointerAt(event) { const rect = canvas.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top }; }
+canvas.addEventListener("pointerdown", (event) => {
+  canvas.setPointerCapture(event.pointerId);
+  pointers.set(event.pointerId, pointerAt(event));
+  clearTimeout(longPress);
+  if (pointers.size === 1) {
+    lookedAround("map");
+    const p = pointerAt(event);
+    gesture = { startX: p.x, startY: p.y, lastX: p.x, lastY: p.y, moved: false };
+    if (answer("pinStart") !== "button" && !picker.pinMode) {
+      longPress = setTimeout(() => {
+        if (gesture && !gesture.moved) { const at = unproject(gesture.startX, gesture.startY); gesture = null; enterPin(at); }
+      }, 550);
+    }
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    gesture = { pinch: Math.hypot(a.x - b.x, a.y - b.y), moved: true };
+  }
+});
+canvas.addEventListener("pointermove", (event) => {
+  if (!pointers.has(event.pointerId) || !gesture) return;
+  pointers.set(event.pointerId, pointerAt(event));
+  if (pointers.size === 2 && gesture.pinch) {
+    const [a, b] = [...pointers.values()];
+    const distance = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt(distance / gesture.pinch, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    gesture.pinch = distance;
+    return;
+  }
+  const p = pointers.get(event.pointerId);
+  if (Math.hypot(p.x - gesture.startX, p.y - gesture.startY) > 6) { gesture.moved = true; clearTimeout(longPress); }
+  if (gesture.moved && gesture.lastX !== undefined) {
+    view.lng -= (p.x - gesture.lastX) / (view.k * cosLat);
+    view.lat += (p.y - gesture.lastY) / view.k;
+    gesture.lastX = p.x; gesture.lastY = p.y;
+    redraw();
+  }
+});
+function endPointer(event) {
+  clearTimeout(longPress);
+  if (!pointers.has(event.pointerId)) return;
+  const wasTap = gesture && !gesture.moved && pointers.size === 1;
+  const p = pointers.get(event.pointerId);
+  pointers.delete(event.pointerId);
+  if (pointers.size === 0) gesture = null;
+  if (wasTap && !picker.pinMode) tapAt(p.x, p.y);
+}
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", endPointer);
+canvas.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  if (!wheelBurst) { wheelBurst = true; lookedAround("map"); }
+  clearTimeout(wheelEnd);
+  wheelEnd = setTimeout(() => { wheelBurst = false; }, 300);
+  const p = pointerAt(event);
+  zoomAt(Math.exp(-event.deltaY * 0.0016), p.x, p.y);
+}, { passive: false });
+canvas.addEventListener("dblclick", (event) => { const p = pointerAt(event); zoomAt(2, p.x, p.y); });
+function tapAt(x, y) {
+  const hit = hits.filter((h) => Math.hypot(h.x - x, h.y - y) <= h.r)
+    .sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
+  if (!hit) { if (picker.selected) deselect(); return; }
+  if (hit.district) { flyTo(hit.district.label[0], hit.district.label[1], 16000); return; }
+  if (hit.members.length > 1) {
+    const at = unproject(hit.x, hit.y);
+    flyTo(at.lng, at.lat, view.k * 2.6);
+    return;
+  }
+  select(hit.members[0].place, "map_dot", null);
+}
+
+// ---- Picker: the sheet under the map ----------------------------------------------------
+function setSheetHeight() {
+  const layout = answer("layout");
+  let height = 0;
+  if (picker.pinMode) height = 240;
+  else if (picker.selected) height = 205;
+  else if (layout === "sheet") height = picker.expanded ? Math.round(H * 0.62) : 210;
+  $("bsheet").hidden = height === 0;
+  $("handle").hidden = picker.pinMode || !!picker.selected || layout !== "sheet";
+  $("picker").style.setProperty("--sheet-h", `${height}px`);
+}
+function renderPicker() {
+  $("pinPill").hidden = picker.pinMode || answer("pinStart") === "long" || !!picker.selected;
+  $("centerPin").hidden = !picker.pinMode;
+  $("pinBanner").hidden = !picker.pinMode;
+  $("kinds").hidden = picker.pinMode;
+  $("clearQ").hidden = !picker.query;
+  const chips = answer("dots") === "filter" ? groups : [["", "All", null], ...groups];
+  $("kinds").innerHTML = chips.map(([key, label, members]) =>
+    `<button class="kind" type="button" data-group="${key}" aria-pressed="${(picker.group || "") === key}">${members ? `<i style="background:${kinds[members[0]][1]}"></i>` : ""}${label}</button>`).join("");
+  $("kinds").querySelectorAll(".kind").forEach((button) => button.onclick = () => {
+    picker.group = button.dataset.group || null;
+    picker.selected = null;
+    renderPicker();
+    redraw();
+  });
+  setSheetHeight();
+  if (picker.pinMode) renderPinCard();
+  else if (picker.selected) renderCard();
+  else renderList();
+}
+function renderList() {
+  if (answer("layout") !== "sheet") { $("bsheetBody").innerHTML = ""; return; }
+  const { list, searching } = visiblePlaces();
+  const located = state.permission === "granted";
+  const centre = unproject(W / 2, H / 2);
+  let rows, title, note;
+  if (searching) {
+    rows = list.slice(0, 30);
+    title = list.length ? `${list.length} ${list.length === 1 ? "place matches" : "places match"}` : "No places match";
+    note = list.length ? "Best match first" : "";
+    picker.resultCount = list.length;
+  } else {
+    const inView = list.filter((p) => { const [x, y] = project(p.lng, p.lat); return x > 0 && x < W && y > 90 && y < H - 210; });
+    rows = inView.map((p) => ({ p, d: km(centre, p) })).sort((a, b) => a.d - b.d).slice(0, 40).map((r) => r.p);
+    title = answer("dots") === "filter" && !picker.group ? "Pick a kind to see places" : `${inView.length} ${inView.length === 1 ? "place" : "places"} in view`;
+    note = inView.length ? "Nearest the middle first" : "";
+    picker.resultCount = inView.length;
+  }
+  picker.rows = rows;
+  const pinRow = answer("pinStart") === "long"
+    ? `<div class="empty">Can’t find it? Long-press the map to drop a pin.</div>`
+    : `<div class="empty"><button class="btn-text" id="listPin" type="button">📍 Can’t find it? Drop a pin</button></div>`;
+  $("bsheetBody").innerHTML = `<div class="bhead"><b>${title}</b><span>${note}</span></div><div class="blist">${rows.map((p, i) => `
+    <button class="row" type="button" data-i="${i}">
+      <span class="dot" style="background:${kinds[p.kind][1]}">${kinds[p.kind][0].slice(0, 2).toUpperCase()}</span>
+      <span style="min-width:0"><div class="nm">${highlight(p.name, picker.query)}</div><div class="sub">${kinds[p.kind][0]} · ${escapeHtml(p.district)}${happening.has(p.name) ? ` · <span class="happening">Happening this week</span>` : ""}</div></span>
+      <span class="km">${located ? formatKm(p.km) : ""}</span></button>`).join("")}${searching || rows.length < 8 ? pinRow : ""}</div>`;
+  $("bsheetBody").querySelectorAll(".row").forEach((row) => row.onclick = () => {
+    const i = Number(row.dataset.i);
+    select(picker.rows[i], searching ? "search" : "list", i + 1);
+  });
+  const listPin = $("listPin");
+  if (listPin) listPin.onclick = () => enterPin();
+  $("bsheetBody").querySelector(".blist").onscroll = listScrolled;
+}
+function select(place, via, position) {
+  picker.selected = place; picker.via = via; picker.position = position;
+  renderPicker();
+  flyTo(place.lng, place.lat, Math.max(view.k, 60000));
+}
+function deselect() {
+  picker.selected = null;
+  renderPicker();
+  redraw();
+}
+function renderCard() {
+  const p = picker.selected;
+  const located = state.permission === "granted";
+  $("bsheetBody").innerHTML = `<div class="pcard">
+    <h3>${escapeHtml(p.name)}</h3>
+    <div class="sub">${kinds[p.kind][0]} · ${escapeHtml(p.district)}${located ? ` · ${formatKm(p.km)} away` : ""}</div>
+    ${happening.has(p.name) ? `<div class="happening">Something on here this week</div>` : `<div class="sub">Nothing on here yet. Be the first.</div>`}
+    <div class="actions"><button class="use" id="usePlace" type="button">Use this place</button><button class="btn-text" id="notThis" type="button">Back</button></div></div>`;
+  $("usePlace").onclick = () => {
+    record("place_search_selected", {
+      via: picker.via, position: picker.position, result_count: picker.resultCount,
+      query: picker.query, location_on: state.permission === "granted",
+    });
+    choose(p);
+  };
+  $("notThis").onclick = deselect;
+}
+
+// ---- Picker: dropping a pin (step 4 preview) ---------------------------------------------------
+function enterPin(at) {
+  picker.pinMode = true; picker.selected = null;
+  const start = at || unproject(W / 2, H / 2);
+  renderPicker();
+  flyTo(start.lng, start.lat, Math.max(view.k, 70000));
+}
+function renderPinCard() {
+  $("bsheetBody").innerHTML = `<div class="pcard">
+    <div class="sub" id="pinWhere"></div>
+    <input id="pinName" placeholder="Name this place, for example Ali’s rooftop" aria-label="Name this place" autocomplete="off">
+    <div id="dupHint"></div>
+    <div class="actions"><button class="use" id="usePin" type="button" disabled>Use this spot</button><button class="btn-text" id="cancelPin" type="button">Cancel</button></div></div>`;
+  $("pinName").oninput = updatePinCard;
+  $("cancelPin").onclick = () => { picker.pinMode = false; renderPicker(); redraw(); };
+  $("usePin").onclick = () => {
+    const at = unproject(W / 2, H / 2);
+    const where = districtAt(at);
+    record("pin_dropped (step 4, to be designed)", { district: where ? where.name : null });
+    choose({ name: $("pinName").value.trim(), kind: "pin", district: where ? where.name : "Outside Lahore", ...at });
+  };
+  updatePinCard();
+}
+// The agreed duplicate check: a place with a similar name within 150 m of the pin.
+function nearbyDuplicate(centre, name) {
+  const q = normalise(name);
+  if (q.length < 3) return null;
+  const qTrigrams = trigrams(q);
+  return places.filter((p) => km(centre, p) <= 0.15 && matchScore(p, q, qTrigrams) > 0)
+    .sort((a, b) => km(centre, a) - km(centre, b))[0] || null;
+}
+function updatePinCard() {
+  if (!$("pinName")) return;
+  const centre = unproject(W / 2, H / 2);
+  const district = districtAt(centre);
+  const name = $("pinName").value;
+  $("pinWhere").innerHTML = district ? `Pin in <b>${escapeHtml(district.name)}</b>` : "The pin is outside Lahore’s districts";
+  $("usePin").disabled = name.trim().length < 2 || !district;
+  const duplicate = nearbyDuplicate(centre, name);
+  $("dupHint").innerHTML = duplicate
+    ? `<div class="dup"><span>Did you mean <b>${escapeHtml(duplicate.name)}</b>, ${Math.round(km(centre, duplicate) * 1000)} m away?</span><button class="btn-text" id="useDup" type="button">Use it</button></div>` : "";
+  if (duplicate) $("useDup").onclick = () => {
+    record("place_search_selected", { via: "pin_duplicate_check", position: null, result_count: 1, query: name, location_on: state.permission === "granted" });
+    choose(duplicate);
+  };
+}
+
+// ---- Opening and closing the picker ------------------------------------------------------
+function openPicker() {
+  Object.assign(picker, { open: true, query: "", group: null, selected: null, pinMode: false, expanded: false });
+  $("q").value = "";
+  $("picker").classList.add("open");
+  requestAnimationFrame(() => {
+    resize();
+    if (state.chosen && state.chosen.kind !== "pin") {
+      Object.assign(view, { lng: state.chosen.lng, lat: state.chosen.lat, k: 60000 });
+      Object.assign(picker, { selected: state.chosen, via: "list", position: null });
+    } else if (state.permission === "granted") Object.assign(view, { lng: me.lng, lat: me.lat, k: 40000 });
+    else if (state.context === "district") Object.assign(view, { lng: 74.345, lat: 31.515, k: 16000 });
+    else Object.assign(view, { lng: lahore.lng, lat: lahore.lat, k: 1100 });
+    renderPicker();
+    draw();
+  });
+}
+function closePicker() {
+  picker.open = false;
+  $("picker").classList.remove("open");
+}
+function abandonPicker(reason) {
+  record("place_search_abandoned", { query: picker.query, result_count: picker.resultCount, location_on: state.permission === "granted", reason });
+  closePicker();
+}
+function choose(place) {
+  state.chosen = place;
+  closePicker();
+  renderWhere();
+}
+function askPermission() {
+  $("permission").innerHTML = `<div class="scrim"><div class="dialog" role="dialog" aria-label="Location permission">
+    <div class="gl">⌖</div><p>Allow <b>Join Me</b> to access this device’s location?</p>
+    <div class="opts"><button type="button" data-answer="while_using">While using the app</button><button type="button" data-answer="only_this_time">Only this time</button><button type="button" class="no" data-answer="denied">Don’t allow</button></div></div></div>`;
+  $("permission").querySelectorAll("button").forEach((button) => button.onclick = () => {
+    const given = button.dataset.answer;
+    state.permission = given === "denied" ? "denied" : "granted";
+    record("location_permission_answered", { answer: given });
+    $("permission").innerHTML = "";
+    showLooking();
+    if (state.permission === "granted" && !picker.selected) flyTo(me.lng, me.lat, 40000);
+    else redraw();
+  });
+  showLooking();
+}
+
+// ---- Explore and the create form ----------------------------------------------------------
+function exploreSvg() {
+  const district = state.context !== "city";
+  return `<svg viewBox="0 0 375 760" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <rect width="375" height="760" fill="#E9E8D6"/>
+    <g fill="#DCE3C6"><rect x="30" y="300" width="70" height="60" rx="6"/><rect x="250" y="190" width="90" height="70" rx="6"/><rect x="200" y="470" width="60" height="50" rx="6"/></g>
+    <path d="M-10 250 C 120 230, 220 300, 400 260" stroke="#A9C9C2" stroke-width="10" fill="none"/>
+    <g stroke="#F7F3E4" stroke-width="7" fill="none" stroke-linecap="round"><path d="M0 420 L375 360"/><path d="M120 0 L170 760"/><path d="M0 600 L375 520"/><path d="M300 0 L250 760"/><path d="M0 160 L375 200"/></g>
+    ${district ? `<path d="M110 250 L250 230 L300 300 L290 520 L150 560 L95 430 Z" fill="rgba(227,52,47,.08)" stroke="#E3342F" stroke-width="2.5" stroke-dasharray="8 6"/>` : ""}
+    ${state.context === "place" ? `<circle cx="196" cy="360" r="9" fill="#203E30" stroke="#FFF8E8" stroke-width="4"/><rect x="146" y="314" width="100" height="28" rx="12" fill="#FFF8E8"/><text x="196" y="333" text-anchor="middle" font-family="DM Sans, sans-serif" font-weight="700" font-size="13" fill="#203E30">Second Cup</text>` : ""}
+  </svg>`;
+}
+function renderExplore() {
+  $("exploreMap").innerHTML = exploreSvg();
+  const c = state.context;
+  $("crumb").innerHTML = c === "city" ? "Lahore" : `<span>Lahore ›</span> <b>Gulberg</b>`;
+  $("rail").textContent = c === "city" ? "12 districts · Scroll ↓" : c === "district" ? "5 places · Scroll ↓" : "Place 4 of 5";
+  if (c === "place") {
+    $("exploreCard").innerHTML = `
+      <div class="place-head"><h3>Second Cup</h3><button class="link" id="startLink" type="button">+ Start something</button></div>
+      <div class="event"><div class="meta"><span>● Coffee</span><span>Fri 5:30 PM</span></div><h4>Coffee &amp; a conversation</h4>
+        <div class="muted">⌖ Second Cup</div><div class="spots"><b>1</b><span>spot left · Hosted by Demo Ahmed</span></div><div class="view">View event ↗</div></div>
+      <div class="muted">2 events coming up</div>`;
+    $("startLink").onclick = () => openCreate("place_card");
+  } else {
+    const city = c === "city";
+    $("exploreCard").innerHTML = `
+      <div class="hero-kicker">${city ? "ONE CITY. YOUR PEOPLE." : "LAHORE / DISTRICT"}</div>
+      <h3 class="hero-title">${city ? "LAHORE" : "GULBERG"}<b>.</b></h3>
+      <div class="portal"><span class="k">COMING UP IN ${city ? "LAHORE" : "GULBERG"}</span>
+        <span class="s">${city ? "12 districts · 40 things happening" : "5 places · 6 things happening"}</span>
+        <span class="n">${city ? "Start with Gulberg · Second Cup" : "First up · Chaye Kada · Thu 7:00 PM"}</span></div>`;
+  }
+}
+function renderWhere() {
+  const field = $("whereField");
+  if (state.chosen) {
+    const p = state.chosen;
+    field.innerHTML = `<span class="pin">📍</span><span class="chosen"><b>${escapeHtml(p.name)}</b><small>${kinds[p.kind][0]} · ${escapeHtml(p.district)}</small></span><button class="x" id="clearWhere" type="button" aria-label="Clear the place">✕</button>`;
+    $("clearWhere").onclick = (event) => { event.stopPropagation(); state.chosen = null; renderWhere(); };
+  } else {
+    field.innerHTML = `<span class="pin">📍</span><span class="ph">Choose on the map</span><span aria-hidden="true">›</span>`;
+  }
+}
+function openCreate(entry) {
+  state.entry = entry;
+  state.chosen = state.context === "place" ? places.find((p) => p.name === "Second Cup" && p.district === "Gulberg") : null;
+  $("formError").hidden = true;
+  renderWhere();
+  $("createSheet").classList.add("open");
+  record("event_creation_started", { entry, ...(state.chosen ? { place: state.chosen.name } : {}) });
+  // Nothing to start from: go straight to the map.
+  if (!state.chosen) setTimeout(openPicker, 320);
+}
+function closeCreate() {
+  if (picker.open) abandonPicker("closed");
+  $("createSheet").classList.remove("open");
+}
+
+// ---- Helpers ------------------------------------------------------------------------------
+function formatKm(d) { return d < 1 ? `${Math.round(d * 100) * 10} m` : `${d.toFixed(1)} km`; }
+function escapeHtml(text) { return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function highlight(name, query) {
+  const q = query.trim();
+  const at = q.length >= 2 ? name.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  if (at < 0) return escapeHtml(name);
+  return escapeHtml(name.slice(0, at)) + "<mark>" + escapeHtml(name.slice(at, at + q.length)) + "</mark>" + escapeHtml(name.slice(at + q.length));
+}
+function record(action, details) {
+  const line = document.createElement("div");
+  line.innerHTML = `<span class="act">${escapeHtml(action)}</span> ${escapeHtml(JSON.stringify(details))}`;
+  $("log").prepend(line);
+}
+function showToast(text) {
+  $("toast").innerHTML = `<div class="toast">${text}</div>`;
+  setTimeout(() => ($("toast").innerHTML = ""), 2600);
+}
+function reset() {
+  state.permission = "unknown"; state.chosen = null;
+  looking.swipes = 0; looking.map = 0; showLooking();
+  closePicker();
+  $("createSheet").classList.remove("open");
+  $("permission").innerHTML = "";
+  $("log").innerHTML = `<div>Tap ＋ on the phone to start.</div>`;
+  renderExplore();
+}
+
+// ---- Wiring ---------------------------------------------------------------------------------
+$("plus").onclick = () => openCreate("create_tab");
+$("cancelCreate").onclick = closeCreate;
+$("whereField").onclick = openPicker;
+$("whereField").onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openPicker(); } };
+$("pickerBack").onclick = () => {
+  if (picker.pinMode) { picker.pinMode = false; renderPicker(); redraw(); }
+  else if (picker.selected) deselect();
+  else abandonPicker("back");
+};
+let flyTimer = 0;
+$("q").oninput = () => {
+  picker.query = $("q").value;
+  picker.selected = null; picker.pinMode = false;
+  renderPicker();
+  redraw();
+  clearTimeout(flyTimer);
+  flyTimer = setTimeout(() => {
+    const { list, searching } = visiblePlaces();
+    if (searching && list.length) flyTo(list[0].lng, list[0].lat, Math.max(view.k, 30000));
+  }, 450);
+};
+$("clearQ").onclick = () => { $("q").value = ""; $("q").oninput(); };
+$("handle").onclick = () => { picker.expanded = !picker.expanded; setSheetHeight(); redraw(); };
+$("zoomIn").onclick = () => { lookedAround("map"); zoomAt(2, W / 2, H / 2); };
+$("zoomOut").onclick = () => { lookedAround("map"); zoomAt(0.5, W / 2, H / 2); };
+$("locate").onclick = () => { if (state.permission === "granted") flyTo(me.lng, me.lat, Math.max(view.k, 40000)); else askPermission(); };
+$("pinPill").onclick = () => enterPin();
+$("createBtn").onclick = () => {
+  if (!state.chosen) { $("formError").hidden = false; return; }
+  record("event_creation_submitted", { attempt_number: 1, place: state.chosen.name });
+  $("createSheet").classList.remove("open");
+  showToast(`Event created at ${escapeHtml(state.chosen.name)} (prototype)`);
+};
+document.querySelectorAll("[data-context]").forEach((button) => button.onclick = () => {
+  state.context = button.dataset.context;
+  document.querySelectorAll("[data-context]").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+  closePicker();
+  $("createSheet").classList.remove("open");
+  renderExplore();
+});
+document.querySelectorAll('input[name="layout"], input[name="dotStyle"], input[name="pinStart"]').forEach((input) => input.onchange = () => {
+  if (input.name === "dots") picker.group = null;
+  if (picker.open) { renderPicker(); redraw(); }
+});
+$("reset").onclick = reset;
+showLooking();
+new ResizeObserver(() => { if (picker.open) resize(); }).observe(canvas);
+
+Promise.all([fetch("places.json").then((r) => r.json()), fetch("districts.json").then((r) => r.json())]).then(([rows, outlines]) => {
+  places = rows.map(([name, kind, district, lng, lat, alt]) => {
+    const norm = normalise(name);
+    const words = norm.split(" ");
+    const place = { name, kind: kinds[kind] ? kind : "community", district, lng, lat, norm, words, alt: normalise(alt || ""),
+      trigrams: trigrams(norm), wordTrigrams: words.map((w) => trigrams(w)) };
+    place.km = km(me, place);
+    return place;
+  });
+  districts = outlines;
+  reset();
+}).catch(() => {
+  $("exploreCard").innerHTML = `<div class="muted">Could not load the places. Serve this folder over HTTP (see the README) rather than opening the file directly.</div>`;
+});
+</script>

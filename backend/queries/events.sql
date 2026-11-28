@@ -18,6 +18,7 @@ JOIN added_host ON added_host.event_id = created_event.id;
 -- name: GetEvent :one
 WITH event_detail AS (
     SELECT events.*, places.name AS place_name, places.location,
+        places.slug AS place_slug, district.slug AS district_slug, district.name AS district_name,
         place_spots.name AS spot_name, place_spots.location AS spot_location,
         users.display_name AS host_name, status.name AS status_name, status.slug AS status_slug,
         COALESCE((SELECT jsonb_agg(jsonb_build_object('id', participants.id,
@@ -25,6 +26,7 @@ WITH event_detail AS (
             FROM event_participants AS membership JOIN users AS participants ON participants.id = membership.user_id
             WHERE membership.event_id = events.id), '[]'::jsonb) AS participants
     FROM events JOIN places ON places.id = events.place_id
+    JOIN areas AS district ON district.id = places.area_id
     LEFT JOIN place_spots ON place_spots.id = events.spot_id
     JOIN users ON users.id = events.host_id JOIN status ON status.id = events.status_id
     WHERE events.id = sqlc.arg(id) AND status.statusable_type = 'event'
@@ -32,7 +34,8 @@ WITH event_detail AS (
 SELECT jsonb_build_object(
     'id', id, 'title', title, 'type', type, 'starts_at', starts_at, 'capacity', capacity,
     'host', jsonb_build_object('id', host_id, 'display_name', host_name),
-    'place', jsonb_build_object('id', place_id, 'name', place_name,
+    'place', jsonb_build_object('id', place_id, 'name', place_name, 'slug', place_slug,
+        'district', jsonb_build_object('slug', district_slug, 'name', district_name),
         'coordinates', ST_AsGeoJSON(location)::jsonb->'coordinates'),
     'spot', CASE WHEN spot_id IS NULL THEN NULL ELSE jsonb_build_object(
         'id', spot_id, 'name', spot_name,
@@ -73,10 +76,12 @@ DELETE FROM event_participants WHERE event_id = $1 AND user_id = $2;
 -- name: ListUserEvents :one
 WITH matching_events AS (
     SELECT events.*, places.name AS place_name, places.location,
+        places.slug AS place_slug, district.slug AS district_slug, district.name AS district_name,
         place_spots.name AS spot_name, place_spots.location AS spot_location,
         users.display_name AS host_name, status.name AS status_name, status.slug AS status_slug
     FROM events
     JOIN places ON places.id = events.place_id
+    JOIN areas AS district ON district.id = places.area_id
     LEFT JOIN place_spots ON place_spots.id = events.spot_id
     JOIN users ON users.id = events.host_id
     JOIN status ON status.id = events.status_id
@@ -99,7 +104,8 @@ SELECT jsonb_build_object(
     'events', COALESCE(jsonb_agg(jsonb_build_object(
         'id', id, 'title', title, 'type', type, 'starts_at', starts_at, 'capacity', capacity,
         'host', jsonb_build_object('id', host_id, 'display_name', host_name),
-        'place', jsonb_build_object('id', place_id, 'name', place_name,
+        'place', jsonb_build_object('id', place_id, 'name', place_name, 'slug', place_slug,
+            'district', jsonb_build_object('slug', district_slug, 'name', district_name),
             'coordinates', ST_AsGeoJSON(location)::jsonb->'coordinates'),
         'spot', CASE WHEN spot_id IS NULL THEN NULL ELSE jsonb_build_object(
             'id', spot_id, 'name', spot_name,
