@@ -225,6 +225,7 @@ export default function JoinerProgress({
               ))}
             </View>
             <TextInput
+              placeholderTextColor="#798268"
               accessibilityLabel="Event goal target"
               value={target}
               onChangeText={setTarget}
@@ -244,7 +245,7 @@ export default function JoinerProgress({
               onPress={() => void saveGoal()}
             >
               {saving ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color="#FFF8E8" />
               ) : (
                 <Text style={styles.buttonText}>Save event goal</Text>
               )}
@@ -330,45 +331,73 @@ export default function JoinerProgress({
 
 const styles = StyleSheet.create({
   section: { gap: 16 },
-  card: { backgroundColor: "#E5E9DF", borderRadius: 20, padding: 20, gap: 12 },
-  heading: { fontFamily: "BigShoulders", fontSize: 30, color: "#15201B" },
-  number: { fontFamily: "BigShoulders", fontSize: 42, color: "#15201B" },
-  label: { fontSize: 16, fontWeight: "700", color: "#15201B" },
-  muted: { fontSize: 14, lineHeight: 21, color: "#6C786E" },
-  action: { fontSize: 16, fontWeight: "700", color: "#1D5B3A" },
+  card: {
+    backgroundColor: "#FFF8E8",
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
+  },
+  heading: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 30,
+    color: "#203E30",
+  },
+  number: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 42,
+    color: "#203E30",
+  },
+  label: { fontSize: 16, fontFamily: "DMSans_700Bold", color: "#203E30" },
+  muted: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#798268",
+    fontFamily: "DMSans_400Regular",
+  },
+  action: { fontSize: 16, fontFamily: "DMSans_700Bold", color: "#203E30" },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   choice: {
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "#F4F5F0",
+    backgroundColor: "#FAF5E7",
     minWidth: 44,
     alignItems: "center",
   },
-  selected: { backgroundColor: "#1D5B3A" },
+  selected: { backgroundColor: "#203E30" },
   button: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: "#1D5B3A",
+    backgroundColor: "#E3342F",
     alignItems: "center",
   },
-  buttonText: { color: "white", fontSize: 16, fontWeight: "700" },
+  buttonText: { color: "#FFF8E8", fontSize: 16, fontFamily: "DMSans_700Bold" },
   input: {
-    backgroundColor: "white",
+    backgroundColor: "#FFF8E8",
     padding: 16,
     borderRadius: 14,
-    color: "#15201B",
+    color: "#203E30",
     fontSize: 18,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
+    fontFamily: "DMSans_400Regular",
   },
   badge: {
-    color: "#1D5B3A",
+    color: "#203E30",
     fontSize: 16,
-    fontWeight: "700",
-    backgroundColor: "#F4F5F0",
+    fontFamily: "DMSans_700Bold",
+    backgroundColor: "#FAF5E7",
     borderRadius: 12,
     padding: 14,
     overflow: "hidden",
   },
   control: { paddingVertical: 12 },
   disabled: { opacity: 0.5 },
-  error: { color: "#B51E2C", fontSize: 14, lineHeight: 21 },
+  error: {
+    color: "#B51E2C",
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: "DMSans_400Regular",
+  },
 });

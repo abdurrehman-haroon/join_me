@@ -277,7 +277,10 @@ export default function EventChat({
     try {
       const response = await fetch(`${apiURL}/events/${eventID}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...message.activityHeaders },
+        headers: {
+          "Content-Type": "application/json",
+          ...message.activityHeaders,
+        },
         body: JSON.stringify({ id: message.id, body: message.body }),
         signal: controller.signal,
       });
@@ -358,7 +361,7 @@ export default function EventChat({
           </View>
         )}
         {loading ? (
-          <ActivityIndicator style={{ flex: 1 }} color="#1D5B3A" />
+          <ActivityIndicator style={{ flex: 1 }} color="#E3342F" />
         ) : (
           <FlatList<Message | PendingMessage>
             ref={list}
@@ -448,6 +451,7 @@ export default function EventChat({
         {canSend && eventWritable && !denied && (
           <View style={styles.composer}>
             <TextInput
+              placeholderTextColor="#798268"
               accessibilityLabel="Message"
               placeholder="Message your group…"
               multiline
@@ -481,51 +485,71 @@ export default function EventChat({
   );
 }
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F5F0", paddingTop: 24 },
+  root: { flex: 1, backgroundColor: "#FAF5E7", paddingTop: 24 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 22,
+    paddingTop: 16,
     gap: 16,
   },
   kicker: {
-    color: "#1D5B3A",
-    fontWeight: "800",
+    color: "#E3342F",
+    fontFamily: "DMSans_700Bold",
     fontSize: 11,
     letterSpacing: 1.3,
   },
-  title: { fontFamily: "BigShoulders", fontSize: 30, color: "#15201B" },
+  title: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 30,
+    color: "#203E30",
+  },
   button: { padding: 14 },
-  action: { color: "#1D5B3A", fontWeight: "700" },
-  notice: { paddingHorizontal: 22, paddingVertical: 10, color: "#6C786E" },
-  error: { color: "#B51E2C" },
+  action: { color: "#203E30", fontFamily: "DMSans_700Bold" },
+  notice: {
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    color: "#798268",
+    fontFamily: "DMSans_400Regular",
+  },
+  error: { color: "#B51E2C", fontFamily: "DMSans_400Regular" },
   bubble: {
-    backgroundColor: "#E5E9DF",
+    backgroundColor: "#FFF8E8",
     borderRadius: 18,
     padding: 14,
     marginVertical: 5,
     maxWidth: "85%",
     alignSelf: "flex-start",
     gap: 5,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
   },
-  own: { backgroundColor: "#D2E7D4", alignSelf: "flex-end" },
-  body: { color: "#15201B", fontSize: 16, lineHeight: 22 },
-  meta: { color: "#536658", fontSize: 11 },
+  own: { backgroundColor: "#E5E8D8", alignSelf: "flex-end" },
+  body: {
+    color: "#203E30",
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: "DMSans_400Regular",
+  },
+  meta: { color: "#798268", fontSize: 11, fontFamily: "DMSans_400Regular" },
   composer: {
     flexDirection: "row",
     alignItems: "flex-end",
     padding: 16,
     paddingBottom: 30,
     borderTopWidth: 1,
-    borderColor: "#DEE3D8",
+    borderColor: "#D2D9B8",
   },
   input: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#FFF8E8",
     borderRadius: 18,
     padding: 14,
     maxHeight: 140,
-    color: "#15201B",
+    color: "#203E30",
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
+    fontFamily: "DMSans_400Regular",
   },
 });

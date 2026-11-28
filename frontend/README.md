@@ -1,6 +1,6 @@
 # Join Me mobile app
 
-Expo SDK 57 / React Native, with a native MapLibre map and OpenFreeMap Liberty tiles. `index.ts` registers `src/NativeApp.tsx`; `src/ExploreScreen.tsx` owns the connected Explore map. Only connected screens ship in the app: Explore, Your events and You.
+Expo SDK 57 / React Native, with a native MapLibre map and OpenFreeMap Liberty tiles. `index.ts` registers `src/NativeApp.tsx`; `src/ExploreScreen.tsx` owns the connected Explore map. Only connected screens ship in the app: Explore and You, with a centred ＋ between them. You holds Your events and the profile behind a switch (`src/YouScreen.tsx`). The tab bar and EventForm use the Explore palette and fonts from `explore` in `src/ExploreCards.tsx`. The ＋ opens EventForm anywhere; without a place in view, `src/PlacePicker.tsx` opens over it: a map of every place from `GET /cities/lahore/places` (once per run), search through `GET /cities/lahore/places/search`, kind filters, a list of places in view or search results, a place card with its next events, and "Use this place". Location (`expo-location`, `src/location.ts`) is asked after looking around (`src/lookAround.ts`) or with ⌖, and is used only to order and measure, never stored. A place that is not listed can be pinned (`src/PinSheet.tsx`) and is created with the event. After posting, `src/Celebration.tsx` celebrates and lands on the event; `src/share.tsx` shares to WhatsApp or the share sheet with a `joinme://events/{id}` link, which the app opens (`app.json` scheme `joinme`).
 
 ## Run
 
@@ -31,7 +31,7 @@ Restart Metro after changing environment values.
 
 Explore loads Lahore's districts, places and upcoming events from the hierarchy API. The map follows the cards and takes no gestures of its own; selecting districts and events updates the camera and highlights. Each level (city, district, place) is its own feed page, side by side: a sideways swipe drags the next level in 1:1 and the level either side is kept built. Holding and dragging the rail's dots scrubs through districts or places. Loading, empty, failed-request and retry states are present. No location permission or sign-in is requested. Map attribution remains enabled.
 
-The Lahore development catalogue includes community-mapped OpenStreetMap locations and approximate unverified entries described in `../backend/seeds/lahore_catalog.sql`. Event browsing, creation from a place, joining/leaving and details are connected. Hostel Cup, fake settings and sample action sheets have been removed.
+Places come from OpenStreetMap through a weekly backend job (`../backend/seeds/lahore_osm_places.sql`). Event browsing, creation from a place, joining/leaving and details are connected. Hostel Cup, fake settings and sample action sheets have been removed.
 
 Checks: `pnpm exec expo lint index.ts src` and `pnpm exec tsc --noEmit`.
 

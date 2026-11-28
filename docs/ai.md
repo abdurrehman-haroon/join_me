@@ -1,6 +1,6 @@
 # Shared AI workflow
 
-1. Start: read `docs/project.md`, `docs/plan.md`, and `docs/handoff.md`. Read `design/README.md` for design work, `openapi.yaml` for API work, `frontend/AGENTS.md` for frontend work, and `docs/explore-performance.md` for Explore or map UX work.
+1. Start: read `docs/project.md`, `docs/plan.md`, and `docs/handoff.md`. Read `design/README.md` for design work, `openapi.yaml` for API work, `frontend/AGENTS.md` for frontend work, `docs/explore-performance.md` for Explore or map UX work, and `docs/how-we-build.md` for any feature work.
 2. Work directly on `main`; do not create feature branches. Keep API changes aligned with `openapi.yaml`.
 3. Finish: run `make check`. Keep `docs/project.md`, `docs/plan.md`, and `docs/handoff.md` current when decisions, scope, or implementation state change. Leave changes uncommitted for user review.
 4. After frontend changes, reload the local development app and verify the updated screen in the simulator when available. Tell the user which server is running and how to reload it themselves.

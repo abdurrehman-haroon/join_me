@@ -18,7 +18,11 @@ WITH city AS (
             SELECT ST_Expand(ST_Extent(places.location)::geometry, 0.001)
             FROM places WHERE places.area_id = districts.id
         )) AS view_boundary,
-        (SELECT count(*) FROM places WHERE places.area_id = districts.id) AS place_count,
+        -- Explore lists only places with something coming up; every place stays
+        -- searchable for creating. Places OSM no longer lists leave the feed.
+        (SELECT count(DISTINCT upcoming_events.place_id) FROM upcoming_events
+         JOIN places ON places.id = upcoming_events.place_id
+         WHERE upcoming_events.district_id = districts.id AND places.status = 'active') AS place_count,
         (SELECT count(*) FROM upcoming_events WHERE upcoming_events.district_id = districts.id) AS upcoming_event_count,
         (SELECT jsonb_build_object(
             'place', jsonb_build_object('id', places.id, 'name', places.name, 'slug', places.slug),
@@ -56,7 +60,8 @@ SELECT jsonb_build_object(
         'upcoming_event_count', district_summaries.upcoming_event_count,
         'first_up', district_summaries.first_up
     ) ORDER BY district_summaries.sort_order, district_summaries.name, district_summaries.id)
-    FROM district_summaries), '[]'::jsonb)
+    -- Like places, Explore lists only districts with something coming up.
+    FROM district_summaries WHERE district_summaries.upcoming_event_count > 0), '[]'::jsonb)
 )::jsonb AS districts
 FROM city_view;
 
@@ -85,12 +90,16 @@ WITH district AS (
         AND events.starts_at < sqlc.arg(window_ends_at)::timestamptz
 ), place_summaries AS (
     SELECT places.id, places.name, places.slug, places.type, places.location, places.sort_order,
+        places.kind_text,
+        -- Pinned by someone and not reviewed yet: Explore tags it "New place".
+        places.source = 'user' AND places.review_status = 'unreviewed' AS is_new,
         (SELECT count(*) FROM upcoming_events WHERE upcoming_events.place_id = places.id) AS upcoming_event_count,
         COALESCE((SELECT jsonb_agg(jsonb_build_object(
             'id', upcoming_events.id, 'title', upcoming_events.title, 'type', upcoming_events.type,
             'starts_at', upcoming_events.starts_at, 'capacity', upcoming_events.capacity,
             'host', jsonb_build_object('id', upcoming_events.host_id, 'display_name', upcoming_events.host_name),
-            'place', jsonb_build_object('id', places.id, 'name', places.name,
+            'place', jsonb_build_object('id', places.id, 'name', places.name, 'slug', places.slug,
+                'district', jsonb_build_object('slug', district.slug, 'name', district.name),
                 'coordinates', ST_AsGeoJSON(places.location)::jsonb->'coordinates'),
             'spot', CASE WHEN upcoming_events.spot_id IS NULL THEN NULL ELSE jsonb_build_object(
                 'id', upcoming_events.spot_id, 'name', upcoming_events.spot_name,
@@ -106,6 +115,9 @@ WITH district AS (
         WHERE upcoming_events.place_id = places.id AND upcoming_events.place_position <= 20), '[]'::jsonb) AS events
     FROM places
     JOIN district ON district.id = places.area_id
+    -- Only places with something coming up, as in the city feed's place_count.
+    WHERE places.status = 'active'
+        AND EXISTS (SELECT 1 FROM upcoming_events WHERE upcoming_events.place_id = places.id)
 ), district_view AS (
     SELECT district.*, COALESCE(district.boundary, (
         SELECT ST_Expand(ST_Extent(places.location)::geometry, 0.001)
@@ -124,6 +136,7 @@ SELECT jsonb_build_object(
     'places', COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'id', place_summaries.id, 'name', place_summaries.name, 'slug', place_summaries.slug,
         'type', place_summaries.type, 'sort_order', place_summaries.sort_order,
+        'kind_text', place_summaries.kind_text, 'is_new', place_summaries.is_new,
         'coordinates', ST_AsGeoJSON(place_summaries.location)::jsonb->'coordinates',
         'upcoming_event_count', place_summaries.upcoming_event_count, 'events', place_summaries.events
     ) ORDER BY place_summaries.sort_order, place_summaries.name, place_summaries.id)
@@ -174,7 +187,8 @@ SELECT jsonb_build_object(
         'id', upcoming_events.id, 'title', upcoming_events.title, 'type', upcoming_events.type,
         'starts_at', upcoming_events.starts_at, 'capacity', upcoming_events.capacity,
         'host', jsonb_build_object('id', upcoming_events.host_id, 'display_name', upcoming_events.host_name),
-        'place', jsonb_build_object('id', place.id, 'name', place.name,
+        'place', jsonb_build_object('id', place.id, 'name', place.name, 'slug', place.slug,
+            'district', jsonb_build_object('slug', place.district_slug, 'name', place.district_name),
             'coordinates', ST_AsGeoJSON(place.location)::jsonb->'coordinates'),
         'spot', CASE WHEN upcoming_events.spot_id IS NULL THEN NULL ELSE jsonb_build_object(
             'id', upcoming_events.spot_id, 'name', upcoming_events.spot_name,

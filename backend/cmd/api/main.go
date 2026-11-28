@@ -15,10 +15,15 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivermigrate"
+	"github.com/robfig/cron/v3"
 	"joinme/backend/internal/activities"
 	"joinme/backend/internal/database"
 	"joinme/backend/internal/events"
 	"joinme/backend/internal/geography"
+	"joinme/backend/internal/osmplaces"
 	"joinme/backend/internal/users"
 	"joinme/backend/migrations"
 )
@@ -42,7 +47,6 @@ func main() {
 	if err = migrations.Apply(ctx, pool); err != nil {
 		log.Fatalf("migrate database: %v", err)
 	}
-	geographyHandler := geography.Handler{Queries: database.New(pool)}
 	demoUser := os.Getenv("DEMO_USER_ID")
 	if demoUser == "" {
 		demoUser = "20000000-0000-4000-8000-000000000001"
@@ -51,10 +55,46 @@ func main() {
 	if err = demoUserID.Scan(demoUser); err != nil || !demoUserID.Valid {
 		log.Fatal("DEMO_USER_ID must be a UUID")
 	}
-	eventHandler := events.Handler{Queries: database.New(pool), DemoUserID: demoUserID, Pool: pool}
+	geographyHandler := geography.Handler{Queries: database.New(pool), DemoUserID: demoUserID}
+	// At most two new events per person per Lahore day.
+	eventHandler := events.Handler{Queries: database.New(pool), DemoUserID: demoUserID, Pool: pool, DailyEventLimit: 2}
 
 	runtimeContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// Background jobs (River, kept in Postgres). Its tables are always created;
+	// the schedule only runs with JOBS_ENABLED=true, which deployment turns on.
+	// Until then run a job by hand, for example `make osm-places`.
+	riverMigrator, err := rivermigrate.New(riverpgxv5.New(pool), nil)
+	if err != nil {
+		log.Fatalf("set up job migrations: %v", err)
+	}
+	if _, err = riverMigrator.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
+		log.Fatalf("migrate job tables: %v", err)
+	}
+	if os.Getenv("JOBS_ENABLED") == "true" {
+		workers := river.NewWorkers()
+		river.AddWorker(workers, &osmplaces.SyncWorker{Pool: pool})
+		// Every Tuesday at 3am Lahore time.
+		weekly, err := cron.ParseStandard("CRON_TZ=Asia/Karachi 0 3 * * 2")
+		if err != nil {
+			log.Fatalf("parse OSM places schedule: %v", err)
+		}
+		jobs, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+			Queues:  map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: 2}},
+			Workers: workers,
+			PeriodicJobs: []*river.PeriodicJob{river.NewPeriodicJob(weekly,
+				func() (river.JobArgs, *river.InsertOpts) { return osmplaces.SyncArgs{}, nil }, nil)},
+		})
+		if err != nil {
+			log.Fatalf("set up jobs: %v", err)
+		}
+		if err = jobs.Start(runtimeContext); err != nil {
+			log.Fatalf("start jobs: %v", err)
+		}
+		defer jobs.Stop(context.Background())
+		log.Print("Background jobs running: OSM places every Tuesday at 3am")
+	}
 	live := realtime.NewServer(pool)
 	live.Authorize = eventHandler.RealtimeAccess
 	live.Snapshot = eventHandler.RealtimeSnapshot
@@ -88,6 +128,9 @@ func main() {
 	mux.HandleFunc("GET /cities/{city}/districts", geographyHandler.ListCityDistricts)
 	mux.HandleFunc("GET /cities/{city}/districts/{district}/places", geographyHandler.ListDistrictPlaces)
 	mux.HandleFunc("GET /cities/{city}/districts/{district}/places/{place}", geographyHandler.GetPlace)
+	mux.HandleFunc("GET /cities/{city}/places", geographyHandler.ListPickerPlaces)
+	mux.HandleFunc("GET /cities/{city}/places/search", geographyHandler.SearchPlaces)
+	mux.HandleFunc("GET /cities/{city}/places/nearby", geographyHandler.PlacesNear)
 	mux.HandleFunc("GET /me/events", eventHandler.ListUserEvents)
 	mux.HandleFunc("PUT /events/{id}/cancellation", eventHandler.CancelEvent)
 	mux.HandleFunc("POST /events", eventHandler.CreateEvent)

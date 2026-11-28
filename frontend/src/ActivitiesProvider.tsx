@@ -128,14 +128,13 @@ export function useActivityInteraction({
   target: InteractionTarget;
   source: ActivitySource;
   startAction:
-    | "event_creation_started"
-    | "event_viewed"
-    | "place_viewed"
-    | "chat_opened";
+    "event_creation_started" | "event_viewed" | "place_viewed" | "chat_opened";
   details?: Record<string, unknown>;
 }) {
   const { queue, sessionID } = useActivities();
   const interaction = useRef<ActivityInteraction | null>(null);
+  const targetType = target?.type;
+  const targetID = target?.id;
   const current = useRef({ visible, details });
   useEffect(() => {
     current.current = { visible, details };
@@ -144,7 +143,7 @@ export function useActivityInteraction({
     if (!enabled) return;
     const visit = new ActivityInteraction(
       sessionID,
-      { type: target.type, id: target.id },
+      targetType && targetID ? { type: targetType, id: targetID } : null,
       source,
       startAction,
       current.current.details,
@@ -163,7 +162,7 @@ export function useActivityInteraction({
       visit.close("dismissed");
       if (interaction.current === visit) interaction.current = null;
     };
-  }, [enabled, target.type, target.id, source, startAction, queue, sessionID]);
+  }, [enabled, targetType, targetID, source, startAction, queue, sessionID]);
   useEffect(() => {
     interaction.current?.setState(visible, AppState.currentState === "active");
   }, [visible]);

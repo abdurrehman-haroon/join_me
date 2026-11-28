@@ -136,6 +136,111 @@ paths:
             text/plain:
               schema: { type: string }
         '500': { $ref: '#/components/responses/ServerError' }
+  /cities/{city}/places:
+    get:
+      summary: Every place the create flow's picker can show
+      description: Public read-only endpoint, downloaded once and filtered on the phone by kind and by what is on screen. Includes active places that are not rejected. Rows are compact arrays in the order given by fields, sorted by name. upcoming_event_count counts scheduled events starting before window_ends_at (seven days). A city we do not know returns an empty list. Sent gzip-compressed (about 110 KB for Lahore) when the client accepts gzip.
+      parameters:
+        - { $ref: '#/components/parameters/CitySlug' }
+      responses:
+        '200':
+          description: All picker places
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [window_ends_at, fields, districts, places]
+                properties:
+                  window_ends_at: { type: string, format: date-time }
+                  districts: { type: object, additionalProperties: { type: string }, description: Every district's name by slug }
+                  fields:
+                    type: array
+                    items: { type: string, enum: [id, slug, name, type, district_slug, longitude, latitude, upcoming_event_count, kind_text, private] }
+                  places:
+                    type: array
+                    items:
+                      type: array
+                      description: "[id, slug, name, type, district_slug, longitude, latitude, upcoming_event_count, kind_text, private]; coordinates rounded to 5 decimals; private rows are the viewer's own"
+                      minItems: 10
+                      maxItems: 10
+                      items: {}
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /cities/{city}/places/nearby:
+    get:
+      summary: A pin's district and similar places within 150 m
+      description: For dropping a pin. district is the city district containing the point (null outside the city). With q (2 or more characters), places lists up to 5 places within 150 m whose name is similar (trigram similarity of 0.3 or more, or containing q), closest match first; public places plus the viewer's own private ones. The point is never stored or logged.
+      parameters:
+        - { $ref: '#/components/parameters/CitySlug' }
+        - { name: lng, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200':
+          description: District and nearby similar places
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [district, places]
+                properties:
+                  district: { type: object, nullable: true, properties: { slug: { type: string }, name: { type: string } } }
+                  places:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, slug, name, type, kind_text, private, district, coordinates, distance_m]
+                      properties:
+                        id: { type: string, format: uuid }
+                        slug: { type: string }
+                        name: { type: string }
+                        type: { type: string }
+                        kind_text: { type: string, nullable: true }
+                        private: { type: boolean }
+                        district: { type: object, properties: { slug: { type: string }, name: { type: string } } }
+                        coordinates: { $ref: '#/components/schemas/Coordinates' }
+                        distance_m: { type: number }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /cities/{city}/places/search:
+    get:
+      summary: Search a city's places by any of their names
+      description: Matches the shown name and the Urdu, alternative and old names from OpenStreetMap, using pg_trgm. Ranking puts names that start with the query first, then any name containing it, then trigram similarity of at least 0.3 to the shown name or to all names together (closest match first). Within each tier, results are nearest first when near is given, then by name. near is used only for ordering and is never stored or logged. % and _ are matched literally. A city we do not know returns no places.
+      parameters:
+        - { $ref: '#/components/parameters/CitySlug' }
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 100 }, description: Trimmed; one line }
+        - { name: near, in: query, required: false, schema: { type: string, example: '74.3456,31.5104' }, description: longitude,latitude for ordering only }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Ranked places
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result_count, places]
+                properties:
+                  result_count: { type: integer, minimum: 0, description: All matches, before limit }
+                  places:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, slug, name, type, district, coordinates, distance_m]
+                      properties:
+                        id: { type: string, format: uuid }
+                        slug: { type: string }
+                        name: { type: string }
+                        type: { type: string }
+                        district:
+                          type: object
+                          required: [slug, name]
+                          properties:
+                            slug: { type: string }
+                            name: { type: string }
+                        coordinates: { $ref: '#/components/schemas/Coordinates' }
+                        distance_m: { type: number, nullable: true, description: Metres from near; null without near }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
   /cities/{city}/districts/{district}/places/{place}:
     get:
       summary: Load one place with its spots and coming-up events
@@ -168,7 +273,7 @@ paths:
         - { $ref: '#/components/parameters/ActivityID' }
         - { $ref: '#/components/parameters/ActivitySession' }
         - { $ref: '#/components/parameters/ActivityInteraction' }
-      description: Temporary demo identity until sign-in is implemented. Host and status are chosen by the server. The host joins atomically and counts toward capacity. Request body limited to 16 KiB. Records event_created transactionally. With all three activity headers, X-Activity-ID is an idempotency receipt scoped to the original actor, session, interaction and normalized body. Concurrent identical retries return the original 201/id even after kickoff; changed content/context returns 409. Receipt retention is required for retry safety. Without headers, legacy creation is not idempotent.
+      description: Temporary demo identity until sign-in is implemented. Host and status are chosen by the server. The host joins atomically and counts toward capacity. Request body limited to 16 KiB. Records event_created transactionally. With all three activity headers, X-Activity-ID is an idempotency receipt scoped to the original actor, session, interaction and normalized body. Concurrent identical retries return the original 201/id even after kickoff; changed content/context returns 409. Receipt retention is required for retry safety. Without headers, legacy creation is not idempotent. Send either place_id or new_place, a place pinned by the host, created in the same transaction in the Lahore district containing it (unreviewed; private places record the host as created_by and are shown only to them). A pin outside Lahore returns 422. The server allows at most 2 new events per person per Lahore calendar day (events created through the app, cancelled ones included); a further one returns 429. event_created records new_place true when a place was pinned.
       requestBody:
         required: true
         content:
@@ -176,9 +281,21 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [place_id, title, type, starts_at, capacity]
+              required: [title, type, starts_at, capacity]
+              description: Exactly one of place_id and new_place. spot_id only with place_id.
               properties:
                 place_id: { type: string, format: uuid }
+                new_place:
+                  type: object
+                  additionalProperties: false
+                  required: [name, coordinates]
+                  description: Exactly one of kind (an approved kind) and kind_text (a typed kind, stored with type other).
+                  properties:
+                    name: { type: string, minLength: 2, maxLength: 80, description: Trimmed, one line. }
+                    kind: { type: string, enum: [campus, cafe, restaurant, park, mall, sports_club, stadium, culture, heritage, hotel, exhibition, community] }
+                    kind_text: { type: string, minLength: 1, maxLength: 40, description: Trimmed, one line. }
+                    coordinates: { $ref: '#/components/schemas/Coordinates' }
+                    private: { type: boolean, default: false, description: Only the host will see it in the picker and search. }
                 spot_id: { type: string, format: uuid, description: Optional spot inside the selected place. }
                 title: { type: string, minLength: 1, maxLength: 200, description: Trimmed; whitespace-only titles are rejected. }
                 type: { type: string, minLength: 1, maxLength: 50, description: User-entered, trimmed event type. }
@@ -186,6 +303,8 @@ paths:
                 capacity: { type: integer, minimum: 1, maximum: 2147483647, description: Includes the host. }
       responses:
         '409': { description: Creation receipt already used with different content or correlation context }
+        '422': { description: The pinned place is outside Lahore. }
+        '429': { description: 'Daily limit reached: at most 2 new events per person per Lahore day.' }
         '201':
           description: Event and host participation created atomically, or original creation replayed
           headers:
@@ -602,28 +721,44 @@ components:
       type: object
       additionalProperties: false
       required: [id, action, session_id, interaction_id, interaction_step, trackable_type, trackable_id, source, occurred_at, details]
-      description: Session, Explore, creation/join and chat client contract; other catalogue actions remain disabled. Session starts require id=session_id, null interaction_id/interaction_step/source/trackable_type/trackable_id and empty details. All screen actions require a nonzero interaction_id, positive interaction_step and a source. Creation actions target a place from event_form. Views target an event from place_details/your_events/profile/explore. Join attempts target an event from event_details. Chat openings target an event from event_details with step 1 and zero timing. Chat lifecycle rows target an event from event_chat. Other lifecycle rows target a place from event_form/place_details or an event from event_details. Timed starts/views must be step 1 with zero durations; timed continuations need step >=2. Place views target a place from explore and require referrer_interaction_id and zero timing. Area views target a city or district from explore at step 1 with empty details; clients send at most one per session for each area. Referrer IDs are correlation context, not trusted proof of attribution. See docs/activities.md for exact action/detail combinations.
+      description: Session, Explore, creation/join and chat client contract; other catalogue actions remain disabled. Session starts require id=session_id, null interaction_id/interaction_step/source/trackable_type/trackable_id and empty details. All screen actions require a nonzero interaction_id, positive interaction_step and a source. Creation starts come from event_form with a place or no target (the ＋ can open the form before a place is picked); submissions target a place. In the place picker (event_form, step 2 or later) place_search_selected targets the picked place; place_search_abandoned and location_permission_answered have no target. Views target an event from place_details/your_events/profile/explore. Join attempts target an event from event_details. Chat openings target an event from event_details with step 1 and zero timing. Chat lifecycle rows target an event from event_chat. Other lifecycle rows target a place or nothing from event_form, a place from place_details or an event from event_details. Timed starts/views must be step 1 with zero durations; timed continuations need step >=2. Place views target a place from explore and require referrer_interaction_id and zero timing. Area views target a city or district from explore at step 1 with empty details; event_shared (from celebration or event_details) and celebration_closed (from celebration) target an event at step 1 in their own interaction with a referrer_interaction_id; clients send at most one per session for each area. Referrer IDs are correlation context, not trusted proof of attribution. See docs/activities.md for exact action/detail combinations.
       properties:
         id: { type: string, format: uuid }
-        action: { type: string, enum: [session_started, place_viewed, area_viewed, event_creation_started, event_creation_submitted, event_viewed, join_attempted, chat_opened, interaction_paused, interaction_resumed, interaction_closed] }
+        action: { type: string, enum: [session_started, place_viewed, area_viewed, event_creation_started, event_creation_submitted, event_viewed, join_attempted, chat_opened, interaction_paused, interaction_resumed, interaction_closed, place_search_selected, place_search_abandoned, location_permission_answered, place_pinned, event_shared, celebration_closed] }
         session_id: { type: string, format: uuid }
         interaction_id: { type: string, format: uuid, nullable: true }
         interaction_step: { type: integer, minimum: 1, maximum: 2147483647, nullable: true }
         trackable_type: { type: string, enum: [event, place, area], nullable: true }
         trackable_id: { type: string, format: uuid, nullable: true }
-        source: { type: string, enum: [event_form, event_details, event_chat, place_details, your_events, profile, explore], nullable: true }
+        source: { type: string, enum: [event_form, event_details, event_chat, place_details, your_events, profile, explore, celebration], nullable: true }
         occurred_at: { type: string, format: date-time }
         details:
           type: object
           additionalProperties: false
-          description: Session starts require an empty object. Timed activities require elapsed_ms and active_ms with active_ms <= elapsed_ms. attempt_number required only for submission/join_attempted. snapshot/viewer_role required only for event_viewed. reason required only for pause/close. All other combinations and explicit nulls are rejected.
+          description: Session starts require an empty object. Timed activities require elapsed_ms and active_ms with active_ms <= elapsed_ms. attempt_number required only for submission/join_attempted. snapshot/viewer_role required only for event_viewed. reason required only for pause/close and place_search_abandoned. entry is optional, only on event_creation_started. place_search_selected requires via, position (null for map_dot and pin_duplicate_check, 1 or more for list and search), result_count, query and location_on; place_search_abandoned requires query, result_count, location_on and reason back or closed; location_permission_answered requires answer. No location is ever accepted. All other combinations and explicit nulls are rejected.
           properties:
             referrer_interaction_id: { type: string, format: uuid, description: Required on place_viewed, optional on event_viewed; distinct from the current interaction }
             elapsed_ms: { type: integer, minimum: 0, maximum: 9007199254740991 }
             active_ms: { type: integer, minimum: 0, maximum: 9007199254740991 }
             attempt_number: { type: integer, minimum: 1, maximum: 2147483647 }
             viewer_role: { type: string, enum: [host, participant, visitor] }
-            reason: { type: string, enum: [app_backgrounded, screen_hidden, dismissed, completed] }
+            how: { type: string, enum: [whatsapp, share_sheet, map, timed_out, dismissed], description: How the celebration closed (celebration_closed) }
+            shown_ms: { type: integer, minimum: 0, maximum: 3600000, description: How long the celebration showed (celebration_closed) }
+            reason: { type: string, enum: [app_backgrounded, screen_hidden, dismissed, completed, back, closed], description: back/closed only on place_search_abandoned }
+            position: { type: integer, minimum: 1, maximum: 2147483647, nullable: true, description: 1-based rank for list and search; null for map_dot and pin_duplicate_check }
+            result_count: { type: integer, minimum: 0, maximum: 2147483647 }
+            query: { type: string, maxLength: 100, description: What was typed; empty when nothing was }
+            location_on: { type: boolean }
+            answer: { type: string, enum: [while_using, only_this_time, denied] }
+            via: { type: string, enum: [map_dot, list, search, pin_duplicate_check, cant_find, pin_button, long_press, whatsapp, share_sheet], description: How the place was picked (place_search_selected), the pin started (place_pinned) or the event was shared (event_shared) }
+            district: { type: string, description: place_pinned's district slug }
+            duplicate_suggested: { type: boolean }
+            duplicate_ignored: { type: boolean, description: Only true when a duplicate was suggested }
+            private: { type: boolean }
+            kind: { type: string, enum: [chip, typed] }
+            names: { type: array, minItems: 1, maxItems: 20, items: { type: string, minLength: 1, maxLength: 80 }, description: Every name typed along the way }
+            rename_count: { type: integer, minimum: 0, description: One less than names }
+            entry: { type: string, enum: [create_tab, place_card], description: Optional on event_creation_started; the bottom-bar ＋ or a place card's Start something link }
             snapshot:
               type: object
               additionalProperties: false
@@ -917,10 +1052,18 @@ components:
         host: { $ref: '#/components/schemas/Person' }
         place:
           type: object
-          required: [id, name, coordinates]
+          required: [id, name, slug, district, coordinates]
+          description: Slug and district let the app land on the event in Explore.
           properties:
             id: { type: string, format: uuid }
             name: { type: string }
+            slug: { type: string }
+            district:
+              type: object
+              required: [slug, name]
+              properties:
+                slug: { type: string }
+                name: { type: string }
             coordinates:
               type: array
               description: Longitude then latitude.

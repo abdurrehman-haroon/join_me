@@ -110,7 +110,7 @@ function EventSection({
           </Text>
         </Pressable>
       ))}
-      {loading && <ActivityIndicator color="#1D5B3A" />}
+      {loading && <ActivityIndicator color="#E3342F" />}
       {!!error && (
         <View style={{ gap: 12 }}>
           <Text accessibilityRole="alert" style={styles.body}>
@@ -149,7 +149,12 @@ function EventSection({
   );
 }
 
-export default function YourEvents() {
+export default function YourEvents({
+  embedded = false,
+}: {
+  // Inside the You tab, which shows its own title.
+  embedded?: boolean;
+}) {
   const [eventID, setEventID] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
@@ -160,9 +165,11 @@ export default function YourEvents() {
   }, []);
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[styles.content, embedded && styles.embedded]}
+      >
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Your events</Text>
+          {!embedded && <Text style={styles.pageTitle}>Your events</Text>}
           <Pressable
             accessibilityRole="button"
             onPress={() => setRefresh((value) => value + 1)}
@@ -203,30 +210,51 @@ export default function YourEvents() {
   );
 }
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F5F5EF" },
+  root: { flex: 1, backgroundColor: "#FAF5E7" },
   content: {
     paddingHorizontal: 24,
     paddingTop: 64,
     paddingBottom: 120,
     gap: 20,
   },
+  embedded: { paddingTop: 8 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  pageTitle: { fontFamily: "BigShoulders", fontSize: 48, color: "#17251D" },
-  heading: { fontSize: 24, fontWeight: "700", color: "#17251D" },
+  pageTitle: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 48,
+    color: "#203E30",
+  },
+  heading: { fontSize: 24, fontFamily: "DMSans_700Bold", color: "#203E30" },
   section: { gap: 16, marginTop: 12 },
-  card: { borderRadius: 20, backgroundColor: "#E6EADF", padding: 20, gap: 10 },
-  title: { fontFamily: "BigShoulders", fontSize: 32, color: "#17251D" },
+  card: {
+    borderRadius: 20,
+    backgroundColor: "#FFF8E8",
+    padding: 20,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
+  },
+  title: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 32,
+    color: "#203E30",
+  },
   kicker: {
     fontSize: 12,
-    fontWeight: "800",
+    fontFamily: "DMSans_700Bold",
     letterSpacing: 1,
-    color: "#1D5B3A",
+    color: "#E3342F",
   },
-  body: { fontSize: 16, color: "#17251D" },
-  muted: { fontSize: 14, color: "#68776C", lineHeight: 21 },
-  action: { color: "#1D5B3A", fontSize: 16, fontWeight: "700" },
+  body: { fontSize: 16, color: "#203E30", fontFamily: "DMSans_400Regular" },
+  muted: {
+    fontSize: 14,
+    color: "#798268",
+    lineHeight: 21,
+    fontFamily: "DMSans_400Regular",
+  },
+  action: { color: "#203E30", fontSize: 16, fontFamily: "DMSans_700Bold" },
 });

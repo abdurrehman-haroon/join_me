@@ -1,10 +1,12 @@
 package geography
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -53,7 +55,7 @@ func TestPostGISMapFlow(t *testing.T) {
 		t.Fatalf("second migration run: %v", err)
 	}
 	var versions int
-	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 14 {
+	if err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versions); err != nil || versions != 18 {
 		t.Fatalf("migration count %d: %v", versions, err)
 	}
 
@@ -170,8 +172,8 @@ func TestPostGISMapFlow(t *testing.T) {
 	}
 	var placeID string
 	var created, updated time.Time
-	err = pool.QueryRow(ctx, `INSERT INTO places (area_id,name,slug,type,location,created_at,updated_at)
-		VALUES ('00000000-0000-4000-8000-000000000102','Test campus','test-campus','campus',ST_SetSRID(ST_Point(74.41,31.47),4326),'2000-01-01','2000-01-01')
+	err = pool.QueryRow(ctx, `INSERT INTO places (area_id,name,slug,type,location,source,created_at,updated_at)
+		VALUES ('00000000-0000-4000-8000-000000000102','Test campus','test-campus','campus',ST_SetSRID(ST_Point(74.41,31.47),4326),'user','2000-01-01','2000-01-01')
         RETURNING id,created_at,updated_at`).Scan(&placeID, &created, &updated)
 	if err != nil || created.Year() == 2000 || !created.Equal(updated) {
 		t.Fatalf("insert timestamp ownership: %v", err)
@@ -180,6 +182,25 @@ func TestPostGISMapFlow(t *testing.T) {
 	err = pool.QueryRow(ctx, `UPDATE places SET name='Renamed court',created_at='2000-01-01',updated_at='2000-01-01' WHERE id=$1 RETURNING created_at,updated_at`, placeID).Scan(&createdAfter, &updatedAfter)
 	if err != nil || !createdAfter.Equal(created) || !updatedAfter.After(updated) {
 		t.Fatalf("update timestamp ownership: %v", err)
+	}
+
+	// OSM places carry their OSM reference; only they can go missing from OSM.
+	for _, statement := range []string{
+		`UPDATE places SET source='osm', osm_ref=NULL WHERE id='` + placeID + `'`,
+		`UPDATE places SET osm_ref='way/1' WHERE id='` + placeID + `'`,
+		`UPDATE places SET status='missing_from_osm' WHERE id='` + placeID + `'`,
+		`UPDATE places SET source='osm', osm_ref='street/1' WHERE id='` + placeID + `'`,
+		`UPDATE places SET source='osm', osm_ref='way/1', osm_tags='[]' WHERE id='` + placeID + `'`,
+	} {
+		_, err = pool.Exec(ctx, statement)
+		var postgresError *pgconn.PgError
+		if !errors.As(err, &postgresError) || postgresError.Code != "23514" {
+			t.Fatalf("expected place constraint rejection for %s: %v", statement, err)
+		}
+	}
+	var lumsSource, lumsRef string
+	if err = pool.QueryRow(ctx, `SELECT source::text, osm_ref FROM places WHERE id='00000000-0000-4000-8000-000000000100'`).Scan(&lumsSource, &lumsRef); err != nil || lumsSource != "osm" || lumsRef != "way/70017485" {
+		t.Fatalf("LUMS kept as an OSM place: %s %s (%v)", lumsSource, lumsRef, err)
 	}
 
 	_, err = pool.Exec(ctx, `UPDATE schema_migrations SET checksum='changed' WHERE version='000001_init.up.sql'`)
@@ -221,7 +242,7 @@ func TestExploreFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Sample events must stay repeatable, like the other development seeds.
-	for _, seedPath := range []string{"../../seeds/lahore_catalog.sql", "../../seeds/demo.sql", "../../seeds/lahore_sample_events.sql", "../../seeds/lahore_sample_events.sql"} {
+	for _, seedPath := range []string{"../../seeds/lahore_districts.sql", "../../seeds/lahore_osm_places.sql", "../../seeds/demo.sql", "../../seeds/lahore_sample_events.sql", "../../seeds/lahore_sample_events.sql"} {
 		seed, err := os.ReadFile(seedPath)
 		if err != nil {
 			t.Fatal(err)
@@ -236,7 +257,7 @@ func TestExploreFlow(t *testing.T) {
 	if err != nil || sampleEvents != 40 || sampleParticipants != 122 {
 		t.Fatalf("sample seed: events=%d participants=%d: %v", sampleEvents, sampleParticipants, err)
 	}
-	// Catalog outlines are illustrative but must contain every place in their district.
+	// Every place sits inside its district outline.
 	var placesOutsideDistrict int
 	err = pool.QueryRow(ctx, `SELECT count(*) FROM places JOIN areas AS districts ON districts.id = places.area_id
         WHERE districts.boundary IS NULL OR NOT ST_Contains(districts.boundary, places.location)`).Scan(&placesOutsideDistrict)
@@ -277,7 +298,7 @@ func TestExploreFlow(t *testing.T) {
 	if err = json.Unmarshal(response.Body.Bytes(), &cityFeed); err != nil || response.Code != 200 {
 		t.Fatalf("city feed: %d %s (%v)", response.Code, response.Body.String(), err)
 	}
-	if cityFeed.City.Slug != "lahore" || len(cityFeed.City.Bbox) != 4 || len(cityFeed.Districts) != 13 || cityFeed.Districts[0].Slug != "dha-phase-1" {
+	if cityFeed.City.Slug != "lahore" || len(cityFeed.City.Bbox) != 4 || len(cityFeed.Districts) < 1 || cityFeed.Districts[0].Slug != "gulberg" {
 		t.Fatalf("city feed shape: %s", response.Body.String())
 	}
 	if window := time.Until(cityFeed.WindowEndsAt); window < 6*24*time.Hour || window > 7*24*time.Hour {
@@ -286,10 +307,15 @@ func TestExploreFlow(t *testing.T) {
 	upcomingInCity := 0
 	for _, district := range cityFeed.Districts {
 		upcomingInCity += district.UpcomingEventCount
+		// Explore lists only districts with something coming up.
+		if district.UpcomingEventCount < 1 || district.PlaceCount < 1 {
+			t.Fatalf("district without upcoming events in the feed: %s", district.Slug)
+		}
 		if len(district.Bbox) != 4 || string(district.Boundary) == "null" {
 			t.Fatalf("district %s has no map frame or outline", district.Slug)
 		}
-		if district.Slug == "dha-phase-5" && (district.PlaceCount != 2 || district.UpcomingEventCount != 10 || string(district.FirstUp) == "null") {
+		// Place counts follow the weekly OSM seed, so only their presence is fixed.
+		if district.Slug == "dha-phase-5" && (district.PlaceCount < 1 || district.UpcomingEventCount != 11 || string(district.FirstUp) == "null") {
 			t.Fatalf("DHA Phase 5 summary: %+v", district)
 		}
 	}
@@ -321,10 +347,24 @@ func TestExploreFlow(t *testing.T) {
 			Events             []json.RawMessage
 		}
 	}
-	if err = json.Unmarshal(response.Body.Bytes(), &districtFeed); err != nil || response.Code != 200 || len(districtFeed.Places) != 4 {
+	if err = json.Unmarshal(response.Body.Bytes(), &districtFeed); err != nil || response.Code != 200 || len(districtFeed.Places) < 1 {
 		t.Fatalf("district feed: %d %s (%v)", response.Code, response.Body.String(), err)
 	}
-	doongi := districtFeed.Places[3]
+	var doongi struct {
+		Slug               string
+		Coordinates        []float64
+		UpcomingEventCount int `json:"upcoming_event_count"`
+		Events             []json.RawMessage
+	}
+	// Explore lists only places with something coming up.
+	for _, place := range districtFeed.Places {
+		if place.UpcomingEventCount < 1 {
+			t.Fatalf("place without upcoming events in the feed: %s", place.Slug)
+		}
+		if place.Slug == "doongi-ground" {
+			doongi = place
+		}
+	}
 	if doongi.Slug != "doongi-ground" || districtFeed.District.City.Slug != "lahore" || len(districtFeed.District.Bbox) != 4 || len(doongi.Coordinates) != 2 || doongi.UpcomingEventCount != 26 || len(doongi.Events) != 20 {
 		t.Fatalf("capped place carousel: count=%d events=%d", doongi.UpcomingEventCount, len(doongi.Events))
 	}
@@ -365,6 +405,175 @@ func TestExploreFlow(t *testing.T) {
 		response = httptest.NewRecorder()
 		mux.ServeHTTP(response, httptest.NewRequest("GET", path, nil))
 		if response.Code != http.StatusNotFound {
+			t.Fatalf("%s: got %d", path, response.Code)
+		}
+	}
+	testPlacePicker(t, ctx, pool, handler)
+}
+
+// The create flow's picker: every place once, and search across all of Lahore.
+func testPlacePicker(t *testing.T, ctx context.Context, pool *pgxpool.Pool, handler Handler) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /cities/{city}/places", handler.ListPickerPlaces)
+	mux.HandleFunc("GET /cities/{city}/places/search", handler.SearchPlaces)
+	get := func(path string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, httptest.NewRequest("GET", path, nil))
+		return response
+	}
+
+	var all struct {
+		Fields    []string          `json:"fields"`
+		Districts map[string]string `json:"districts"`
+		Places    [][]any           `json:"places"`
+	}
+	response := get("/cities/lahore/places")
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &all) != nil {
+		t.Fatalf("picker places: %d %s", response.Code, response.Body)
+	}
+	var active int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM places WHERE status = 'active' AND review_status <> 'rejected'`).Scan(&active); err != nil {
+		t.Fatal(err)
+	}
+	if len(all.Fields) != 10 || len(all.Places) != active || active < 2000 || len(all.Districts) != 68 || all.Districts["gulberg"] != "Gulberg" {
+		t.Fatalf("picker places: %d fields, %d of %d places", len(all.Fields), len(all.Places), active)
+	}
+	withEvents := 0
+	for _, row := range all.Places {
+		if len(row) != 10 {
+			t.Fatalf("picker row %v", row)
+		}
+		if row[0] == "00000000-0000-4000-8000-000000000100" && row[7].(float64) < 1 {
+			t.Fatalf("LUMS has no upcoming events in the picker: %v", row)
+		}
+		if row[7].(float64) > 0 {
+			withEvents++
+		}
+	}
+	var upcomingPlaces int
+	if err := pool.QueryRow(ctx, `SELECT count(DISTINCT events.place_id) FROM events JOIN status ON status.id = events.status_id
+        WHERE status.slug = 'scheduled' AND events.starts_at > statement_timestamp()
+            AND events.starts_at < statement_timestamp() + interval '7 days'`).Scan(&upcomingPlaces); err != nil {
+		t.Fatal(err)
+	}
+	if withEvents != upcomingPlaces || withEvents < 20 {
+		t.Fatalf("places with upcoming events in the picker: %d", withEvents)
+	}
+	// Phones ask for gzip; the rows come back compressed and identical.
+	request := httptest.NewRequest("GET", "/cities/lahore/places", nil)
+	request.Header.Set("Accept-Encoding", "gzip")
+	zipped := httptest.NewRecorder()
+	mux.ServeHTTP(zipped, request)
+	compressedSize := zipped.Body.Len()
+	reader, err := gzip.NewReader(zipped.Body)
+	if err != nil || zipped.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatalf("gzip: %v %v", zipped.Header(), err)
+	}
+	unzipped, err := io.ReadAll(reader)
+	var unzippedPlaces struct {
+		Places [][]any `json:"places"`
+	}
+	if err != nil || json.Unmarshal(unzipped, &unzippedPlaces) != nil || len(unzippedPlaces.Places) != len(all.Places) || compressedSize*2 > len(unzipped) {
+		t.Fatalf("gzip body: %d compressed, %d plain (%v)", compressedSize, len(unzipped), err)
+	}
+	// A place that left OpenStreetMap is not offered.
+	if _, err := pool.Exec(ctx, `UPDATE places SET status = 'missing_from_osm' WHERE osm_ref = 'node/7255015825'`); err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Exec(ctx, `UPDATE places SET status = 'active' WHERE osm_ref = 'node/7255015825'`)
+	response = get("/cities/lahore/places")
+	if json.Unmarshal(response.Body.Bytes(), &all) != nil || len(all.Places) != active-1 {
+		t.Fatalf("missing place still offered: %d of %d", len(all.Places), active)
+	}
+
+	type result struct {
+		Name        string     `json:"name"`
+		Coordinates [2]float64 `json:"coordinates"`
+		Distance    *float64   `json:"distance_m"`
+	}
+	var search struct {
+		ResultCount int      `json:"result_count"`
+		Places      []result `json:"places"`
+	}
+	find := func(path string) {
+		t.Helper()
+		search.Places, search.ResultCount = nil, 0
+		response := get(path)
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &search) != nil {
+			t.Fatalf("%s: %d %s", path, response.Code, response.Body)
+		}
+	}
+	names := func() []string {
+		list := make([]string, len(search.Places))
+		for i, place := range search.Places {
+			list[i] = place.Name
+		}
+		return list
+	}
+
+	// An alternative name finds LUMS; a typo still finds Gloria Jean's and Gaddafi Stadium.
+	for query, want := range map[string]string{
+		"lums":           "Lahore University of Management Sciences",
+		"glora%20jeans":  "Gloria Jean's",
+		"gadafi+stadium": "Gaddafi Stadium",
+	} {
+		find("/cities/lahore/places/search?q=" + query)
+		if len(search.Places) == 0 || !strings.EqualFold(search.Places[0].Name, want) {
+			t.Fatalf("search %q: got %v", query, names())
+		}
+	}
+	// Places with an Urdu name too still match a typo of their shown name.
+	var glorias int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM places WHERE name = 'Gloria Jean''s' AND status = 'active'`).Scan(&glorias); err != nil {
+		t.Fatal(err)
+	}
+	find("/cities/lahore/places/search?q=glora+jeans&limit=50")
+	if search.ResultCount < glorias || glorias < 5 {
+		t.Fatalf("glora jeans: %d results for %d Gloria Jean's: %v", search.ResultCount, glorias, names())
+	}
+	// Names starting with the query come first, nearest first, and the point is only used for order.
+	find("/cities/lahore/places/search?q=gloria&near=74.3456,31.5104&limit=50")
+	if search.ResultCount < 2 || search.ResultCount < len(search.Places) {
+		t.Fatalf("gloria: count %d for %v", search.ResultCount, names())
+	}
+	last := -1.0
+	for _, place := range search.Places {
+		if !strings.HasPrefix(strings.ToLower(place.Name), "gloria") {
+			break
+		}
+		if place.Distance == nil || *place.Distance < last {
+			t.Fatalf("gloria not nearest first: %v", names())
+		}
+		last = *place.Distance
+	}
+	find("/cities/lahore/places/search?q=gloria")
+	if search.Places[0].Distance != nil {
+		t.Fatal("distance without near")
+	}
+	find("/cities/lahore/places/search?q=gloria&limit=1")
+	if len(search.Places) != 1 || search.ResultCount < 2 {
+		t.Fatalf("limit: %d places of %d", len(search.Places), search.ResultCount)
+	}
+	// Wildcards are matched literally, and a city we do not know has no places.
+	for _, path := range []string{"/cities/lahore/places/search?q=%25", "/cities/lahore/places/search?q=_", "/cities/karachi/places/search?q=gloria"} {
+		find(path)
+		if len(search.Places) != 0 || search.ResultCount != 0 {
+			t.Fatalf("%s: got %v", path, names())
+		}
+	}
+	for _, path := range []string{
+		"/cities/lahore/places/search",
+		"/cities/lahore/places/search?q=%20%20",
+		"/cities/lahore/places/search?q=" + strings.Repeat("a", 101),
+		"/cities/lahore/places/search?q=a%0Ab",
+		"/cities/lahore/places/search?q=gloria&limit=0",
+		"/cities/lahore/places/search?q=gloria&limit=51",
+		"/cities/lahore/places/search?q=gloria&near=74.3",
+		"/cities/lahore/places/search?q=gloria&near=200,31",
+		"/cities/Lahore/places/search?q=gloria",
+		"/cities/Lahore/places",
+	} {
+		if response := get(path); response.Code != http.StatusBadRequest {
 			t.Fatalf("%s: got %d", path, response.Code)
 		}
 	}

@@ -5,7 +5,8 @@ export type ActivitySource =
   | "event_chat"
   | "your_events"
   | "profile"
-  | "explore";
+  | "explore"
+  | "celebration";
 export type ClientAction =
   | "session_started"
   | "chat_opened"
@@ -17,7 +18,13 @@ export type ClientAction =
   | "join_attempted"
   | "interaction_paused"
   | "interaction_resumed"
-  | "interaction_closed";
+  | "interaction_closed"
+  | "place_search_selected"
+  | "place_search_abandoned"
+  | "location_permission_answered"
+  | "place_pinned"
+  | "event_shared"
+  | "celebration_closed";
 export type Activity = {
   id: string;
   action: ClientAction;
@@ -226,7 +233,9 @@ export class ActivityQueue {
   }
 }
 
-export type InteractionTarget = { type: "event" | "place"; id: string };
+// Null while there is nothing to point at yet: the ＋ opens the form before a
+// place is picked.
+export type InteractionTarget = { type: "event" | "place"; id: string } | null;
 
 // Pure timing logic, independent of React and native storage, for deterministic tests.
 export class ActivityInteraction {
@@ -258,18 +267,28 @@ export class ActivityInteraction {
     this.id = uuid();
     this.lifecycleSource = source;
     if (startAction === "chat_opened") this.lifecycleSource = "event_chat";
-    else if (startAction === "event_viewed") this.lifecycleSource = "event_details";
-    else if (startAction === "place_viewed") this.lifecycleSource = "place_details";
+    else if (startAction === "event_viewed")
+      this.lifecycleSource = "event_details";
+    else if (startAction === "place_viewed")
+      this.lifecycleSource = "place_details";
     this.started = clock();
     this.foreground = foreground;
     if (foreground) this.lastActive = this.started;
     this.record(startAction, details);
   }
 
+  // Later rows point at the place picked in the form.
+  setTarget(target: InteractionTarget) {
+    this.target = target;
+  }
+
+  // `target` overrides the interaction's for one row: the picker's abandon and
+  // permission rows never carry a place, even after one was picked.
   record(
     action: ClientAction,
     details: Record<string, unknown> = {},
     source = this.source,
+    target = this.target,
   ) {
     if (this.closed) return;
     const now = this.step === 0 ? this.started : this.clock();
@@ -281,8 +300,8 @@ export class ActivityInteraction {
       session_id: this.sessionID,
       interaction_id: this.id,
       interaction_step: ++this.step,
-      trackable_type: this.target.type,
-      trackable_id: this.target.id,
+      trackable_type: target?.type ?? null,
+      trackable_id: target?.id ?? null,
       source,
       occurred_at: new Date().toISOString(),
       details: {

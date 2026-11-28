@@ -344,3 +344,58 @@ test("one session start survives effect replay, backgrounding, delivery retry an
   assert.equal(last[1].session_id, "second-session");
   assert.equal(saved.entries.length, 0);
 });
+
+test("the ＋ starts creation without a place; the pick retargets later rows but not abandons", () => {
+  const { ActivityInteraction } = runtime();
+  let now = 0,
+    id = 0;
+  const rows = [];
+  const visit = new ActivityInteraction(
+    "session",
+    null,
+    "event_form",
+    "event_creation_started",
+    { entry: "create_tab" },
+    (row) => rows.push(row),
+    () => String(++id),
+    () => now,
+  );
+  now = 4000;
+  visit.record(
+    "place_search_abandoned",
+    { query: "", result_count: 12, location_on: false, reason: "back" },
+    undefined,
+    null,
+  );
+  visit.setTarget({ type: "place", id: "gloria" });
+  now = 9000;
+  visit.record("place_search_selected", {
+    via: "list",
+    position: 2,
+    result_count: 12,
+    query: "",
+    location_on: false,
+  });
+  visit.record(
+    "place_search_abandoned",
+    { query: "", result_count: 3, location_on: false, reason: "back" },
+    undefined,
+    null,
+  );
+  visit.record("event_creation_submitted", { attempt_number: 1 });
+  assert.deepEqual(
+    rows.map((row) => [row.action, row.trackable_type, row.trackable_id]),
+    [
+      ["event_creation_started", null, null],
+      ["place_search_abandoned", null, null],
+      ["place_search_selected", "place", "gloria"],
+      ["place_search_abandoned", null, null],
+      ["event_creation_submitted", "place", "gloria"],
+    ],
+  );
+  assert.deepEqual(
+    rows.map((row) => row.interaction_step),
+    [1, 2, 3, 4, 5],
+  );
+  assert.equal(rows[2].details.elapsed_ms, 9000);
+});

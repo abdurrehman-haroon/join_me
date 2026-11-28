@@ -12,7 +12,11 @@ import (
 	"joinme/backend/internal/database"
 )
 
-type Handler struct{ Queries *database.Queries }
+type Handler struct {
+	Queries *database.Queries
+	// The viewer, until sign-in: their private places show in the picker.
+	DemoUserID pgtype.UUID
+}
 
 // Explore pages count events in the coming week, so "things happening" stays
 // meaningful without counting events months away. Responses echo the end time.

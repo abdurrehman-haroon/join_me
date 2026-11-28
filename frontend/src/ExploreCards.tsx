@@ -141,8 +141,7 @@ export function DistrictCard({
           </>
         ) : (
           <Text style={styles.portalNote}>
-            Nothing coming up yet · {placeCount}{" "}
-            {placeCount === 1 ? "place" : "places"} to explore
+            Nothing coming up yet. Be the first to start something.
           </Text>
         )}
       </View>
@@ -167,6 +166,7 @@ export function DistrictCard({
 // moves, so the map can glide between the grounds of neighbouring events.
 export function PlaceCard({
   name,
+  isNew = false,
   count,
   events,
   selectedIndex,
@@ -178,6 +178,8 @@ export function PlaceCard({
   onTouchCarousel,
 }: {
   name: string;
+  // Pinned by someone and not reviewed yet.
+  isNew?: boolean;
   count: number;
   events: EventSummary[];
   selectedIndex: number;
@@ -212,9 +214,12 @@ export function PlaceCard({
   return (
     <View style={[styles.card, styles.placeCard]}>
       <View style={styles.placeHeading}>
-        <Text style={styles.placeName} numberOfLines={1}>
-          {name}
-        </Text>
+        <View style={styles.placeTitle}>
+          <Text style={styles.placeName} numberOfLines={1}>
+            {name}
+          </Text>
+          {isNew && <Text style={styles.newPlace}>NEW PLACE</Text>}
+        </View>
         {/* The action sits in the heading so the card leaves the map in view. */}
         {onStartSomething && (
           <Pressable
@@ -255,7 +260,9 @@ export function PlaceCard({
               }}
               onScroll={(event) => {
                 if (scrolling.current)
-                  onScrollEvents(event.nativeEvent.contentOffset.x / eventStride);
+                  onScrollEvents(
+                    event.nativeEvent.contentOffset.x / eventStride,
+                  );
               }}
               onMomentumScrollEnd={(event) => {
                 scrolling.current = false;
@@ -624,6 +631,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#DDE3D6",
     gap: 10,
+  },
+  placeTitle: {
+    flexShrink: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  newPlace: {
+    fontFamily: explore.bodyBold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: explore.red,
+    borderWidth: 1,
+    borderColor: explore.red,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: "hidden",
   },
   placeName: {
     flexShrink: 1,

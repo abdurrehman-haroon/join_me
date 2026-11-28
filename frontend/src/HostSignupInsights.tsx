@@ -16,10 +16,7 @@ type SignupInsights = {
   first_full_at: string | null;
   first_full_seconds: number | null;
   first_full_reason:
-    | "signup"
-    | "capacity_reduction"
-    | "initial_capacity"
-    | null;
+    "signup" | "capacity_reduction" | "initial_capacity" | null;
 };
 
 function signupDelay(seconds: number) {
@@ -108,7 +105,7 @@ export default function HostSignupInsights({
         {Math.max(0, capacity - participantCount)} remaining
       </Text>
       <Text style={styles.muted}>Capacity includes your spot as host.</Text>
-      {loading && !insights && <ActivityIndicator color="#1D5B3A" />}
+      {loading && !insights && <ActivityIndicator color="#E3342F" />}
       {insights && !error && (loading || loadedRevision !== revision) && (
         <Text accessibilityLiveRegion="polite" style={styles.muted}>
           Updating signup insights…
@@ -197,12 +194,38 @@ export default function HostSignupInsights({
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: "#E5E9DF", borderRadius: 20, padding: 20, gap: 12 },
-  heading: { fontFamily: "BigShoulders", fontSize: 30, color: "#15201B" },
-  label: { color: "#15201B", fontSize: 16, fontWeight: "700" },
-  body: { color: "#15201B", fontSize: 16, lineHeight: 23 },
-  muted: { color: "#6C786E", fontSize: 14, lineHeight: 21 },
-  action: { color: "#1D5B3A", fontSize: 16, fontWeight: "700" },
+  card: {
+    backgroundColor: "#FFF8E8",
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#D2D9B8",
+  },
+  heading: {
+    fontFamily: "BarlowCondensed_800ExtraBold",
+    fontSize: 30,
+    color: "#203E30",
+  },
+  label: { color: "#203E30", fontSize: 16, fontFamily: "DMSans_700Bold" },
+  body: {
+    color: "#203E30",
+    fontSize: 16,
+    lineHeight: 23,
+    fontFamily: "DMSans_400Regular",
+  },
+  muted: {
+    color: "#798268",
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: "DMSans_400Regular",
+  },
+  action: { color: "#203E30", fontSize: 16, fontFamily: "DMSans_700Bold" },
   refresh: { paddingVertical: 12 },
-  error: { color: "#B51E2C", fontSize: 14, lineHeight: 21 },
+  error: {
+    color: "#B51E2C",
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: "DMSans_400Regular",
+  },
 });
